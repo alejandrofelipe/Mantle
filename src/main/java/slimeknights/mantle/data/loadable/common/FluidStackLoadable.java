@@ -78,7 +78,10 @@ public class FluidStackLoadable {
     if (patch == null || patch.isEmpty()) {
       return new FluidStack(fluid, amount);
     }
-    return new FluidStack(fluid, amount, patch);
+    // NeoForge FluidStack has no (Fluid,int,DataComponentPatch) ctor; build from (Fluid,int) then apply the patch.
+    FluidStack stack = new FluidStack(fluid, amount);
+    stack.applyComponents(patch);
+    return stack;
   }
 
   /** Creates a loadable for a stack with a single item */

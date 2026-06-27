@@ -1,5 +1,6 @@
 package slimeknights.mantle.data.predicate.entity;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.LivingEntity;
 import slimeknights.mantle.data.loadable.Loadables;
@@ -14,7 +15,8 @@ public record HasMobEffectPredicate(MobEffect effect) implements LivingEntityPre
 
   @Override
   public boolean matches(LivingEntity living) {
-    return living.hasEffect(effect);
+    // 1.21 LivingEntity#hasEffect takes a Holder<MobEffect>; wrap the value as a holder from the built-in registry.
+    return living.hasEffect(BuiltInRegistries.MOB_EFFECT.wrapAsHolder(effect));
   }
 
   @Override

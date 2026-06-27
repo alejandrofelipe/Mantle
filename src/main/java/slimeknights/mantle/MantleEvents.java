@@ -1,5 +1,6 @@
 package slimeknights.mantle;
 
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.entity.LivingEntity;
@@ -7,6 +8,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.GameRules;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
@@ -31,11 +33,10 @@ import java.util.List;
  */
 @EventBusSubscriber(modid = Mantle.modId, bus = Bus.GAME)
 public class MantleEvents {
-  // TODO PORT (codebase-wide NBT -> data component migration): the soulbound handlers below still use the
-  // removed-in-1.21 ItemStack NBT API (getOrCreateTag/getTag/setTag) to stash the SOULBOUND_SLOT marker. Sibling
-  // files (e.g. client/book/BookHelper, client/model/NBTKeyModel) use the same pattern and are pending the same
-  // migration to DataComponents.CUSTOM_DATA (CustomData#update / #getUnsafe). The forge->neoforge event/bus imports
-  // (the entrypoint port's scope) are done; these NBT accessors converge with the rest of the codebase.
+  // The soulbound handlers below stash the SOULBOUND_SLOT marker in DataComponents.CUSTOM_DATA via CustomData
+  // (#update to read-modify-write, #copyTag/#contains to inspect), the 1.21 replacement for the removed ItemStack
+  // NBT API (getOrCreateTag/getTag/setTag). When the marker tag becomes empty the CUSTOM_DATA component is removed so
+  // stacks stay mergeable. Matches the pattern in client/book/BookHelper and client/model/NBTKeyModel.
   /* Soulbound */
   /**
    * NBT key for items to preserve their slot in soulbound. Applied to items tagged {@link MantleTags.Items#SOULBOUND}.
@@ -56,7 +57,8 @@ public class MantleEvents {
       for (int i = 0; i < totalSize; i++) {
         ItemStack stack = inventory.getItem(i);
         if (!stack.isEmpty() && stack.is(MantleTags.Items.SOULBOUND)) {
-          stack.getOrCreateTag().putInt(SOULBOUND_SLOT, i);
+          int slot = i;
+          CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putInt(SOULBOUND_SLOT, slot));
         }
       }
     }
@@ -76,7 +78,8 @@ public class MantleEvents {
         ItemEntity itemEntity = iter.next();
         ItemStack stack = itemEntity.getItem();
         // find items with our soulbound tag set and move them back into the inventory, will move them over later
-        CompoundTag tag = stack.getTag();
+        CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
+        CompoundTag tag = customData != null ? customData.copyTag() : null;
         if (tag != null && tag.contains(SOULBOUND_SLOT, Tag.TAG_ANY_NUMERIC)) {
           int slot = tag.getInt(SOULBOUND_SLOT);
           // return the tool to its requested slot if possible, remove from the drops
@@ -98,11 +101,13 @@ public class MantleEvents {
           // last resort, somehow we just cannot put the stack anywhere, so drop it on the ground
           // this should never happen, but better to be safe
           // ditch the soulbound slot tag, to prevent item stacking issues
-          CompoundTag tag = stack.getTag();
-          if (tag != null) {
-            tag.remove(SOULBOUND_SLOT);
-            if (tag.isEmpty()) {
-              stack.setTag(null);
+          CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
+          if (customData != null && customData.contains(SOULBOUND_SLOT)) {
+            CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.remove(SOULBOUND_SLOT));
+            // if the data is now empty, drop the component entirely to keep stacks mergeable
+            CustomData updated = stack.get(DataComponents.CUSTOM_DATA);
+            if (updated == null || updated.isEmpty()) {
+              stack.remove(DataComponents.CUSTOM_DATA);
             }
           }
           drops.add(itemEntity);
@@ -132,17 +137,19 @@ public class MantleEvents {
     for(int i = 0; i < size; i++) {
       ItemStack stack = originalInv.getItem(i);
       if (!stack.isEmpty()) {
-        CompoundTag tag = stack.getTag();
+        CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
+        CompoundTag tag = customData != null ? customData.copyTag() : null;
         if (tag != null && tag.contains(SOULBOUND_SLOT, Tag.TAG_ANY_NUMERIC)) {
           if (cloneInv.getItem(i).isEmpty()) {
             cloneInv.setItem(i, stack);
           } else {
             takenSlot.add(stack);
           }
-          // remove the slot tag, clear the tag if needed
-          tag.remove(SOULBOUND_SLOT);
-          if (tag.isEmpty()) {
-            stack.setTag(null);
+          // remove the slot tag, clear the component if it is now empty
+          CustomData.update(DataComponents.CUSTOM_DATA, stack, t -> t.remove(SOULBOUND_SLOT));
+          CustomData updated = stack.get(DataComponents.CUSTOM_DATA);
+          if (updated == null || updated.isEmpty()) {
+            stack.remove(DataComponents.CUSTOM_DATA);
           }
         }
       }

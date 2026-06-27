@@ -25,8 +25,8 @@ public interface DamageSourcePredicate extends IJsonPredicate<DamageSource> {
   /** Loader for item predicates */
   TagPredicateRegistry<DamageType, DamageSource> LOADER = new TagPredicateRegistry<>("Damage Source Predicate", ANY, NONE, Loadables.DAMAGE_TYPE_TAG, (tag, source) -> source.is(tag));
 
-  /** Damage that is caused by an entity using another entity */
-  DamageSourcePredicate IS_INDIRECT = simple(DamageSource::isIndirect);
+  /** Damage that is caused by an entity using another entity (e.g. a projectile). {@code DamageSource#isIndirect} was removed in 1.21; replicate via direct vs causing entity. */
+  DamageSourcePredicate IS_INDIRECT = simple(source -> source.getDirectEntity() != source.getEntity());
   /** Damage that is caused by an entity */
   DamageSourcePredicate HAS_ENTITY = simple(source -> source.getEntity() != null);
   /** Damage that protection works against */

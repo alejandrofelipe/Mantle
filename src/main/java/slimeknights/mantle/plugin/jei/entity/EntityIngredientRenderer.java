@@ -81,7 +81,10 @@ public class EntityIngredientRenderer implements IIngredientRenderer<EntityIngre
           }
           // catch exceptions drawing the entity to be safe, any caught exceptions blacklist the entity
           try {
-            InventoryScreen.renderEntityInInventoryFollowsMouse(graphics, size / 2, size, scale, 0, 10, livingEntity);
+            // 1.21: renderEntityInInventoryFollowsMouse now takes a rectangle (x1,y1,x2,y2) instead of an anchor point.
+            // The 0..size square keeps the old anchor (center-x, bottom). 0.0625F is the vanilla y-offset, and the
+            // trailing (0, 10) are the follow-mouse coordinates that reproduce the original fixed tilt.
+            InventoryScreen.renderEntityInInventoryFollowsMouse(graphics, 0, 0, size, size, scale, 0.0625F, 0, 10, livingEntity);
             return;
           } catch (Exception e) {
             Mantle.logger.error("Error drawing entity " + BuiltInRegistries.ENTITY_TYPE.getKey(type), e);

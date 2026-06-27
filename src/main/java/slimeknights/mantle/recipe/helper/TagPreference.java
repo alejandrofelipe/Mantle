@@ -8,7 +8,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.common.NeoForge;
-import net.minecraftforge.event.TagsUpdatedEvent;
+import net.neoforged.neoforge.event.TagsUpdatedEvent;
 import net.neoforged.bus.api.EventPriority;
 import slimeknights.mantle.config.Config;
 import slimeknights.mantle.util.LogicHelper;

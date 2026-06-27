@@ -1,24 +1,24 @@
 package slimeknights.mantle.datagen;
 
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.data.PackOutput;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.alchemy.PotionUtils;
+import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.material.Fluid;
-import net.minecraftforge.common.crafting.conditions.ICondition;
-import net.minecraftforge.common.crafting.conditions.NotCondition;
+import net.neoforged.neoforge.common.conditions.ICondition;
+import net.neoforged.neoforge.common.conditions.NotCondition;
 import org.jetbrains.annotations.ApiStatus.Internal;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.fluid.transfer.AbstractFluidContainerTransferProvider;
 import slimeknights.mantle.fluid.transfer.EmptyPotionTransfer;
 import slimeknights.mantle.fluid.transfer.FillFluidContainerTransfer;
 import slimeknights.mantle.fluid.transfer.FillFluidWithNBTTransfer;
-import slimeknights.mantle.recipe.condition.TagFilledCondition;
 import slimeknights.mantle.recipe.helper.ItemOutput;
 import slimeknights.mantle.recipe.ingredient.FluidIngredient;
 
@@ -51,9 +51,23 @@ public class MantleFluidTransferProvider extends AbstractFluidContainerTransferP
     optionalFillEmpty("rabbit_stew_",   Items.RABBIT_STEW,   Items.BOWL,         MantleTags.Fluids.RABBIT_STEW,   MantleValues.BOWL,   false);
   }
 
+  /**
+   * TODO PORT (stage 5 recipe conditions): Mantle's {@link slimeknights.mantle.recipe.condition.TagFilledCondition}
+   * still implements the Forge {@code net.minecraftforge.common.crafting.conditions.ICondition} (the whole
+   * {@code slimeknights.mantle.recipe.condition} package is unported). The datagen providers now consume the NeoForge
+   * {@code net.neoforged.neoforge.common.conditions.ICondition}, so the "tag is filled" condition cannot be constructed
+   * here yet. Once {@code TagFilledCondition} is ported to the NeoForge MapCodec-based ICondition, replace this with
+   * {@code new NotCondition(new <ported>TagEmptyCondition<>(tag))} (or the ported TagFilledCondition directly).
+   * Returns a NeoForge-typed condition so the surrounding recipe structure compiles; it throws if actually evaluated,
+   * matching the existing stage-5 stub in {@link AbstractFluidContainerTransferProvider} which also rejects conditions.
+   */
+  private static ICondition tagFilled(TagKey<?> tag) {
+    throw new UnsupportedOperationException("Mantle TagFilledCondition not yet ported to NeoForge codecs (stage 5): " + tag);
+  }
+
   /** Adds generic fill and empty for a container */
   private void optionalFillEmpty(String prefix, ItemLike item, ItemLike container, TagKey<Fluid> tag, int amount, boolean nbt) {
-    addFillEmpty(prefix, item, container, tag, amount, nbt, new TagFilledCondition<>(tag));
+    addFillEmpty(prefix, item, container, tag, amount, nbt, tagFilled(tag));
   }
 
   /** Adds generic fill and empty for a container */
@@ -62,12 +76,12 @@ public class MantleFluidTransferProvider extends AbstractFluidContainerTransferP
     // for emptying, if they are absent just use glass bottles
     // for filling, if they are absent then we can't do the fill recipes
     Ingredient container;
-    ICondition potionCondition = new TagFilledCondition<>(MantleTags.Fluids.POTION);
+    ICondition potionCondition = tagFilled(MantleTags.Fluids.POTION);
     ICondition[] potionConditions;
     ICondition[] waterConditions;
     if (bottleTag != null) {
       container = Ingredient.of(bottleTag);
-      ICondition containerCondition = new TagFilledCondition<>(bottleTag);
+      ICondition containerCondition = tagFilled(bottleTag);
       waterConditions = new ICondition[]{containerCondition};
       potionConditions = new ICondition[]{potionCondition, containerCondition};
 
@@ -91,8 +105,19 @@ public class MantleFluidTransferProvider extends AbstractFluidContainerTransferP
     // we can always fill water bottles, not always fill splash and lingering
     addTransfer(prefix + "fill_water", new FillFluidContainerTransfer(
       container,
-      ItemOutput.fromStack(PotionUtils.setPotion(new ItemStack(filled), Potions.WATER)),
+      ItemOutput.fromStack(waterPotion(filled)),
       FluidIngredient.of(MantleTags.Fluids.WATER, MantleValues.BOTTLE * 2)),
       waterConditions);
+  }
+
+  /**
+   * Creates a stack of the given potion item set to the water potion.
+   * Replaces 1.20.1 {@code PotionUtils.setPotion(stack, Potions.WATER)}; in 1.21 the potion lives in the
+   * {@link DataComponents#POTION_CONTENTS} component and {@link Potions#WATER} is a {@code Holder<Potion>}.
+   */
+  private static ItemStack waterPotion(ItemLike filled) {
+    ItemStack stack = new ItemStack(filled);
+    stack.set(DataComponents.POTION_CONTENTS, new PotionContents(Potions.WATER));
+    return stack;
   }
 }

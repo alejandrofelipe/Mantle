@@ -32,7 +32,9 @@ public class JEIPlugin implements IModPlugin {
 
   @Override
   public void registerVanillaCategoryExtensions(IVanillaCategoryExtensionRegistration registry) {
-    registry.getCraftingCategory().addCategoryExtension(ShapedRetexturedRecipe.class, RetexturableRecipeExtension::new);
+    // JEI 19.x: addExtension replaces addCategoryExtension and takes a stateless extension instance
+    // (the recipe is supplied per-call via RecipeHolder) instead of a per-recipe factory
+    registry.getCraftingCategory().addExtension(ShapedRetexturedRecipe.class, new RetexturableRecipeExtension());
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})

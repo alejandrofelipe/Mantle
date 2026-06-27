@@ -1,24 +1,20 @@
 package slimeknights.mantle.recipe.condition;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
-import net.minecraftforge.common.crafting.conditions.ICondition;
-import net.minecraftforge.common.crafting.conditions.IConditionSerializer;
+import net.neoforged.neoforge.common.conditions.ICondition;
 import slimeknights.mantle.Mantle;
-import slimeknights.mantle.data.loadable.Loadable;
-import slimeknights.mantle.data.loadable.Loadables;
-import slimeknights.mantle.data.loadable.array.ArrayLoadable;
-import slimeknights.mantle.util.JsonHelper;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Condition checking for a combination of tags having any entries
@@ -29,6 +25,20 @@ import java.util.List;
 @SuppressWarnings("unused")
 public record TagCombinationCondition<T>(List<TagKey<T>> match, @Nullable TagKey<T> ignore) implements ICondition {
   public static final ResourceLocation ID = Mantle.getResource("tag_combination_filled");
+
+  /** Codec for the condition, serializing the optional registry (defaulting to item), match tags, and optional ignore tag */
+  @SuppressWarnings("unchecked")
+  public static final MapCodec<TagCombinationCondition<?>> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+    // default to item registry if registry is unset, save some space in JSON by not setting registry if item (most common)
+    ResourceLocation.CODEC.optionalFieldOf("registry", Registries.ITEM.location()).forGetter(c -> c.match.get(0).registry().location()),
+    ResourceLocation.CODEC.listOf().fieldOf("match").forGetter(c -> c.match.stream().map(TagKey::location).toList()),
+    ResourceLocation.CODEC.optionalFieldOf("ignore").forGetter(c -> Optional.ofNullable(c.ignore).map(TagKey::location))
+  ).apply(inst, (registry, match, ignore) -> {
+    ResourceKey<Registry<Object>> key = ResourceKey.createRegistryKey(registry);
+    return new TagCombinationCondition<>(
+      match.stream().map(id -> TagKey.create(key, id)).toList(),
+      ignore.map(id -> TagKey.create(key, id)).orElse(null));
+  }));
 
   public TagCombinationCondition {
     if (match.isEmpty()) {
@@ -53,10 +63,9 @@ public record TagCombinationCondition<T>(List<TagKey<T>> match, @Nullable TagKey
     return match(ignore, match);
   }
 
-
   @Override
-  public ResourceLocation getID() {
-    return ID;
+  public MapCodec<? extends ICondition> codec() {
+    return CODEC;
   }
 
   @Override
@@ -93,44 +102,4 @@ public record TagCombinationCondition<T>(List<TagKey<T>> match, @Nullable TagKey
     // no item in all tags
     return false;
   }
-
-  public static final IConditionSerializer<TagCombinationCondition<?>> SERIALIZER = new IConditionSerializer<>() {
-    private static final Loadable<List<ResourceLocation>> MATCH = Loadables.RESOURCE_LOCATION.list(ArrayLoadable.COMPACT);
-
-    @Override
-    public ResourceLocation getID() {
-      return ID;
-    }
-
-    @Override
-    public void write(JsonObject json, TagCombinationCondition<?> value) {
-      // save some space in JSON by not setting registry if item (most common)
-      ResourceKey<?> registry = value.match.get(0).registry();
-      if (!Registries.ITEM.equals(registry)) {
-        json.addProperty("registry", registry.location().toString());
-      }
-      // serialize to a single field if just 1 name
-      if (value.match.size() == 1) {
-        json.addProperty("match", value.match.get(0).location().toString());
-      } else {
-        JsonArray names = new JsonArray();
-        for (TagKey<?> name : value.match) {
-          names.add(name.location().toString());
-        }
-        json.add("match", names);
-      }
-      if (value.ignore != null) {
-        json.addProperty("ignore", value.ignore.location().toString());
-      }
-    }
-
-    @Override
-    public TagCombinationCondition<?> read(JsonObject json) {
-      // default to item registry if registry is unset
-      ResourceKey<Registry<Object>> registry = ResourceKey.createRegistryKey(JsonHelper.getResourceLocation(json, "registry", Registries.ITEM.location()));
-      return new TagCombinationCondition<>(
-        MATCH.getIfPresent(json, "match").stream().map(id -> TagKey.create(registry, id)).toList(),
-        json.has("ignore") ? TagKey.create(registry, JsonHelper.getResourceLocation(json, "ignore")) : null);
-    }
-  };
 }

@@ -1,38 +1,28 @@
 package slimeknights.mantle.network;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraftforge.common.util.FakePlayer;
-import net.minecraftforge.network.NetworkDirection;
-import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.simple.SimpleChannel;
-import slimeknights.mantle.Mantle;
-import slimeknights.mantle.network.packet.ISimplePacket;
-
-import javax.annotation.Nullable;
-import java.util.Optional;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import net.minecraft.world.level.ChunkPos;
+import net.neoforged.neoforge.common.util.FakePlayer;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * A small network implementation/wrapper using AbstractPackets instead of IMessages.
- * Instantiate in your mod class and register your packets accordingly.
+ * A small network implementation/wrapper around NeoForge's {@link CustomPacketPayload} system.
+ * Instantiate in your mod class, register your packets in {@code registerPayloads}, and use the send
+ * helpers to dispatch packets.
  */
 @SuppressWarnings({"unused", "WeakerAccess"})
 public class NetworkWrapper {
-  /** Network instance */
-  public final SimpleChannel network;
-  private int id = 0;
+  /** Unique channel name for this network, also used as the payload registrar namespace */
+  public final ResourceLocation channelName;
+  /** Network protocol version string */
+  public final String version;
 
   /**
    * Creates a new network wrapper
@@ -45,60 +35,8 @@ public class NetworkWrapper {
   }
 
   public NetworkWrapper(ResourceLocation channelName, String version) {
-    this.network = NetworkRegistry.ChannelBuilder
-      .named(channelName)
-      .clientAcceptedVersions(version::equals)
-      .serverAcceptedVersions(version::equals)
-      .networkProtocolVersion(() -> version)
-      .simpleChannel();
-  }
-
-  /**
-   * Registers a new {@link ISimplePacket}
-   * @param clazz    Packet class
-   * @param decoder  Packet decoder, typically the constructor
-   * @param <MSG>  Packet class type
-   */
-  public <MSG extends ISimplePacket> void registerPacket(Class<MSG> clazz, Function<FriendlyByteBuf, MSG> decoder, @Nullable NetworkDirection direction) {
-    registerPacket(clazz, ISimplePacket::encode, decoder, ISimplePacket::handle, direction);
-  }
-
-  /**
-   * Registers a new generic packet
-   * @param clazz      Packet class
-   * @param encoder    Encodes a packet to the buffer
-   * @param decoder    Packet decoder, typically the constructor
-   * @param consumer   Logic to handle a packet
-   * @param direction  Network direction for validation. Pass null for no direction
-   * @param <MSG>  Packet class type
-   */
-  public <MSG> void registerPacket(Class<MSG> clazz, BiConsumer<MSG, FriendlyByteBuf> encoder, Function<FriendlyByteBuf, MSG> decoder, BiConsumer<MSG,Supplier<NetworkEvent.Context>> consumer, @Nullable NetworkDirection direction) {
-    registerPacketNoLogger(clazz, encoder, wrapLogger(clazz, decoder), consumer, direction);
-  }
-
-  /**
-   * Registers a new packet without the automatic logging if the decoder fails
-   * @param clazz      Packet class
-   * @param encoder    Encodes a packet to the buffer
-   * @param decoder    Packet decoder, typically the constructor
-   * @param consumer   Logic to handle a packet
-   * @param direction  Network direction for validation. Pass null for no direction
-   * @param <MSG>  Packet class type
-   */
-  public <MSG> void registerPacketNoLogger(Class<MSG> clazz, BiConsumer<MSG, FriendlyByteBuf> encoder, Function<FriendlyByteBuf, MSG> decoder, BiConsumer<MSG,Supplier<NetworkEvent.Context>> consumer, @Nullable NetworkDirection direction) {
-    this.network.registerMessage(this.id++, clazz, encoder, decoder, consumer, Optional.ofNullable(direction));
-  }
-
-  /** Wraps the given decoder function */
-  private static <MSG> Function<FriendlyByteBuf,MSG> wrapLogger(Class<MSG> clazz, Function<FriendlyByteBuf,MSG> decoder) {
-    return buffer -> {
-      try {
-        return decoder.apply(buffer);
-      } catch (Exception e) {
-        Mantle.logger.error("Exception while decoding packet of class {}", clazz.getName(), e);
-        throw e;
-      }
-    };
+    this.channelName = channelName;
+    this.version = version;
   }
 
 
@@ -106,25 +44,16 @@ public class NetworkWrapper {
 
   /**
    * Sends a packet to the server
-   * @param msg  Packet to send
+   * @param payload  Packet to send
    */
-  public void sendToServer(Object msg) {
-    this.network.sendToServer(msg);
-  }
-
-  /**
-   * Sends a packet to the given packet distributor
-   * @param target   Packet target
-   * @param message  Packet to send
-   */
-  public void send(PacketDistributor.PacketTarget target, Object message) {
-    network.send(target, message);
+  public void sendToServer(CustomPacketPayload payload) {
+    PacketDistributor.sendToServer(payload);
   }
 
   /**
    * Sends a vanilla packet to the given entity
-   * @param player  Player receiving the packet
    * @param packet  Packet
+   * @param player  Player receiving the packet
    */
   public void sendVanillaPacket(Packet<?> packet, Entity player) {
     if (player instanceof ServerPlayer sPlayer) {
@@ -134,52 +63,51 @@ public class NetworkWrapper {
 
   /**
    * Sends a packet to a player
-   * @param msg     Packet
-   * @param player  Player to send
+   * @param payload  Packet
+   * @param player   Player to send
    */
-  public void sendTo(Object msg, Player player) {
-    if (player instanceof ServerPlayer) {
-      sendTo(msg, (ServerPlayer) player);
+  public void sendTo(CustomPacketPayload payload, Player player) {
+    if (player instanceof ServerPlayer serverPlayer) {
+      sendTo(payload, serverPlayer);
     }
   }
 
   /**
    * Sends a packet to a player
-   * @param msg     Packet
-   * @param player  Player to send
+   * @param payload  Packet
+   * @param player   Player to send
    */
-  public void sendTo(Object msg, ServerPlayer player) {
+  public void sendTo(CustomPacketPayload payload, ServerPlayer player) {
     if (!(player instanceof FakePlayer)) {
-      network.sendTo(msg, player.connection.connection, NetworkDirection.PLAY_TO_CLIENT);
+      PacketDistributor.sendToPlayer(player, payload);
     }
   }
 
   /**
    * Sends a packet to players near a location
-   * @param msg          Packet to send
+   * @param payload      Packet to send
    * @param serverWorld  World instance
    * @param position     Position within range
    */
-  public void sendToClientsAround(Object msg, ServerLevel serverWorld, BlockPos position) {
-    LevelChunk chunk = serverWorld.getChunkAt(position);
-    network.send(PacketDistributor.TRACKING_CHUNK.with(() -> chunk), msg);
+  public void sendToClientsAround(CustomPacketPayload payload, ServerLevel serverWorld, BlockPos position) {
+    PacketDistributor.sendToPlayersTrackingChunk(serverWorld, new ChunkPos(position), payload);
+  }
+
+  /**
+   * Sends a packet to all entities tracking the given entity, plus the entity itself if it is a player
+   * @param payload  Packet
+   * @param entity   Entity to check
+   */
+  public void sendToTrackingAndSelf(CustomPacketPayload payload, Entity entity) {
+    PacketDistributor.sendToPlayersTrackingEntityAndSelf(entity, payload);
   }
 
   /**
    * Sends a packet to all entities tracking the given entity
-   * @param msg     Packet
-   * @param entity  Entity to check
+   * @param payload  Packet
+   * @param entity   Entity to check
    */
-  public void sendToTrackingAndSelf(Object msg, Entity entity) {
-    this.network.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> entity), msg);
-  }
-
-  /**
-   * Sends a packet to all entities tracking the given entity
-   * @param msg     Packet
-   * @param entity  Entity to check
-   */
-  public void sendToTracking(Object msg, Entity entity) {
-    this.network.send(PacketDistributor.TRACKING_ENTITY.with(() -> entity), msg);
+  public void sendToTracking(CustomPacketPayload payload, Entity entity) {
+    PacketDistributor.sendToPlayersTrackingEntity(entity, payload);
   }
 }

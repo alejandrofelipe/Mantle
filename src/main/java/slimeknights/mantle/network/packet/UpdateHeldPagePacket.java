@@ -1,34 +1,36 @@
 package slimeknights.mantle.network.packet;
 
-import lombok.RequiredArgsConstructor;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkEvent.Context;
+import net.neoforged.neoforge.network.codec.NeoForgeStreamCodecs;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.book.BookHelper;
 
 /**
  * Packet to update the page in a book in the players hand
  */
-@RequiredArgsConstructor
-public class UpdateHeldPagePacket implements IThreadsafePacket {
-  private final InteractionHand hand;
-  private final String page;
-  public UpdateHeldPagePacket(FriendlyByteBuf buffer) {
-    this.hand = buffer.readEnum(InteractionHand.class);
-    this.page = buffer.readUtf(100);
+public record UpdateHeldPagePacket(InteractionHand hand, String page) implements IThreadsafePacket {
+  public static final CustomPacketPayload.Type<UpdateHeldPagePacket> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Mantle.modId, "update_held_page"));
+  public static final StreamCodec<RegistryFriendlyByteBuf, UpdateHeldPagePacket> STREAM_CODEC = StreamCodec.composite(
+    NeoForgeStreamCodecs.enumCodec(InteractionHand.class), UpdateHeldPagePacket::hand,
+    ByteBufCodecs.STRING_UTF8, UpdateHeldPagePacket::page,
+    UpdateHeldPagePacket::new);
+
+  @Override
+  public CustomPacketPayload.Type<UpdateHeldPagePacket> type() {
+    return TYPE;
   }
 
   @Override
-  public void encode(FriendlyByteBuf buf) {
-    buf.writeEnum(hand);
-    buf.writeUtf(this.page);
-  }
-
-  @Override
-  public void handleThreadsafe(Context context) {
-    Player player = context.getSender();
+  public void handleThreadsafe(IPayloadContext context) {
+    Player player = context.player();
     if (player != null && this.page != null) {
       ItemStack stack = player.getItemInHand(hand);
       if (!stack.isEmpty()) {

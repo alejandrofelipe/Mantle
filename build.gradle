@@ -10,7 +10,7 @@ plugins {
     id 'eclipse'
     id 'idea'
     id 'maven-publish'
-    id 'net.neoforged.gradle.userdev' version '7.0.190'
+    id 'net.neoforged.gradle.userdev' version '7.1.38'
     id 'io.freefair.lombok' version '8.6'
 }
 
@@ -82,19 +82,19 @@ sourceSets {
 
 runs {
     configureEach {
-        workingDirectory project.file('run')
         systemProperty 'forge.logging.markers', 'REGISTRIES'
-        logLevel = org.slf4j.event.Level.DEBUG
+        systemProperty 'forge.logging.console.level', 'debug'
+        workingDirectory project.layout.projectDirectory.dir('run').dir(name)
         modSource project.sourceSets.main
     }
     client { }
     server {
-        programArguments.addAll '--nogui'
+        argument '--nogui'
     }
     data {
-        programArguments.addAll '--mod', 'mantle', '--all',
-            '--output', file('src/generated/resources/').absolutePath,
-            '--existing', file('src/main/resources/').absolutePath
+        arguments.addAll '--mod', 'mantle', '--all',
+            '--output', file('src/generated/resources/').getAbsolutePath(),
+            '--existing', file('src/main/resources/').getAbsolutePath()
     }
 }
 
@@ -145,10 +145,6 @@ sourcesJar {
     exclude 'pack.png'
     exclude 'pack.mcmeta'
     exclude 'META-INF/neoforge.mods.toml'
-}
-
-artifacts {
-    archives sourcesJar
 }
 
 publishing {

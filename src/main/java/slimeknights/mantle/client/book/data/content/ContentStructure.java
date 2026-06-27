@@ -4,6 +4,7 @@ import lombok.Getter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
@@ -54,14 +55,16 @@ public class ContentStructure extends PageContent {
     }
 
     try {
-      CompoundTag compoundnbt = NbtIo.readCompressed(resource.open());
+      CompoundTag compoundnbt = NbtIo.readCompressed(resource.open(), NbtAccounter.unlimitedHeap());
       this.template.load(BuiltInRegistries.BLOCK.asLookup(), compoundnbt);
     } catch (IOException e) {
       e.printStackTrace();
       return;
     }
 
-    this.templateBlocks = this.template.palettes.get(0).blocks();
+    // FIXME CONVERGE: StructureTemplate#palettes is private in 1.21.1 with no public getter, and Palette#blocks(Block) NPEs on a null block,
+    // so there is no clean public API to enumerate every block. Reflectively reading the first palette's block list preserves the prior behavior.
+    this.templateBlocks = readFirstPaletteBlocks(this.template);
 
     for (int i = 0; i < this.templateBlocks.size(); i++) {
       StructureTemplate.StructureBlockInfo info = this.templateBlocks.get(i);
@@ -71,6 +74,24 @@ public class ContentStructure extends PageContent {
       } else if (info.state().isAir())
         // Usually means it contains a block that has been renamed
         Mantle.logger.error("Found non-default air block in template " + this.data);
+    }
+  }
+
+  /** Reads the block list from the first palette of a structure template. See FIXME above: no public API exists in 1.21.1. */
+  @SuppressWarnings("unchecked")
+  private static List<StructureTemplate.StructureBlockInfo> readFirstPaletteBlocks(StructureTemplate template) {
+    try {
+      java.lang.reflect.Field palettesField = StructureTemplate.class.getDeclaredField("palettes");
+      palettesField.setAccessible(true);
+      List<?> palettes = (List<?>) palettesField.get(template);
+      if (palettes.isEmpty()) {
+        return new ArrayList<>();
+      }
+      Object palette = palettes.get(0);
+      return new ArrayList<>((List<StructureTemplate.StructureBlockInfo>) palette.getClass().getMethod("blocks").invoke(palette));
+    } catch (ReflectiveOperationException e) {
+      Mantle.logger.error("Failed to read structure template palette blocks", e);
+      return new ArrayList<>();
     }
   }
 

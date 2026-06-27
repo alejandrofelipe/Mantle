@@ -1,6 +1,7 @@
 package slimeknights.mantle.client.book.data.content;
 
 import lombok.Getter;
+import lombok.Setter;
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import slimeknights.mantle.Mantle;
@@ -30,6 +31,14 @@ public class ContentListing extends PageContent {
   public String title = null;
   /** Text to display below the title and before the index */
   public String subText = null;
+  /** If true, the listing title is rendered larger; null defers to the book default */
+  @Getter @Setter
+  @Nullable
+  public Boolean largeTitle = null;
+  /** If true, the listing title is centered; null defers to the book default */
+  @Getter @Setter
+  @Nullable
+  public Boolean centerTitle = null;
 
   /** Outer list represents all columns, inner list represents entries in a column */
   private transient final List<List<TextData>> entries = Util.make(() -> {

@@ -1,8 +1,5 @@
 package slimeknights.mantle.registration.object;
 
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-
 import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Collections;
@@ -23,7 +20,6 @@ import java.util.stream.Collectors;
  * @param <I>  Entry type
  */
 @SuppressWarnings({"unused", "WeakerAccess"})
-@AllArgsConstructor(access = AccessLevel.PROTECTED)
 public class EnumObject<T extends Enum<T>, I> implements MultiObject<I> {
   /** Singleton empty object, type does not matter as it has no items */
   @SuppressWarnings({"rawtypes", "unchecked"})
@@ -31,6 +27,11 @@ public class EnumObject<T extends Enum<T>, I> implements MultiObject<I> {
 
   /** Internal backing supplier map */
   private final Map<T,Supplier<? extends I>> map;
+
+  /** Creates a new enum object from the given backing map */
+  protected EnumObject(Map<T,Supplier<? extends I>> map) {
+    this.map = map;
+  }
 
   /**
    * Gets a entry supplier for the given value

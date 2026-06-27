@@ -1,7 +1,5 @@
 package slimeknights.mantle.fluid;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.Item;
@@ -22,22 +20,29 @@ import slimeknights.mantle.registration.FluidBuilder;
 import java.util.function.Supplier;
 
 /** Fluid with a bucket form, but no block form (hence no flowing) */
-@AllArgsConstructor
 public class UnplaceableFluid extends Fluid {
   /** Forge fluid attributes builder */
   private final Supplier<? extends FluidType> type;
   /** Bucket form of the liquid, use a supplier to air if no bucket form */
   @Nullable
   private final Supplier<? extends Item> bucket;
-  @Getter
   private final float explosionResistance;
   private final int tickRate;
 
+  public UnplaceableFluid(Supplier<? extends FluidType> type, @Nullable Supplier<? extends Item> bucket, float explosionResistance, int tickRate) {
+    this.type = type;
+    this.bucket = bucket;
+    this.explosionResistance = explosionResistance;
+    this.tickRate = tickRate;
+  }
+
   public UnplaceableFluid(FluidBuilder<?> builder) {
-    type = builder.getType();
-    bucket = builder.getBucket();
-    explosionResistance = builder.getExplosionResistance();
-    tickRate = builder.getTickRate();
+    this(builder.getType(), builder.getBucket(), builder.getExplosionResistance(), builder.getTickRate());
+  }
+
+  @Override
+  protected float getExplosionResistance() {
+    return explosionResistance;
   }
 
   @SuppressWarnings("unused")  // API

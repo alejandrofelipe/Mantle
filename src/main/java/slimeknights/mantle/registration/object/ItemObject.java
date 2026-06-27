@@ -1,7 +1,5 @@
 package slimeknights.mantle.registration.object;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 import net.minecraft.core.DefaultedRegistry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -18,13 +16,17 @@ import java.util.function.Supplier;
  * @param <I>  Item class
  */
 @SuppressWarnings({"unused", "WeakerAccess"})
-@AllArgsConstructor
 public class ItemObject<I extends ItemLike> implements Supplier<I>, ItemLike, IdAwareObject {
   /** Supplier to the registry entry */
   private final Supplier<? extends I> entry;
   /** Registry name for this entry, allows fetching the name before the entry resolves if registry object is used */
-  @Getter
   private final ResourceLocation id;
+
+  /** Base constructor from a supplier and explicit id */
+  public ItemObject(Supplier<? extends I> entry, ResourceLocation id) {
+    this.entry = entry;
+    this.id = id;
+  }
 
   /**
    * Creates a new item object from a supplier instance. Registry name will be fetched from the supplier entry, so the entry must be present during construction
@@ -39,7 +41,7 @@ public class ItemObject<I extends ItemLike> implements Supplier<I>, ItemLike, Id
    * Creates a new item object using the given deferred holder. This variant can resolve its name before the holder entry resolves
    * @param object  Object base
    */
-  public ItemObject(DeferredHolder<?, ? extends I> object) {
+  public ItemObject(DeferredHolder<? super I, ? extends I> object) {
     this.entry = object;
     this.id = object.getId();
   }
@@ -58,6 +60,11 @@ public class ItemObject<I extends ItemLike> implements Supplier<I>, ItemLike, Id
    * @return  Entry
    * @throws NullPointerException  if not present
    */
+  @Override
+  public ResourceLocation getId() {
+    return id;
+  }
+
   @Override
   public I get() {
     return Objects.requireNonNull(entry.get(), () -> "Item Object not present " + id);

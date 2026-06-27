@@ -26,7 +26,7 @@ import java.util.function.Supplier;
 @SuppressWarnings("WeakerAccess")
 public class FluidObject<F extends Fluid> implements Supplier<F>, ItemLike, IdAwareObject {
   /** Fluid name, used for tag creation */
-  @Getter @Nonnull
+  @Nonnull
   protected final ResourceLocation id;
 
   /** Tag in the forge namespace, crafting equivalence */
@@ -41,6 +41,12 @@ public class FluidObject<F extends Fluid> implements Supplier<F>, ItemLike, IdAw
     this.commonTag = tagName == null ? null : FluidTags.create(Mantle.commonResource(tagName));
     this.type = type;
     this.still = still;
+  }
+
+  @Override
+  @Nonnull
+  public ResourceLocation getId() {
+    return id;
   }
 
   /** Gets the fluid type for this object */

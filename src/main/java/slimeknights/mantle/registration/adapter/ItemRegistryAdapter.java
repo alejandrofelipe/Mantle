@@ -264,7 +264,7 @@ public class ItemRegistryAdapter extends EnumRegistryAdapter<Item> {
    * @return  Bucket instance
    */
   public BucketItem registerBucket(Supplier<? extends Fluid> fluid, String baseName) {
-    return register(new BucketItem(fluid, RegistrationHelper.BUCKET_PROPS), baseName + "_bucket");
+    return register(new BucketItem(fluid.get(), RegistrationHelper.BUCKET_PROPS), baseName + "_bucket");
   }
 
   /**

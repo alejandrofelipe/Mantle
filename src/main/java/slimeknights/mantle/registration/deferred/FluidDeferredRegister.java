@@ -1,7 +1,5 @@
 package slimeknights.mantle.registration.deferred;
 
-import lombok.Setter;
-import lombok.experimental.Accessors;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.BucketItem;
@@ -87,8 +85,6 @@ public class FluidDeferredRegister extends DeferredRegisterWrapper<Fluid> {
     return new Builder(name);
   }
 
-  @Accessors(fluent = true)
-  @Setter
   public class Builder extends FluidBuilder<Builder> {
     private final String name;
     private final DelayedSupplier<Fluid> stillDelayed = new DelayedSupplier<>();
@@ -98,6 +94,12 @@ public class FluidDeferredRegister extends DeferredRegisterWrapper<Fluid> {
 
     private Builder(String name) {
       this.name = name;
+    }
+
+    /** Sets the common tag name */
+    public Builder commonTag(@Nullable String commonTag) {
+      this.commonTag = commonTag;
+      return this;
     }
 
     /** Adds a common tag to the builder */
@@ -149,7 +151,7 @@ public class FluidDeferredRegister extends DeferredRegisterWrapper<Fluid> {
 
     /** Creates the default bucket */
     public Builder bucket() {
-      return bucket(itemRegister.register(name + "_bucket", () -> new BucketItem(stillDelayed, RegistrationHelper.BUCKET_PROPS)));
+      return bucket(itemRegister.register(name + "_bucket", () -> new BucketItem(stillDelayed.get(), RegistrationHelper.BUCKET_PROPS)));
     }
 
 
@@ -166,7 +168,7 @@ public class FluidDeferredRegister extends DeferredRegisterWrapper<Fluid> {
 
     /** Creates the default block from the given material and light level */
     public Builder block(MapColor color, int lightLevel) {
-      return block(sup -> new LiquidBlock(sup, createProperties(color, lightLevel)));
+      return block(sup -> new LiquidBlock(sup.get(), createProperties(color, lightLevel)));
     }
 
     /** Creates a block that lights entities on fire and damages them over time */

@@ -17,6 +17,10 @@ import slimeknights.mantle.recipe.helper.ItemOutput;
 
 import java.util.function.Consumer;
 
+// FIXME CONVERGE (datagen builder): rewrite to the 1.21 RecipeOutput API. FinishedRecipe is removed -> use RecipeOutput.
+//   ALSO: the *ResultRecipe constructors were changed in this pass to drop the leading ResourceLocation id (1.21 recipes have no id),
+//   so the Function7<ResourceLocation,...,R> here must become Function6<String,CookingBookCategory,Ingredient,ItemOutput,Float,Integer,R>
+//   and the id must be supplied to RecipeOutput.accept(...) instead of to the constructor. Deferred with the datagen rewrite.
 /** Builder for {@link SmeltingResultRecipe}, {@link BlastingResultRecipe}, {@link SmokingResultRecipe}, and {@link CampfireResultRecipe} */
 @SuppressWarnings({"unchecked", "unused"})
 @CanIgnoreReturnValue

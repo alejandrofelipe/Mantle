@@ -42,6 +42,9 @@ public class ShapedRetexturedRecipe extends ShapedRecipe {
    * @param texture    Ingredient to use for the texture
    * @param matchAll   If true, all inputs must match for the recipe to match
    */
+  // FIXME CONVERGE (ShapedRecipe internals): in 1.21 ShapedRecipe.pattern and ShapedRecipe.result are private with no getPattern()/getter,
+  //   so this copy-constructor cannot read them. The builder (ShapedRetexturedRecipeBuilder) should thread the ShapedRecipePattern + result
+  //   through directly instead of copying from a built ShapedRecipe. Deferred until the builder is reworked to the RecipeOutput datagen API.
   protected ShapedRetexturedRecipe(ShapedRecipe orig, Ingredient texture, boolean matchAll) {
     this(orig.getGroup(), orig.category(), orig.getPattern(), orig.result, orig.showNotification(), texture, matchAll);
   }

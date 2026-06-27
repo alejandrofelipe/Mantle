@@ -113,26 +113,15 @@ public class SimpleBlockModel implements IUnbakedGeometry<SimpleBlockModel> {
     Set<UnbakedModel> chain = Sets.newLinkedHashSet();
 
     // load the first model directly
-    parent = getParent(modelGetter, chain, parentLocation, owner.getModelName());
+    parent = resolveParent(modelGetter, chain, parentLocation, owner.getModelName());
     // null means no model, so set missing
     if (parent == null) {
       parent = getMissing(modelGetter);
       parentLocation = ModelBakery.MISSING_MODEL_LOCATION;
     }
 
-    // loop through each parent, adding in parents
-    for (BlockModel link = parent; link.parentLocation != null && link.parent == null; link = link.parent) {
-      chain.add(link);
-
-      // fetch model parent
-      link.parent = getParent(modelGetter, chain, link.parentLocation, link.name);
-
-      // null means no model, so set missing
-      if (link.parent == null) {
-        link.parent = getMissing(modelGetter);
-        link.parentLocation = ModelBakery.MISSING_MODEL_LOCATION;
-      }
-    }
+    // delegate to vanilla to resolve the remaining parent chain (handles missing models and loops internally)
+    parent.resolveParents(modelGetter);
   }
 
   /**
@@ -144,7 +133,7 @@ public class SimpleBlockModel implements IUnbakedGeometry<SimpleBlockModel> {
    * @return  Block model instance, null if there was an error
    */
   @Nullable
-  private static BlockModel getParent(Function<ResourceLocation,UnbakedModel> modelGetter, Set<UnbakedModel> chain, ResourceLocation location, String name) {
+  private static BlockModel resolveParent(Function<ResourceLocation,UnbakedModel> modelGetter, Set<UnbakedModel> chain, ResourceLocation location, String name) {
     // model must exist
     UnbakedModel unbaked = modelGetter.apply(location);
     if (unbaked == null) {
@@ -198,20 +187,20 @@ public class SimpleBlockModel implements IUnbakedGeometry<SimpleBlockModel> {
     for(Direction direction : part.faces.keySet()) {
       BlockElementFace face = part.faces.get(direction);
       // ensure the name is not prefixed (it always is)
-      String texture = face.texture;
+      String texture = face.texture();
       if (texture.charAt(0) == '#') {
         texture = texture.substring(1);
       }
       // bake the face
       TextureAtlasSprite sprite = spriteGetter.apply(owner.getMaterial(texture));
-      BakedQuad bakedQuad = BlockModel.bakeFace(part, face, sprite, direction, transform, location);
+      BakedQuad bakedQuad = BlockModel.bakeFace(part, face, sprite, direction, transform);
       quadTransformer.processInPlace(bakedQuad);
       // apply cull face
       //noinspection ConstantConditions  Its nullable, just annotated wrongly
-      if (face.cullForDirection == null) {
+      if (face.cullForDirection() == null) {
         builder.addUnculledFace(bakedQuad);
       } else {
-        builder.addCulledFace(Direction.rotate(transform.getRotation().getMatrix(), face.cullForDirection), bakedQuad);
+        builder.addCulledFace(Direction.rotate(transform.getRotation().getMatrix(), face.cullForDirection()), bakedQuad);
       }
     }
   }
@@ -255,8 +244,8 @@ public class SimpleBlockModel implements IUnbakedGeometry<SimpleBlockModel> {
   }
 
   @Override
-  public BakedModel bake(IGeometryBakingContext owner, ModelBaker baker, Function<Material,TextureAtlasSprite> spriteGetter, ModelState transform, ItemOverrides overrides, ResourceLocation location) {
-    return bakeModel(owner, this.getElements(), spriteGetter, transform, overrides, location);
+  public BakedModel bake(IGeometryBakingContext owner, ModelBaker baker, Function<Material,TextureAtlasSprite> spriteGetter, ModelState transform, ItemOverrides overrides) {
+    return bakeModel(owner, this.getElements(), spriteGetter, transform, overrides, BAKE_LOCATION);
   }
 
   /**
@@ -282,6 +271,18 @@ public class SimpleBlockModel implements IUnbakedGeometry<SimpleBlockModel> {
 
   /* Deserializing */
 
+  /** Replicates the now-private {@code BlockModel.Deserializer#parseTextureLocationOrReference}: a leading '#' marks a reference, else a material */
+  private static Either<Material,String> parseTextureLocationOrReference(ResourceLocation atlas, String name) {
+    if (!name.isEmpty() && name.charAt(0) == '#') {
+      return Either.right(name.substring(1));
+    }
+    ResourceLocation texture = ResourceLocation.tryParse(name);
+    if (texture == null) {
+      throw new JsonSyntaxException(name + " is not valid resource location");
+    }
+    return Either.left(new Material(atlas, texture));
+  }
+
   /**
    * Deserializes a SimpleBlockModel from JSON
    * @param json     Json element containing the model
@@ -300,7 +301,7 @@ public class SimpleBlockModel implements IUnbakedGeometry<SimpleBlockModel> {
       JsonObject textures = GsonHelper.getAsJsonObject(json, "textures");
       Map<String, Either<Material, String>> builder = new HashMap<>(textures.size());
       for(Entry<String, JsonElement> entry : textures.entrySet()) {
-        builder.put(entry.getKey(), BlockModel.Deserializer.parseTextureLocationOrReference(atlas, entry.getValue().getAsString()));
+        builder.put(entry.getKey(), parseTextureLocationOrReference(atlas, entry.getValue().getAsString()));
       }
       textureMap = Map.copyOf(builder);
     } else {

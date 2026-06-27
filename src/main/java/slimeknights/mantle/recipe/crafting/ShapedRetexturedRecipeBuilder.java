@@ -15,6 +15,9 @@ import slimeknights.mantle.recipe.MantleRecipes;
 import javax.annotation.Nullable;
 import java.util.function.Consumer;
 
+// FIXME CONVERGE (datagen builder): rewrite to the 1.21 RecipeOutput API. FinishedRecipe is removed; ShapedRecipeBuilder.save takes
+//   RecipeOutput (not a functional interface) + ResourceLocation, and Ingredient.toJson() now needs a HolderLookup.Provider. The Result
+//   wrapper should thread the ShapedRecipePattern + result directly into ShapedRetexturedRecipe instead of copying a built ShapedRecipe. Deferred.
 @SuppressWarnings("unused")
 @RequiredArgsConstructor(staticName = "fromShaped")
 public class ShapedRetexturedRecipeBuilder {

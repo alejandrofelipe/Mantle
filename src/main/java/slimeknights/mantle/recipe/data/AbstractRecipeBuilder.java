@@ -19,6 +19,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.function.Consumer;
 
+// FIXME CONVERGE (datagen builders): full rewrite to the 1.21 datagen recipe API is required here.
+//   - net.minecraft.data.recipes.FinishedRecipe is removed -> use net.minecraft.data.recipes.RecipeOutput (NOT a functional interface; cannot lambda it).
+//   - net.minecraft.advancements.RequirementsStrategy is removed -> use AdvancementRequirements.Strategy (OR/AND).
+//   - Advancement.Builder.addCriterion now takes Criterion<?> (wrap the trigger instance in a Criterion). criteria map is private; use addCriterion/requirements/save.
+//   - Recipe::getId is gone; ids come from RecipeOutput.accept(ResourceLocation, Recipe, AdvancementHolder).
+//   This is design-bearing and consumed by Tinkers datagen; deferred until lombok build is fixed and the RecipeOutput contract is settled.
 /**
  * Common logic to create a recipe builder class
  * @param <T>

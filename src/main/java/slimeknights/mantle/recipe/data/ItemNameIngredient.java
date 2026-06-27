@@ -50,7 +50,7 @@ public class ItemNameIngredient implements ICustomIngredient {
   }
 
   @Override
-  public Stream<Holder<Item>> items() {
+  public Stream<Holder<Item>> getItems() {
     throw new UnsupportedOperationException();
   }
 

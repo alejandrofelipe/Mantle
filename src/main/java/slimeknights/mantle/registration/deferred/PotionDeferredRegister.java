@@ -1,5 +1,6 @@
 package slimeknights.mantle.registration.deferred;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -64,7 +65,7 @@ public class PotionDeferredRegister extends DeferredRegisterWrapper<Potion> {
     /** Adds the given potion type */
     private Builder with(PotionType type, int duration, int amplifier) {
       String prefix = type == PotionType.NORMAL ? "" : type.toString().toLowerCase(Locale.ROOT);
-      builder.put(type, register(prefix + '_' + name, () -> new Potion(modID + "." + name, new MobEffectInstance(effect.get(), duration, amplifier))));
+      builder.put(type, register(prefix + '_' + name, () -> new Potion(modID + "." + name, new MobEffectInstance(BuiltInRegistries.MOB_EFFECT.wrapAsHolder(effect.get()), duration, amplifier))));
       return this;
     }
 

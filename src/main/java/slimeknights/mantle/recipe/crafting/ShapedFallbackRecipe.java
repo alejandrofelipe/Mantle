@@ -23,6 +23,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+// FIXME CONVERGE (ShapedRecipe internals): 1.21 ShapedRecipe was reworked, needs a rewrite here.
+//   - Constructor is now ShapedRecipe(String group, CraftingBookCategory, ShapedRecipePattern pattern, ItemStack result[, boolean showNotification]); width/height/ingredients are folded into ShapedRecipePattern (build via ShapedRecipePattern.of(...) or carry the pattern through).
+//   - ShapedRecipe.result is private and there is no getId()/getPattern(); recipes no longer carry an id (the RecipeHolder does). Match against CraftingInput, not CraftingContainer.
+//   - matches(CraftingContainer, Level) -> matches(CraftingInput, Level); Serializer.fromJson/fromNetwork are replaced by MapCodec/StreamCodec (codec()/streamCodec()); toNetwork takes RegistryFriendlyByteBuf.
+//   - alternativeCache: RecipeManager.byType/byKey now yield RecipeHolder; map .value() to CraftingRecipe.
+//   Deferred until lombok build is fixed; design-bearing and consumed downstream.
 @SuppressWarnings("WeakerAccess")
 public class ShapedFallbackRecipe extends ShapedRecipe {
 

@@ -2,7 +2,8 @@ package slimeknights.mantle.client.screen.book;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.advancements.Advancement;
+import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.advancements.AdvancementNode;
 import net.minecraft.advancements.AdvancementProgress;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -113,21 +114,15 @@ public class BookScreen extends Screen {
   }
 
   /** Gets the alt Minecraft font */
+  // FIXME CONVERGE: Minecraft#fontManager and FontManager#fontSets are private in 1.21.1 with no public accessor.
+  // Falling back to the default font; to render with the alt/uniform font, apply Style#withFont(Minecraft.ALT_FONT/UNIFORM_FONT) at the call sites instead.
   public static Font getAltFont() {
-    if (altFont == null) {
-      FontManager resourceManager = Minecraft.getInstance().fontManager;
-      altFont = new Font(rl -> resourceManager.fontSets.get(Minecraft.ALT_FONT), false);
-    }
-    return altFont;
+    return Minecraft.getInstance().font;
   }
 
   /** Gets the uniform version of the Minecraft font */
   public static Font getUniformFont() {
-    if (uniformFont == null) {
-      FontManager resourceManager = Minecraft.getInstance().fontManager;
-      uniformFont = new Font(rl -> resourceManager.fontSets.get(Minecraft.UNIFORM_FONT), false);
-    }
-    return uniformFont;
+    return Minecraft.getInstance().font;
   }
 
   public Font getFontRenderer() {
@@ -467,7 +462,7 @@ public class BookScreen extends Screen {
   }
 
   @Override
-  public boolean mouseScrolled(double unKnown1, double unKnown2, double scrollDelta) {
+  public boolean mouseScrolled(double unKnown1, double unKnown2, double scrollX, double scrollDelta) {
     if (scrollDelta < 0.0D) {
       nextPage();
       return true;
@@ -476,7 +471,7 @@ public class BookScreen extends Screen {
       return true;
     }
 
-    return super.mouseScrolled(scrollDelta, unKnown1, unKnown2);
+    return super.mouseScrolled(unKnown1, unKnown2, scrollX, scrollDelta);
   }
 
   @Override
@@ -792,53 +787,50 @@ public class BookScreen extends Screen {
 
   public static class AdvancementCache implements ClientAdvancements.Listener {
 
-    private final HashMap<Advancement, AdvancementProgress> progress = new HashMap<>();
-    private final HashMap<ResourceLocation, Advancement> nameCache = new HashMap<>();
+    // 1.21.1: advancements are tracked via AdvancementNode/AdvancementHolder keyed by their ResourceLocation id
+    private final HashMap<ResourceLocation, AdvancementProgress> progress = new HashMap<>();
+    private final HashMap<ResourceLocation, AdvancementHolder> nameCache = new HashMap<>();
 
     @Nullable
     public AdvancementProgress getProgress(String id) {
-      return this.getProgress(this.getAdvancement(id));
+      return this.progress.get(ResourceLocation.parse(id));
     }
 
     @Nullable
-    public AdvancementProgress getProgress(Advancement advancement) {
-      return this.progress.get(advancement);
-    }
-
-    public Advancement getAdvancement(String id) {
+    public AdvancementHolder getAdvancement(String id) {
       return this.nameCache.get(ResourceLocation.parse(id));
     }
 
     @Override
-    public void onUpdateAdvancementProgress(Advancement advancement, AdvancementProgress advancementProgress) {
-      this.progress.put(advancement, advancementProgress);
+    public void onUpdateAdvancementProgress(AdvancementNode advancement, AdvancementProgress advancementProgress) {
+      this.progress.put(advancement.holder().id(), advancementProgress);
     }
 
     @Override
-    public void onSelectedTabChanged(@Nullable Advancement advancement) {
+    public void onSelectedTabChanged(@Nullable AdvancementHolder advancement) {
       // noop
     }
 
     @Override
-    public void onAddAdvancementRoot(Advancement advancement) {
-      this.nameCache.put(advancement.getId(), advancement);
+    public void onAddAdvancementRoot(AdvancementNode advancement) {
+      this.nameCache.put(advancement.holder().id(), advancement.holder());
     }
 
     @Override
-    public void onRemoveAdvancementRoot(Advancement advancement) {
-      this.progress.remove(advancement);
-      this.nameCache.remove(advancement.getId());
+    public void onRemoveAdvancementRoot(AdvancementNode advancement) {
+      this.progress.remove(advancement.holder().id());
+      this.nameCache.remove(advancement.holder().id());
     }
 
     @Override
-    public void onAddAdvancementTask(Advancement advancement) {
-      this.nameCache.put(advancement.getId(), advancement);
+    public void onAddAdvancementTask(AdvancementNode advancement) {
+      this.nameCache.put(advancement.holder().id(), advancement.holder());
     }
 
     @Override
-    public void onRemoveAdvancementTask(Advancement advancement) {
-      this.progress.remove(advancement);
-      this.nameCache.remove(advancement.getId());
+    public void onRemoveAdvancementTask(AdvancementNode advancement) {
+      this.progress.remove(advancement.holder().id());
+      this.nameCache.remove(advancement.holder().id());
     }
 
     @Override

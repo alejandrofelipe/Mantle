@@ -26,6 +26,7 @@ import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.gameevent.GameEvent.Context;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.Scoreboard;
@@ -45,9 +46,10 @@ import java.util.function.Predicate;
  */
 public class TemplateLevel extends Level {
 
-  private final Map<String, MapItemSavedData> maps = new HashMap<>();
+  private final Map<MapId, MapItemSavedData> maps = new HashMap<>();
   private final Scoreboard scoreboard = new Scoreboard();
-  private final RecipeManager recipeManager = new RecipeManager();
+  private final RecipeManager recipeManager = new RecipeManager(Objects.requireNonNull(Minecraft.getInstance().level).registryAccess());
+  private final net.minecraft.world.TickRateManager tickRateManager = new net.minecraft.world.TickRateManager();
   private final TemplateChunkSource chunkSource;
 
   public TemplateLevel(List<StructureBlockInfo> blocks, Predicate<BlockPos> shouldShow) {
@@ -82,18 +84,18 @@ public class TemplateLevel extends Level {
 
   @Nullable
   @Override
-  public MapItemSavedData getMapData(@Nonnull String mapName) {
-    return this.maps.get(mapName);
+  public MapItemSavedData getMapData(@Nonnull MapId mapId) {
+    return this.maps.get(mapId);
   }
 
   @Override
-  public void setMapData(String mapId, MapItemSavedData mapDataIn) {
+  public void setMapData(MapId mapId, MapItemSavedData mapDataIn) {
     this.maps.put(mapId, mapDataIn);
   }
 
   @Override
-  public int getFreeMapId() {
-    return this.maps.size();
+  public MapId getFreeMapId() {
+    return new MapId(this.maps.size());
   }
 
   @Override
@@ -138,7 +140,33 @@ public class TemplateLevel extends Level {
   public void levelEvent(@Nullable Player player, int type, @Nonnull BlockPos pos, int data) {}
 
   @Override
-  public void gameEvent(GameEvent pEvent, Vec3 pPosition, Context pContext) {}
+  public void gameEvent(Holder<GameEvent> pEvent, Vec3 pPosition, Context pContext) {}
+
+  @Override
+  public void setDayTimePerTick(float dayTimePerTick) {}
+
+  @Override
+  public float getDayTimePerTick() {
+    return 0;
+  }
+
+  @Override
+  public void setDayTimeFraction(float dayTimeFraction) {}
+
+  @Override
+  public float getDayTimeFraction() {
+    return 0;
+  }
+
+  @Override
+  public net.minecraft.world.TickRateManager tickRateManager() {
+    return this.tickRateManager;
+  }
+
+  @Override
+  public net.minecraft.world.item.alchemy.PotionBrewing potionBrewing() {
+    return net.minecraft.world.item.alchemy.PotionBrewing.EMPTY;
+  }
 
   @Override
   public FeatureFlagSet enabledFeatures() {

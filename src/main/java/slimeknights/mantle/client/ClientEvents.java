@@ -70,6 +70,12 @@ import java.util.Optional;
 
 @EventBusSubscriber(modid = Mantle.modId, value = Dist.CLIENT, bus = Bus.MOD)
 public class ClientEvents {
+  // 1.21.1: attack indicator GUI atlas coordinates were replaced by named HUD sprites (mirrors the private constants in vanilla Gui)
+  private static final ResourceLocation CROSSHAIR_ATTACK_INDICATOR_BACKGROUND_SPRITE = ResourceLocation.withDefaultNamespace("hud/crosshair_attack_indicator_background");
+  private static final ResourceLocation CROSSHAIR_ATTACK_INDICATOR_PROGRESS_SPRITE = ResourceLocation.withDefaultNamespace("hud/crosshair_attack_indicator_progress");
+  private static final ResourceLocation HOTBAR_ATTACK_INDICATOR_BACKGROUND_SPRITE = ResourceLocation.withDefaultNamespace("hud/hotbar_attack_indicator_background");
+  private static final ResourceLocation HOTBAR_ATTACK_INDICATOR_PROGRESS_SPRITE = ResourceLocation.withDefaultNamespace("hud/hotbar_attack_indicator_progress");
+
   /** Called on construct to initiatlize things that need early entry */
   public static void onConstruct() {}
 
@@ -109,14 +115,14 @@ public class ClientEvents {
   @SubscribeEvent
   static void registerModelLoaders(RegisterGeometryLoaders event) {
     // standard models - useful in resource packs for any model
-    event.register("connected", ConnectedModel.LOADER);
-    event.register("item_layer", MantleItemLayerModel.LOADER);
-    event.register("colored_block", ColoredBlockModel.LOADER);
-    event.register("fallback", FallbackModelLoader.INSTANCE);
+    event.register(Mantle.getResource("connected"), ConnectedModel.LOADER);
+    event.register(Mantle.getResource("item_layer"), MantleItemLayerModel.LOADER);
+    event.register(Mantle.getResource("colored_block"), ColoredBlockModel.LOADER);
+    event.register(Mantle.getResource("fallback"), FallbackModelLoader.INSTANCE);
 
     // NBT dynamic models - require specific data defined in the block/item to use
-    event.register("nbt_key", NBTKeyModel.LOADER);
-    event.register("retextured", RetexturedModel.LOADER);
+    event.register(Mantle.getResource("nbt_key"), NBTKeyModel.LOADER);
+    event.register(Mantle.getResource("retextured"), RetexturedModel.LOADER);
   }
 
   @SubscribeEvent
@@ -159,7 +165,7 @@ public class ClientEvents {
     switch (indicator) {
       case CROSSHAIR:
         if (!isHotbar && minecraft.options.getCameraType().isFirstPerson()) {
-          if (!settings.renderDebug || settings.hideGui || minecraft.player.isReducedDebugInfo() || settings.reducedDebugInfo().get()) {
+          if (!minecraft.getDebugOverlay().showDebugScreen() || settings.hideGui || minecraft.player.isReducedDebugInfo() || settings.reducedDebugInfo().get()) {
             // mostly cloned from vanilla attack indicator
             RenderSystem.enableBlend();
             RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.ONE_MINUS_DST_COLOR, GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
@@ -168,8 +174,9 @@ public class ClientEvents {
             int y = (scaledHeight / 2) - 14 + (2 * (scaledHeight % 2));
             int x = minecraft.getWindow().getGuiScaledWidth() / 2 - 8;
             int width = (int)(cooldown * 17.0F);
-            graphics.blit(Gui.GUI_ICONS_LOCATION, x, y, 36, 94, 16, 4);
-            graphics.blit(Gui.GUI_ICONS_LOCATION, x, y, 52, 94, width, 4);
+            // 1.21.1: GUI atlas coordinates replaced by named sprites
+            graphics.blitSprite(CROSSHAIR_ATTACK_INDICATOR_BACKGROUND_SPRITE, x, y, 16, 4);
+            graphics.blitSprite(CROSSHAIR_ATTACK_INDICATOR_PROGRESS_SPRITE, 16, 4, 0, 0, x, y, width, 4);
             RenderSystem.defaultBlendFunc();
           }
         }
@@ -185,11 +192,11 @@ public class ClientEvents {
           } else {
             x = centerWidth + 91 + 6 + 32;
           }
-//          RenderSystem.setShaderTexture(0, GuiComponent.GUI_ICONS_LOCATION);
           int l1 = (int)(cooldown * 19.0F);
           RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-          graphics.blit(Gui.GUI_ICONS_LOCATION, x, y, 0, 94, 18, 18);
-          graphics.blit(Gui.GUI_ICONS_LOCATION, x, y + 18 - l1, 18, 112 - l1, 18, l1);
+          // 1.21.1: GUI atlas coordinates replaced by named sprites
+          graphics.blitSprite(HOTBAR_ATTACK_INDICATOR_BACKGROUND_SPRITE, x, y, 18, 18);
+          graphics.blitSprite(HOTBAR_ATTACK_INDICATOR_PROGRESS_SPRITE, 18, 18, 0, 18 - l1, x, y + 18 - l1, 18, l1);
         }
         break;
     }

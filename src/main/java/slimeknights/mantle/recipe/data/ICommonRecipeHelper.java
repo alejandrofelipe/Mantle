@@ -21,6 +21,11 @@ import slimeknights.mantle.registration.object.MetalItemObject;
 import slimeknights.mantle.registration.object.WallBuildingBlockObject;
 import slimeknights.mantle.registration.object.WoodBlockObject;
 
+// FIXME CONVERGE (datagen API): RecipeProvider.has(ItemLike)/has(TagKey) and inventoryTrigger(...) are now PROTECTED in 1.21,
+//   so this interface can no longer call them statically. The 1.21 idiom is to call these from inside a RecipeProvider subclass,
+//   or to inline the InventoryChangeTrigger.TriggerInstance construction here. Deferred with the rest of the datagen-builder rewrite.
+//   NOTE: the getIngotTag()/getNuggetTag()/getLogItemTag() "missing method" errors here are lombok @Getter phantoms (see report) and
+//   will clear once the freefair lombok plugin is bumped to a Gradle-9-compatible version; they are NOT real cross-package defects.
 /**
  * Crafting helper for common recipe types, like stairs, slabs, and packing.
  */

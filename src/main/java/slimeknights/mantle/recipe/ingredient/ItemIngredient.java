@@ -49,10 +49,14 @@ public abstract class ItemIngredient implements ICustomIngredient {
   }
 
   @Override
-  public Stream<Holder<Item>> items() {
+  public Stream<Holder<Item>> getItems() {
     Stream<Holder<Item>> itemStream = items.stream().map(Item::builtInRegistryHolder);
     if (tag != null) {
-      return Stream.concat(itemStream, BuiltInRegistries.ITEM.getTagOrEmpty(tag).stream().map(h -> (Holder<Item>) h));
+      // getTagOrEmpty returns an Iterable<Holder<Item>> in 1.21; stream it via the registry's optional HolderSet
+      Stream<Holder<Item>> tagStream = BuiltInRegistries.ITEM.getTag(tag)
+        .map(set -> set.stream().map(h -> (Holder<Item>) h))
+        .orElseGet(Stream::empty);
+      return Stream.concat(itemStream, tagStream);
     }
     return itemStream;
   }
@@ -83,7 +87,7 @@ public abstract class ItemIngredient implements ICustomIngredient {
     @Override
     public void encode(FriendlyByteBuf buffer, ItemIngredient parent) {
       // sync both tag and item values to client by resolving the matched items
-      ITEM_LIST.encode(buffer, parent.items().map(Holder::value).toList());
+      ITEM_LIST.encode(buffer, parent.getItems().map(Holder::value).toList());
     }
   }
 }

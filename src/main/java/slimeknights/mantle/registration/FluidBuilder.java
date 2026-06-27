@@ -1,8 +1,5 @@
 package slimeknights.mantle.registration;
 
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.material.Fluid;
@@ -15,8 +12,6 @@ import java.util.function.Supplier;
 /**
  * Fluid properties' builder class, since the Forge one requires too many suppliers that we do not have access to yet
  */
-@Getter
-@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public class FluidBuilder<T extends FluidBuilder<T>> {
   protected Supplier<? extends FluidType> type;
   @Nullable
@@ -27,6 +22,46 @@ public class FluidBuilder<T extends FluidBuilder<T>> {
   private int levelDecreasePerBlock = 1;
   private float explosionResistance = 1;
   private int tickRate = 5;
+
+  /** Protected no-arg constructor, used by builder subclasses and the static factory */
+  protected FluidBuilder() {}
+
+  /** Gets the fluid type supplier */
+  public Supplier<? extends FluidType> getType() {
+    return type;
+  }
+
+  /** Gets the bucket supplier, if set */
+  @Nullable
+  public Supplier<? extends Item> getBucket() {
+    return bucket;
+  }
+
+  /** Gets the block supplier, if set */
+  @Nullable
+  public Supplier<? extends LiquidBlock> getBlock() {
+    return block;
+  }
+
+  /** Gets the slope find distance, only used in flowing fluids */
+  public int getSlopeFindDistance() {
+    return slopeFindDistance;
+  }
+
+  /** Gets how far the fluid can flow, only used in flowing fluids */
+  public int getLevelDecreasePerBlock() {
+    return levelDecreasePerBlock;
+  }
+
+  /** Gets the explosion resistance */
+  public float getExplosionResistance() {
+    return explosionResistance;
+  }
+
+  /** Gets the fluid tick rate */
+  public int getTickRate() {
+    return tickRate;
+  }
 
   /** Creates a new builder instance */
   public static FluidBuilder<?> create(Supplier<? extends FluidType> type) {

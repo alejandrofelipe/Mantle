@@ -24,7 +24,8 @@ public class PotionIngredient extends ItemIngredient {
   /** Ingredient serializer instance */
   public static final LoadableIngredientSerializer<PotionIngredient> SERIALIZER = new LoadableIngredientSerializer<>(RecordLoadable.create(
     ItemsField.INSTANCE, TAG_FIELD,
-    Loadables.POTION.defaultField("potion", Potions.EMPTY.value(), false, i -> i.potion.value()),
+    // Potions.EMPTY was removed in 1.21; WATER is the vanilla default potion. serializeDefault=false so this default is only a placeholder for the absent field.
+    Loadables.POTION.defaultField("potion", Potions.WATER.value(), false, i -> i.potion.value()),
     PotionIngredient::new
   ));
 

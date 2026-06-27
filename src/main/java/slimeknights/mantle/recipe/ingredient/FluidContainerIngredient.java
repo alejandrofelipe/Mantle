@@ -91,7 +91,7 @@ public class FluidContainerIngredient implements ICustomIngredient {
   }
 
   @Override
-  public Stream<Holder<Item>> items() {
+  public Stream<Holder<Item>> getItems() {
     // no container? unfortunately hard to display this recipe so show nothing
     if (display == null) {
       return Stream.empty();

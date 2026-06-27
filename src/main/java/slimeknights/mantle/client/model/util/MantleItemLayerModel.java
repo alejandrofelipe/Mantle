@@ -86,7 +86,7 @@ public class MantleItemLayerModel implements IUnbakedGeometry<MantleItemLayerMod
     if (renderTypeHint != null) {
       return context.getRenderType(renderTypeHint);
     } else {
-      return new RenderTypeGroup(RenderType.translucent(), ForgeRenderTypes.ITEM_UNSORTED_TRANSLUCENT.get());
+      return new RenderTypeGroup(RenderType.translucent(), NeoForgeRenderTypes.ITEM_UNSORTED_TRANSLUCENT.get());
     }
   }
 
@@ -102,7 +102,7 @@ public class MantleItemLayerModel implements IUnbakedGeometry<MantleItemLayerMod
   }
 
   @Override
-  public BakedModel bake(IGeometryBakingContext owner, ModelBaker baker, Function<Material,TextureAtlasSprite> spriteGetter, ModelState modelTransform, ItemOverrides overrides, ResourceLocation modelLocation) {
+  public BakedModel bake(IGeometryBakingContext owner, ModelBaker baker, Function<Material,TextureAtlasSprite> spriteGetter, ModelState modelTransform, ItemOverrides overrides) {
     if (textures.isEmpty()) {
       throw new IllegalStateException("Empty textures list");
     }
@@ -210,8 +210,15 @@ public class MantleItemLayerModel implements IUnbakedGeometry<MantleItemLayerMod
       }
     }
 
-    // setup quad builder
-    QuadBakingVertexConsumer quadBuilder = new QuadBakingVertexConsumer(builder::add);
+    // setup quad builder; in 1.21.1 the consumer no longer auto-emits, so collect baked quads into the output list
+    QuadBakingVertexConsumer quadBuilder = new QuadBakingVertexConsumer() {
+      @Override
+      public BakedQuad bakeQuad() {
+        BakedQuad quad = super.bakeQuad();
+        builder.add(quad);
+        return quad;
+      }
+    };
     // common settings
     quadBuilder.setSprite(sprite);
     quadBuilder.setTintIndex(tint);
@@ -344,7 +351,7 @@ public class MantleItemLayerModel implements IUnbakedGeometry<MantleItemLayerMod
   @SuppressWarnings("unused")  // API
   public static BakedQuad getQuadForGui(int color, int tint, TextureAtlasSprite sprite, Transformation transform, int emissivity) {
     // setup quad builder
-    QuadBakingVertexConsumer.Buffered quadBuilder = new QuadBakingVertexConsumer.Buffered();
+    QuadBakingVertexConsumer quadBuilder = new QuadBakingVertexConsumer();
     // common settings
     quadBuilder.setSprite(sprite);
     quadBuilder.setTintIndex(tint);
@@ -356,13 +363,12 @@ public class MantleItemLayerModel implements IUnbakedGeometry<MantleItemLayerMod
     if (!transform.isIdentity()) {
       quadConsumer = new TransformingVertexPipeline(quadBuilder, transform);
     }
-    // only need south
-    buildQuad(quadBuilder, quadConsumer, Direction.SOUTH, color, emissivity,
+    // only need south; buildQuad bakes and returns the quad after writing the four vertices
+    return buildQuad(quadBuilder, quadConsumer, Direction.SOUTH, color, emissivity,
               0, 0, 8.5f / 16f, sprite.getU0(), sprite.getV1(),
               1, 0, 8.5f / 16f, sprite.getU1(), sprite.getV1(),
               1, 1, 8.5f / 16f, sprite.getU1(), sprite.getV0(),
               0, 1, 8.5f / 16f, sprite.getU0(), sprite.getV0());
-    return quadBuilder.getQuad();
   }
 
   /**
@@ -428,7 +434,7 @@ public class MantleItemLayerModel implements IUnbakedGeometry<MantleItemLayerMod
    * @param color        Color for the sprite in AARRGGBB format
    * @param luminosity Extra light to add to the quad between 0 and 15
    */
-  public static void buildQuad(QuadBakingVertexConsumer builder, VertexConsumer consumer, Direction side, int color, int luminosity,
+  public static BakedQuad buildQuad(QuadBakingVertexConsumer builder, VertexConsumer consumer, Direction side, int color, int luminosity,
                                      float x0, float y0, float z0, float u0, float v0,
                                      float x1, float y1, float z1, float u1, float v1,
                                      float x2, float y2, float z2, float u2, float v2,
@@ -438,6 +444,8 @@ public class MantleItemLayerModel implements IUnbakedGeometry<MantleItemLayerMod
     putVertex(consumer, side, x1, y1, z1, u1, v1, color, luminosity);
     putVertex(consumer, side, x2, y2, z2, u2, v2, color, luminosity);
     putVertex(consumer, side, x3, y3, z3, u3, v3, color, luminosity);
+    // in 1.21.1 the quad must be explicitly baked after the four vertices are written
+    return builder.bakeQuad();
   }
 
   /**

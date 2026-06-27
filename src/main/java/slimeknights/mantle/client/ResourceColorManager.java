@@ -55,7 +55,7 @@ public class ResourceColorManager implements ISafeManagerReloadListener {
         String fullPath = prefix + key;
         if (!colors.containsKey(fullPath)) {
           String text = element.getAsString();
-          TextColor color = TextColor.parseColor(text);
+          TextColor color = TextColor.parseColor(text).result().orElse(null);
           if (color == null) {
             log.error("Color at key '{}' could not be parsed, got '{}'", fullPath, text);
           } else {

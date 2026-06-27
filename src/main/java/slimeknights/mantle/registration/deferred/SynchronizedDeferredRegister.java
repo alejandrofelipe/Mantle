@@ -1,6 +1,5 @@
 package slimeknights.mantle.registration.deferred;
 
-import lombok.RequiredArgsConstructor;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.neoforged.bus.api.IEventBus;
@@ -10,9 +9,18 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 import java.util.function.Supplier;
 
 /** Deferred register instance that synchronizes register calls */
-@RequiredArgsConstructor(staticName = "create")
 public class SynchronizedDeferredRegister<T> {
   private final DeferredRegister<T> internal;
+
+  /** Wraps the given deferred register */
+  public SynchronizedDeferredRegister(DeferredRegister<T> internal) {
+    this.internal = internal;
+  }
+
+  /** Creates a new instance wrapping the given deferred register */
+  public static <T> SynchronizedDeferredRegister<T> create(DeferredRegister<T> internal) {
+    return new SynchronizedDeferredRegister<>(internal);
+  }
 
   /** Creates a new instance for the given resource key */
   public static <T> SynchronizedDeferredRegister<T> create(ResourceKey<? extends Registry<T>> key, String modid) {

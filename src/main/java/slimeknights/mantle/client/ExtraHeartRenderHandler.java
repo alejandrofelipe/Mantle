@@ -24,7 +24,8 @@ import java.util.Random;
 
 public class ExtraHeartRenderHandler {
   private static final ResourceLocation ICON_HEARTS = ResourceLocation.fromNamespaceAndPath(Mantle.modId, "textures/gui/extra_hearts.png");
-  private static final ResourceLocation ICON_VANILLA = Gui.GUI_ICONS_LOCATION;
+  // 1.21.1: Gui.GUI_ICONS_LOCATION was removed (HUD now uses the sprite atlas); the legacy icons texture still ships and is used only to reset the shader texture
+  private static final ResourceLocation ICON_VANILLA = ResourceLocation.withDefaultNamespace("textures/gui/icons.png");
   /** Number of heart color variants */
   private static final int HEART_VARIANTS = 12;
   /** Number of heart color variants */

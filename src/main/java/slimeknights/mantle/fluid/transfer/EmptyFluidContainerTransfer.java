@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
+import com.mojang.serialization.JsonOps;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -81,7 +82,7 @@ public class EmptyFluidContainerTransfer implements IFluidContainerTransfer.With
   public JsonObject serialize(JsonSerializationContext context) {
     JsonObject json = new JsonObject();
     json.addProperty("type", ID.toString());
-    json.add("input", input.toJson());
+    json.add("input", Ingredient.CODEC.encodeStart(JsonOps.INSTANCE, input).getOrThrow(JsonParseException::new));
     if (!result.isEmpty()) {
       json.add("result", result.serialize(false));
     }
@@ -109,7 +110,7 @@ public class EmptyFluidContainerTransfer implements IFluidContainerTransfer.With
     @Override
     public T deserialize(JsonElement element, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
       JsonObject json = element.getAsJsonObject();
-      Ingredient input = Ingredient.fromJson(JsonHelper.getElement(json, "input"));
+      Ingredient input = Ingredient.CODEC.parse(JsonOps.INSTANCE, JsonHelper.getElement(json, "input")).getOrThrow(JsonParseException::new);
       ItemOutput result = getResult(json);
       FluidOutput fluid = FluidOutput.Loadable.REQUIRED.getIfPresent(json, "fluid");
       return factory.apply(input, result, fluid);

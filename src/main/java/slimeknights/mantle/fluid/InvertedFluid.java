@@ -8,16 +8,23 @@ import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.IceBlock;
+import net.minecraft.world.level.block.LiquidBlockContainer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.event.EventHooks;
 import net.neoforged.neoforge.fluids.BaseFlowingFluid;
 
@@ -175,7 +182,10 @@ public abstract class InvertedFluid extends BaseFlowingFluid {
     return minSlope;
   }
 
-  @Override
+  /**
+   * Recreation of {@link net.minecraft.world.level.material.FlowingFluid}'s private {@code isWaterHole}, swapping downs for ups.
+   * Cannot override the supertype method as it is private in 1.21.1.
+   */
   protected boolean isWaterHole(BlockGetter level, Fluid fluid, BlockPos pos, BlockState block, BlockPos spreadPos, BlockState spreadBlock) {
     // recreation swapping downs for ups
     return this.canPassThroughWall(Direction.UP, level, pos, block, spreadPos, spreadBlock)
@@ -217,6 +227,94 @@ public abstract class InvertedFluid extends BaseFlowingFluid {
     }
 
     return spread;
+  }
+
+
+  /* Copies of FlowingFluid private helpers, which are inaccessible to subclasses in 1.21.1 */
+
+  /** @see net.minecraft.world.level.material.FlowingFluid */
+  private boolean affectsFlow(FluidState state) {
+    return state.isEmpty() || state.getType().isSame(this);
+  }
+
+  /** @see net.minecraft.world.level.material.FlowingFluid */
+  private void spreadToSides(Level level, BlockPos pos, FluidState fluidState, BlockState blockState) {
+    int amount = fluidState.getAmount() - this.getDropOff(level);
+    if (fluidState.getValue(FALLING)) {
+      amount = 7;
+    }
+    if (amount > 0) {
+      Map<Direction, FluidState> map = this.getSpread(level, pos, blockState);
+      for (Map.Entry<Direction, FluidState> entry : map.entrySet()) {
+        Direction direction = entry.getKey();
+        FluidState newFluid = entry.getValue();
+        BlockPos sidePos = pos.relative(direction);
+        BlockState sideBlock = level.getBlockState(sidePos);
+        if (this.canSpreadTo(level, pos, blockState, direction, sidePos, sideBlock, level.getFluidState(sidePos), newFluid.getType())) {
+          this.spreadTo(level, sidePos, sideBlock, direction, newFluid);
+        }
+      }
+    }
+  }
+
+  /** @see net.minecraft.world.level.material.FlowingFluid */
+  private int sourceNeighborCount(LevelReader level, BlockPos pos) {
+    int count = 0;
+    for (Direction direction : Direction.Plane.HORIZONTAL) {
+      BlockPos sidePos = pos.relative(direction);
+      FluidState sideFluid = level.getFluidState(sidePos);
+      if (this.isSourceBlockOfThisType(sideFluid)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /** @see net.minecraft.world.level.material.FlowingFluid */
+  private boolean isSourceBlockOfThisType(FluidState state) {
+    return state.getType().isSame(this) && state.isSource();
+  }
+
+  /** @see net.minecraft.world.level.material.FlowingFluid */
+  private boolean canPassThrough(BlockGetter level, Fluid fluid, BlockPos pos, BlockState state, Direction direction, BlockPos spreadPos, BlockState spreadState, FluidState fluidState) {
+    return !this.isSourceBlockOfThisType(fluidState)
+      && this.canPassThroughWall(direction, level, pos, state, spreadPos, spreadState)
+      && this.canHoldFluid(level, spreadPos, spreadState, fluid);
+  }
+
+  /** @see net.minecraft.world.level.material.FlowingFluid */
+  private boolean canPassThroughWall(Direction direction, BlockGetter level, BlockPos pos, BlockState state, BlockPos spreadPos, BlockState spreadState) {
+    VoxelShape voxelShape = state.getCollisionShape(level, pos);
+    VoxelShape spreadShape = spreadState.getCollisionShape(level, spreadPos);
+    return !Shapes.mergedFaceOccludes(voxelShape, spreadShape, direction);
+  }
+
+  /** @see net.minecraft.world.level.material.FlowingFluid */
+  @SuppressWarnings("deprecation")
+  private boolean canHoldFluid(BlockGetter level, BlockPos pos, BlockState state, Fluid fluid) {
+    Block block = state.getBlock();
+    if (block instanceof LiquidBlockContainer liquidBlockContainer) {
+      return liquidBlockContainer.canPlaceLiquid(null, level, pos, state, fluid);
+    } else if (block instanceof DoorBlock
+      || state.is(BlockTags.SIGNS)
+      || state.is(Blocks.LADDER)
+      || state.is(Blocks.SUGAR_CANE)
+      || state.is(Blocks.BUBBLE_COLUMN)) {
+      return false;
+    } else {
+      return !state.is(Blocks.NETHER_PORTAL)
+        && !state.is(Blocks.END_PORTAL)
+        && !state.is(Blocks.END_GATEWAY)
+        && !state.is(Blocks.STRUCTURE_VOID)
+        && !state.blocksMotion();
+    }
+  }
+
+  /** @see net.minecraft.world.level.material.FlowingFluid */
+  private static short getCacheKey(BlockPos sourcePos, BlockPos spreadPos) {
+    int dx = spreadPos.getX() - sourcePos.getX();
+    int dz = spreadPos.getZ() - sourcePos.getZ();
+    return (short)((dx + 128 & 0xFF) << 8 | dz + 128 & 0xFF);
   }
 
   public static class Flowing extends InvertedFluid {

@@ -1,6 +1,5 @@
 package slimeknights.mantle.registration.adapter;
 
-import lombok.RequiredArgsConstructor;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.fml.ModLoadingContext;
@@ -13,10 +12,15 @@ import java.util.Objects;
  * There also is a convenience variant for items and itemblocks, see {@link ItemRegistryAdapter}.
  */
 @SuppressWarnings("WeakerAccess")
-@RequiredArgsConstructor
 public class RegistryAdapter<T> {
   private final Registry<T> registry;
   private final String modId;
+
+  /** Creates a new adapter for the given registry and mod id */
+  public RegistryAdapter(Registry<T> registry, String modId) {
+    this.registry = registry;
+    this.modId = modId;
+  }
 
   /**
    * Automatically creates determines the modid from the currently loading mod.

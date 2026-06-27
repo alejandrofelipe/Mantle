@@ -15,6 +15,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
 
+// FIXME CONVERGE (datagen builder): rewrite to the 1.21 RecipeOutput API. net.minecraft.data.recipes.FinishedRecipe is removed;
+//   ShapedRecipeBuilder.save now takes RecipeOutput (NOT a functional interface, cannot lambda) + ResourceLocation. The inner Result/
+//   FinishedRecipe wrapper must be replaced by accepting RecipeOutput and emitting the fallback recipe directly. Deferred with the datagen rewrite.
 /** Builder for a shaped recipe with fallbacks */
 @SuppressWarnings("unused")
 @RequiredArgsConstructor(staticName = "fallback")

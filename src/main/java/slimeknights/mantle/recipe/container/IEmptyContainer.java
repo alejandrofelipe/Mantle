@@ -3,7 +3,7 @@ package slimeknights.mantle.recipe.container;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * Base inventory for inventories that do not use items
+ * Base input for recipes that do not use items
  */
 public interface IEmptyContainer extends IRecipeContainer {
   /** Empty inventory instance, for cases where a nonnull inventory is required */
@@ -26,7 +26,7 @@ public interface IEmptyContainer extends IRecipeContainer {
   /** @deprecated always 0, not useful */
   @Deprecated
   @Override
-  default int getContainerSize() {
+  default int size() {
     return 0;
   }
 }

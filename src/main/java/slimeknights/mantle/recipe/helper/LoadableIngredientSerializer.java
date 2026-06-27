@@ -1,36 +1,19 @@
 package slimeknights.mantle.recipe.helper;
 
-import com.google.gson.JsonObject;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraftforge.common.crafting.CraftingHelper;
-import net.minecraftforge.common.crafting.IIngredientSerializer;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.neoforged.neoforge.common.crafting.ICustomIngredient;
+import net.neoforged.neoforge.common.crafting.IngredientType;
 import slimeknights.mantle.data.loadable.record.RecordLoadable;
 
-import java.util.Objects;
-
-/** Ingredient serializer made using loadables */
-public record LoadableIngredientSerializer<T extends Ingredient>(RecordLoadable<T> loadable) implements IIngredientSerializer<T> {
-  @Override
-  public T parse(FriendlyByteBuf buffer) {
-    return loadable.decode(buffer);
-  }
-
-  @Override
-  public T parse(JsonObject json) {
-    return loadable.deserialize(json);
-  }
-
-  @Override
-  public void write(FriendlyByteBuf buffer, T ingredient) {
-    loadable.encode(buffer, ingredient);
-  }
-
-  /** Serializes the ingredient to JSON */
-  public JsonObject serialize(T ingredient) {
-    JsonObject json = new JsonObject();
-    json.addProperty("type", Objects.requireNonNull(CraftingHelper.getID(this)).toString());
-    loadable.serialize(ingredient, json);
-    return json;
+/**
+ * Helper for building a NeoForge {@link IngredientType} from a {@link RecordLoadable}.
+ * @param <T>  Custom ingredient type
+ */
+public record LoadableIngredientSerializer<T extends ICustomIngredient>(RecordLoadable<T> loadable) {
+  /** Creates the ingredient type for this serializer */
+  public IngredientType<T> ingredientType() {
+    StreamCodec<RegistryFriendlyByteBuf,T> streamCodec = loadable.streamCodec();
+    return new IngredientType<>(loadable.mapCodec(), streamCodec);
   }
 }

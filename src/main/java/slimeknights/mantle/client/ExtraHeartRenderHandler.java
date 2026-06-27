@@ -12,10 +12,8 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.client.event.RenderGuiOverlayEvent;
-import net.minecraftforge.client.gui.overlay.ForgeGui;
-import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
-import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
+import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import slimeknights.mantle.Mantle;
@@ -80,20 +78,28 @@ public class ExtraHeartRenderHandler {
    * @param event  Event instance
    */
   @SubscribeEvent(priority = EventPriority.LOW)
-  public void renderHealthbar(RenderGuiOverlayEvent.Pre event) {
+  public void renderHealthbar(RenderGuiLayerEvent.Pre event) {
     HeartRenderer renderer = Config.HEART_RENDERER.get();
-    if (renderer == HeartRenderer.DISABLE || event.isCanceled() || event.getOverlay() != VanillaGuiOverlay.PLAYER_HEALTH.type()) {
+    if (renderer == HeartRenderer.DISABLE || !event.getName().equals(VanillaGuiLayers.PLAYER_HEALTH)) {
+      return;
+    }
+    // TODO PORT (stage 6 book): the custom heart renderer relied on Forge's ForgeGui internals
+    //  (leftHeight, setupOverlayRenderState, shouldDrawSurvivalElements) and the cancellable
+    //  RenderGuiOverlayEvent.Pre/Post pair, all of which were removed in the 1.21 Gui rewrite.
+    //  NeoForge's RenderGuiLayerEvent.Pre is cancellable but no longer exposes the layout cursor
+    //  (leftHeight) needed to position rows. Re-implement against the new Gui/LayeredDraw layout
+    //  before re-enabling. Disabled for now so vanilla hearts render.
+    if (true) {
       return;
     }
     // ensure its visible
-    if (!(mc.gui instanceof ForgeGui gui) || mc.options.hideGui || !gui.shouldDrawSurvivalElements()) {
+    if (mc.options.hideGui) {
       return;
     }
     Entity renderViewEnity = this.mc.getCameraEntity();
     if (!(renderViewEnity instanceof Player player)) {
       return;
     }
-    gui.setupOverlayRenderState(true, false);
 
     this.mc.getProfiler().push("health");
 
@@ -124,7 +130,9 @@ public class ExtraHeartRenderHandler {
     // setup window size
     Window window = this.mc.getWindow();
     int left = window.getGuiScaledWidth() / 2 - 91;
-    int top = window.getGuiScaledHeight() - gui.leftHeight;
+    // TODO PORT (stage 6 book): leftHeight was ForgeGui's layout cursor; placeholder until re-implemented
+    int leftHeight = 39;
+    int top = window.getGuiScaledHeight() - leftHeight;
 
     // grab max health as the max of it or the health we will display
     // cap it to 20, as this just determines heart count
@@ -222,16 +230,10 @@ public class ExtraHeartRenderHandler {
 
     // prepare the GUI for the event
     RenderSystem.setShaderTexture(0, ICON_VANILLA);
-    gui.leftHeight += ROW_HEIGHT;
-    if (!compactAbsorption && absorb > 0) {
-      gui.leftHeight += absorptionOffset;
-    }
-
-    event.setCanceled(true);
+    // TODO PORT (stage 6 book): cancel the vanilla health layer and advance the layout cursor once
+    //  the new Gui layout API is wired up. event.setCanceled(true) is valid on RenderGuiLayerEvent.Pre.
     RenderSystem.disableBlend();
     this.mc.getProfiler().pop();
-    //noinspection UnstableApiUsage  I do what I want (more accurately, we override the renderer but want to let others still respond in post)
-    NeoForge.EVENT_BUS.post(new RenderGuiOverlayEvent.Post(event.getWindow(), graphics, event.getPartialTick(), VanillaGuiOverlay.PLAYER_HEALTH.type()));
   }
 
   /** Computes the color U offset for a given heart index */

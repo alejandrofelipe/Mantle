@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -19,8 +20,10 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.client.model.data.ModelData;
-import net.minecraftforge.client.model.data.ModelProperty;
+import net.neoforged.neoforge.client.model.data.ModelData;
+import net.neoforged.neoforge.client.model.data.ModelProperty;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredRegister;
 import slimeknights.mantle.Mantle;
 
 import javax.annotation.Nullable;
@@ -29,16 +32,32 @@ import java.util.Objects;
 import java.util.function.Predicate;
 
 /**
- * This utility contains helpers to handle the NBT for retexturable blocks
+ * This utility contains helpers to handle the data for retexturable blocks
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class RetexturedHelper {
   /** Translation key for the texture ID in advanced tooltips. */
   public static final String KEY_ID = Mantle.makeDescriptionId("block", "retextured.id");
-  /** Tag name for texture blocks. Should not be used directly, use the utils to interact */
+  /** Tag name for texture blocks. Should not be used directly, use the utils to interact. Used by block entity NBT serialization. */
   public static final String TAG_TEXTURE = "texture";
   /** Property for tile entities containing a texture block */
   public static final ModelProperty<Block> BLOCK_PROPERTY = new ModelProperty<>(block -> block != Blocks.AIR);
+
+  /**
+   * Deferred register for the texture data component. Forge's item NBT was replaced by data components in 1.21,
+   * so the texture stored on an item stack now lives in {@link #TEXTURE} rather than the {@link #TAG_TEXTURE} NBT key.
+   * <p>
+   * TODO PORT (stage 7): this register must be added to the mod event bus (e.g. {@code COMPONENTS.register(modBus)} in
+   * {@code Mantle}) for the component to actually register. Until then the holder is unbound and item-stack texture
+   * accessors will fail at runtime (compiles fine).
+   */
+  public static final DeferredRegister.DataComponents COMPONENTS = DeferredRegister.createDataComponents(Mantle.modId);
+  /** Data component storing the texture block id on an item stack, replacing the old {@link #TAG_TEXTURE} string NBT key. */
+  public static final DeferredHolder<DataComponentType<?>,DataComponentType<ResourceLocation>> TEXTURE = COMPONENTS.registerComponentType(
+    TAG_TEXTURE,
+    builder -> builder
+      .persistent(ResourceLocation.CODEC)
+      .networkSynchronized(ResourceLocation.STREAM_CODEC));
 
 
   /* Texture name */
@@ -61,7 +80,8 @@ public final class RetexturedHelper {
    * @return  Texture, or empty string if none
    */
   public static String getTextureName(ItemStack stack) {
-    return getTextureName(stack.getTag());
+    ResourceLocation texture = stack.get(TEXTURE);
+    return texture == null ? "" : texture.toString();
   }
 
   /**
@@ -121,25 +141,30 @@ public final class RetexturedHelper {
     }
   }
   /**
-   * Creates a new item stack with the given block as it's texture tag
+   * Creates a new item stack with the given block as it's texture
    * @param stack  Stack to modify
-   * @param name   Block name to set. If empty, clears the tag
-   * @return The item stack with the proper NBT
+   * @param name   Block name to set. If empty or invalid, clears the texture
+   * @return The item stack with the proper texture component
    */
   public static ItemStack setTexture(ItemStack stack, String name) {
-    if (!name.isEmpty()) {
-      setTexture(stack.getOrCreateTag(), name);
-    } else if (stack.hasTag()) {
-      setTexture(stack.getTag(), name);
+    if (name.isEmpty()) {
+      stack.remove(TEXTURE);
+    } else {
+      ResourceLocation location = ResourceLocation.tryParse(name);
+      if (location != null) {
+        stack.set(TEXTURE, location);
+      } else {
+        stack.remove(TEXTURE);
+      }
     }
     return stack;
   }
 
   /**
-   * Creates a new item stack with the given block as it's texture tag
+   * Creates a new item stack with the given block as it's texture
    * @param stack Stack to modify
    * @param block Block to set
-   * @return The item stack with the proper NBT
+   * @return The item stack with the proper texture component
    */
   public static ItemStack setTexture(ItemStack stack, @Nullable Block block) {
     if (block == null || block == Blocks.AIR) {

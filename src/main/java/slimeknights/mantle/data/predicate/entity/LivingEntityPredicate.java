@@ -60,7 +60,7 @@ public interface LivingEntityPredicate extends IJsonPredicate<LivingEntity> {
 
   // water
   /** Entities with eyes in water */
-  LivingEntityPredicate EYES_IN_WATER = simple(entity -> entity.wasEyeInWater);
+  LivingEntityPredicate EYES_IN_WATER = simple(entity -> entity.isEyeInFluid(net.minecraft.tags.FluidTags.WATER));
   /** Entities with feet in water */
   LivingEntityPredicate FEET_IN_WATER = simple(Entity::isInWater);
   /** Entities with head and feet are in water */

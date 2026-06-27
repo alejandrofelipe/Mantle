@@ -64,6 +64,12 @@ if (System.getenv().ARTIFACT_VERSION != null) {
 version = "${minecraft_version}-${artifact_version}"
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}, Version: ${version}"
 
+minecraft {
+    accessTransformers {
+        file('src/main/resources/META-INF/accesstransformer.cfg')
+    }
+}
+
 subsystems {
     parchment {
         minecraftVersion = parchment_minecraft

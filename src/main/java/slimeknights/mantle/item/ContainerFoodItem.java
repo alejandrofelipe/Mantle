@@ -1,7 +1,6 @@
 package slimeknights.mantle.item;
 
-import com.mojang.datafixers.util.Pair;
-import net.minecraft.nbt.CompoundTag;
+import lombok.Getter;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -14,10 +13,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
-import net.minecraftforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.FluidStack;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -45,23 +42,23 @@ public class ContainerFoodItem extends Item {
   /** Adds effects to the tooltip */
   public static void addEffectTooltip(FoodProperties food, List<Component> tooltip) {
     // add effects to the tooltip, code based on potion items
-    for (Pair<MobEffectInstance, Float> pair : food.getEffects()) {
-      MobEffectInstance effect = pair.getFirst();
+    for (FoodProperties.PossibleEffect possible : food.effects()) {
+      MobEffectInstance effect = possible.effect();
       if (effect != null) {
         MutableComponent mutable = Component.translatable(effect.getDescriptionId());
         if (effect.getAmplifier() > 0) {
           mutable = Component.translatable("potion.withAmplifier", mutable, Component.translatable("potion.potency." + effect.getAmplifier()));
         }
         if (effect.getDuration() > 20) {
-          mutable = Component.translatable("potion.withDuration", mutable, MobEffectUtil.formatDuration(effect, 1.0f));
+          mutable = Component.translatable("potion.withDuration", mutable, MobEffectUtil.formatDuration(effect, 1.0f, 20.0f));
         }
-        tooltip.add(mutable.withStyle(effect.getEffect().getCategory().getTooltipFormatting()));
+        tooltip.add(mutable.withStyle(effect.getEffect().value().getCategory().getTooltipFormatting()));
       }
     }
   }
 
   @Override
-  public void appendHoverText(ItemStack stack, @Nullable Level worldIn, List<Component> tooltip, TooltipFlag flagIn) {
+  public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flagIn) {
     FoodProperties food = stack.getFoodProperties(null);
     if (food != null) {
       addEffectTooltip(food, tooltip);
@@ -87,18 +84,20 @@ public class ContainerFoodItem extends Item {
     return result;
   }
 
-  /** Fluid containing variant of {@link ContainerFoodItem} */
+  /**
+   * Fluid containing variant of {@link ContainerFoodItem}.
+   * <p>
+   * The fluid handler capability is no longer exposed via {@code initCapabilities}; register it centrally on
+   * {@code RegisterCapabilitiesEvent} in stage 7 using {@link #getFluid()}:
+   * {@code event.registerItem(Capabilities.FluidHandler.ITEM, (stack, ctx) -> new ConstantFluidContainerWrapper(item.getFluid().get(), stack), item)}
+   */
   public static class FluidContainerFoodItem extends ContainerFoodItem {
+    /** Supplier for the contained fluid, exposed for central capability registration in stage 7 */
+    @Getter
     private final Supplier<FluidStack> fluid;
     public FluidContainerFoodItem(Properties props, Supplier<FluidStack> fluid) {
       super(props);
       this.fluid = fluid;
-    }
-
-    @Nullable
-    @Override
-    public ICapabilityProvider initCapabilities(ItemStack stack, @Nullable CompoundTag nbt) {
-      return new ConstantFluidContainerWrapper(fluid.get(), stack);
     }
   }
 }

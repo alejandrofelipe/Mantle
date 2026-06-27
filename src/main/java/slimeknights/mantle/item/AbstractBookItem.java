@@ -13,6 +13,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickAction;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
@@ -22,7 +23,6 @@ import slimeknights.mantle.client.book.BookScreenOpener;
 import slimeknights.mantle.datagen.MantleTags;
 import slimeknights.mantle.util.RegistryHelper;
 
-import javax.annotation.Nullable;
 import java.util.List;
 
 /** Item implementing all standard book behaviors, just requires calling methods from {@link slimeknights.mantle.client.book.data.BookData} in a few abstract methods. */
@@ -54,18 +54,18 @@ public abstract class AbstractBookItem extends LecternBookItem {
   }
 
   @Override
-  public void appendHoverText(ItemStack stack, @Nullable Level world, List<Component> tooltip, TooltipFlag flag) {
-    // if the stack is in the player inventory, show the right click to open tooltip
-    if (world != null && world.isClientSide) {
-      Player player = SafeClientAccess.getPlayer();
-      if (player != null && isValidContainer(player.containerMenu)) {
-        Inventory inventory = player.getInventory();
-        if (inventory.items.contains(stack) || inventory.offhand.contains(stack)) {
-          tooltip.add(CLICK_TO_OPEN);
-        }
+  public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+    // if the stack is in the player inventory, show the right click to open tooltip.
+    // SafeClientAccess.getPlayer() returns null on the server, so it doubles as the client-side gate
+    // (Item.TooltipContext no longer exposes a Level/isClientSide in NeoForge 1.21).
+    Player player = SafeClientAccess.getPlayer();
+    if (player != null && isValidContainer(player.containerMenu)) {
+      Inventory inventory = player.getInventory();
+      if (inventory.items.contains(stack) || inventory.offhand.contains(stack)) {
+        tooltip.add(CLICK_TO_OPEN);
       }
     }
-    super.appendHoverText(stack, world, tooltip, flag);
+    super.appendHoverText(stack, context, tooltip, flag);
   }
 
   /** Called on the client to open the screen when used on right click in the hand */

@@ -23,8 +23,8 @@ sections **before** running any Gradle task — skipping them is the #1 cause of
 | Default Java | Temurin **17** (`JAVA_HOME` → `C:\Users\aleja\scoop\apps\temurin17-jdk\current`) | MC 1.21.1 / NeoForge need **Java 21** — must override `JAVA_HOME` per command. |
 | Repo root | `C:\Users\aleja\DEV\New Tinkers\repo` | The working dir of the shell tools is the **parent** (`New Tinkers`). Always target the repo explicitly. |
 | Branch | `1.21.1` | All port work lives here. |
-| Gradle wrapper | **8.1.1** (`gradle/wrapper/gradle-wrapper.properties`) | NeoGradle 7 needs Gradle **8.8+** — must upgrade (prereq 2). |
-| System Gradle | 9.5.1 (Scoop) | **Do not use** for build tasks — NeoGradle 7 targets Gradle 8.8; 9.x may break. Use the wrapper. |
+| Gradle wrapper | **9.2.1** (`gradle/wrapper/gradle-wrapper.properties`) | Paired with NeoGradle 7.1.38 (the official 1.21.1 MDK toolchain). Already set; don't downgrade. |
+| System Gradle | 9.5.1 (Scoop) | **Do not use** for build tasks — always use the wrapper (9.2.1), which pins the exact Gradle that NeoGradle 7.1.38 requires. |
 | Scoop CLI tools | `git` 2.54, `grep`, `fd`, `jq`, `python`, `dotnet-sdk` | Available; `git`/`grep` work in both Bash and PowerShell. |
 
 Paths (Scoop JDKs):
@@ -47,23 +47,28 @@ scoop install temurin21-jdk
 (The `java` bucket is already added — `temurin17-jdk` came from it. If `scoop` reports the bucket is
 missing, run `scoop bucket add java` first.)
 
-### 2. Upgrade the Gradle wrapper to 8.8
+### 2. Upgrade the Gradle wrapper to 9.2.1
 
 Edit `gradle/wrapper/gradle-wrapper.properties` and change the `distributionUrl` line to:
 
 ```properties
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.8-bin.zip
+distributionUrl=https\://services.gradle.org/distributions/gradle-9.2.1-bin.zip
 ```
+
+> **The NeoGradle plugin version and the Gradle version must match.** NeoGradle 7.0.190 requires Gradle 8.13;
+> NeoGradle **7.1.38** (what `build.gradle` uses) requires Gradle **9.x**. We pin Gradle **9.2.1** + foojay
+> **1.0.0** to mirror the official [1.21.1 MDK](https://github.com/NeoForgeMDKs/MDK-1.21.1-NeoGradle). Change
+> one, cross-check the others.
 
 > **Why edit the file instead of running `gradlew wrapper`?** The current wrapper (8.1.1) and the system
 > Gradle (9.5.1) both *configure* the build when the `wrapper` task runs, and NeoGradle 7 rejects both
 > versions — a chicken-and-egg failure. Editing the properties file changes the version with **zero build
-> evaluation**; the next `gradlew` call downloads 8.8 and uses it.
+> evaluation**; the next `gradlew` call downloads 9.2.1 and uses it.
 
 ### 3. Point Gradle at Java 21 for every NeoForge task
 
 `JAVA_HOME` controls the JVM that **launches** Gradle itself — that must be a version the wrapper/NeoGradle
-accept (Java 21 is safe for both Gradle 8.8 and NeoForge 1.21.1). Set it in the **same** PowerShell command
+accept (Java 21 is safe for both Gradle 9.2.1 and NeoForge 1.21.1). Set it in the **same** PowerShell command
 as the Gradle call (PowerShell env vars do **not** persist between separate tool invocations):
 
 > Note: `settings.gradle` applies the `foojay-resolver-convention` plugin, so for the *toolchain* (the JDK
@@ -122,7 +127,7 @@ Set-Location "C:\Users\aleja\DEV\New Tinkers\repo"; $env:JAVA_HOME = "C:\Users\a
 | Run server *(post-migration)* | `runServer` | `--nogui` is preconfigured. Background it. |
 | Game tests | `runGameTestServer` | **Does not exist by default** — no `gameTestServer` run is defined in `build.gradle runs{}` (current or planned). It only becomes a task if such a run is explicitly added. Don't run it expecting it to be there. |
 | Clean | `clean` | Deletes `build/`. The next run re-downloads/re-decompiles — slow. |
-| Upgrade wrapper (one-time) | see [prereq 2](#2-upgrade-the-gradle-wrapper-to-88) | Prefer editing the properties file. |
+| Upgrade wrapper (one-time) | see [prereq 2](#2-upgrade-the-gradle-wrapper-to-921) | Prefer editing the properties file. |
 
 Run-in-background: for `--refresh-dependencies`, `build`, `runData`, `runClient`, `runServer`, use the shell
 tool's **`run_in_background: true`** rather than a foreground call with a long timeout — you'll be notified
@@ -188,7 +193,7 @@ git log --oneline -5
 
 | Symptom in output | Real cause | Fix |
 |-------------------|-----------|-----|
-| `Minimum supported Gradle version is 8.8. Current version is 8.1.1` | Wrapper not upgraded | [Prereq 2](#2-upgrade-the-gradle-wrapper-to-88) |
+| `No matching variant of net.neoforged.gradle:userdev` / `Minimum supported Gradle version` | Wrapper ↔ NeoGradle plugin version mismatch | [Prereq 2](#2-upgrade-the-gradle-wrapper-to-921) — pair Gradle 9.2.1 with NeoGradle 7.1.38 |
 | `Unsupported class file major version` / toolchain error / `No compatible toolchains` | Gradle running on Java 17, or can't find Java 21 | [Prereq 1 + 3](#one-time-prerequisites-do-these-first) — set `JAVA_HOME` to temurin21 in the same command |
 | `Plugin [id: 'net.neoforged.gradle.userdev'...] was not found` | `settings.gradle` missing the NeoForged maven, or offline | Ensure `maven { url = 'https://maven.neoforged.net/releases' }` is in `settings.gradle pluginManagement`; check network |
 | `Could not resolve net.neoforged:neoforge:21.1.234` | Version typo or transient maven issue | Fall back to `21.1.233` in `gradle.properties` |
@@ -202,7 +207,7 @@ git log --oneline -5
 ## Quick checklist before reporting "it failed"
 
 1. Did you set `JAVA_HOME` to **temurin21** in this exact command?
-2. Is the wrapper at **8.8** (`gradle-wrapper.properties`)?
+2. Is the wrapper at **9.2.1** (`gradle-wrapper.properties`), with NeoGradle **7.1.38** in `build.gradle`?
 3. Did you target the **repo** (`-p ...\repo` or `Set-Location`)?
 4. Is it actually a failure, or a **slow cold start** that should be backgrounded?
 

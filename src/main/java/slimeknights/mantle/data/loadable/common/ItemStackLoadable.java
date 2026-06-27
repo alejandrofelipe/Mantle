@@ -2,9 +2,9 @@ package slimeknights.mantle.data.loadable.common;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import io.netty.handler.codec.EncoderException;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -41,8 +41,10 @@ public class ItemStackLoadable {
   private static final LoadableField<Item,ItemStack> ITEM = Loadables.ITEM.defaultField("item", Items.AIR, false, ITEM_GETTER);
   /** Field for item stack count that allows empty */
   private static final LoadableField<Integer,ItemStack> COUNT = IntLoadable.FROM_ZERO.defaultField("count", 1, true, ItemStack::getCount);
-  /** Field for item stack count that allows empty */
-  private static final LoadableField<CompoundTag,ItemStack> NBT = NBTLoadable.ALLOW_STRING.nullableField("nbt", ItemStack::getTag);
+  /** Loadable for the component patch on an item stack, replacing the 1.20 NBT compound. */
+  private static final Loadable<DataComponentPatch> PATCH_LOADABLE = new CodecLoadable<>(DataComponentPatch.CODEC);
+  /** Field for item stack components, defaulting to an empty patch */
+  private static final LoadableField<DataComponentPatch,ItemStack> PATCH = PATCH_LOADABLE.defaultField("components", DataComponentPatch.EMPTY, false, ItemStack::getComponentsPatch);
 
 
   /* Optional */
@@ -51,32 +53,32 @@ public class ItemStackLoadable {
   /** Loadable for a stack that may be empty with variable count */
   public static final RecordLoadable<ItemStack> OPTIONAL_STACK = RecordLoadable.create(ITEM, COUNT, (item, count) -> makeStack(item, count, null))
                                                                                .compact(OPTIONAL_ITEM, stack -> stack.getCount() == 1);
-  /** Loadable for a stack that may be empty with NBT and a count of 1 */
-  public static final RecordLoadable<ItemStack> OPTIONAL_ITEM_NBT = NBTStack.FIXED_COUNT;
-  /** Loadable for a stack that may be empty with variable count and NBT */
-  public static final RecordLoadable<ItemStack> OPTIONAL_STACK_NBT = NBTStack.READ_COUNT;
+  /** Loadable for a stack that may be empty with components and a count of 1 */
+  public static final RecordLoadable<ItemStack> OPTIONAL_ITEM_NBT = ComponentStack.FIXED_COUNT;
+  /** Loadable for a stack that may be empty with variable count and components */
+  public static final RecordLoadable<ItemStack> OPTIONAL_STACK_NBT = ComponentStack.READ_COUNT;
 
   /* Required */
   /** Single item which may not be empty with a count of 1 */
   public static final Loadable<ItemStack> REQUIRED_ITEM = notEmpty(OPTIONAL_ITEM);
   /** Loadable for a stack that may not be empty with variable count */
   public static final RecordLoadable<ItemStack> REQUIRED_STACK = notEmpty(OPTIONAL_STACK);
-  /** Loadable for a stack that may not be empty with NBT and a count of 1 */
+  /** Loadable for a stack that may not be empty with components and a count of 1 */
   public static final RecordLoadable<ItemStack> REQUIRED_ITEM_NBT = notEmpty(OPTIONAL_ITEM_NBT);
-  /** Loadable for a stack that may not be empty with variable count and NBT */
+  /** Loadable for a stack that may not be empty with variable count and components */
   public static final RecordLoadable<ItemStack> REQUIRED_STACK_NBT = notEmpty(OPTIONAL_STACK_NBT);
 
 
   /* Helpers */
 
   /** Makes an item stack from the given parameters */
-  private static ItemStack makeStack(Item item, int count, @Nullable CompoundTag nbt) {
+  private static ItemStack makeStack(Item item, int count, @Nullable DataComponentPatch patch) {
     if (item == Items.AIR || count == 0) {
       return ItemStack.EMPTY;
     }
     ItemStack stack = new ItemStack(item, count);
-    if (nbt != null) {
-      stack.setTag(nbt);
+    if (patch != null && !patch.isEmpty()) {
+      stack.applyComponents(patch);
     }
     return stack;
   }
@@ -91,8 +93,8 @@ public class ItemStackLoadable {
     return loadable.validate(NOT_EMPTY);
   }
 
-  /** Loadable for an item stack with NBT, requires special logic due to forges share tags */
-  private enum NBTStack implements RecordLoadable<ItemStack> {
+  /** Loadable for an item stack with components, syncing via the vanilla item stack stream codec */
+  private enum ComponentStack implements RecordLoadable<ItemStack> {
     /** Reads count from JSON */
     READ_COUNT,
     /** Count is always 1 */
@@ -107,7 +109,7 @@ public class ItemStackLoadable {
       if (this == READ_COUNT) {
         count = COUNT.get(json, context);
       }
-      return makeStack(ITEM.get(json, context), count, NBT.get(json, context));
+      return makeStack(ITEM.get(json, context), count, PATCH.get(json, context));
     }
 
     @Override
@@ -116,7 +118,7 @@ public class ItemStackLoadable {
       if (this == READ_COUNT) {
         COUNT.serialize(stack, json);
       }
-      NBT.serialize(stack, json);
+      PATCH.serialize(stack, json);
     }
 
 
@@ -132,7 +134,7 @@ public class ItemStackLoadable {
 
     @Override
     public JsonElement serialize(ItemStack stack) {
-      if ((this == FIXED_COUNT || stack.getCount() == 1) && !stack.hasTag()) {
+      if ((this == FIXED_COUNT || stack.getCount() == 1) && stack.getComponentsPatch().isEmpty()) {
         return OPTIONAL_ITEM.serialize(stack);
       }
       return RecordLoadable.super.serialize(stack);
@@ -143,29 +145,17 @@ public class ItemStackLoadable {
 
     @Override
     public ItemStack decode(FriendlyByteBuf buffer, TypedMap context) {
-      // not using makeItemStack as we need to set the share tag NBT here
-      Item item = ITEM.decode(buffer, context);
-      int count = 1;
-      if (this == READ_COUNT) {
-        count = COUNT.decode(buffer, context);
+      // the vanilla optional stream codec handles item, count and components, including the empty stack
+      ItemStack stack = ItemStack.OPTIONAL_STREAM_CODEC.decode((RegistryFriendlyByteBuf) buffer);
+      if (this == FIXED_COUNT && !stack.isEmpty()) {
+        stack.setCount(1);
       }
-      CompoundTag nbt = buffer.readNbt();
-      // not using make stack because we want to set share tag
-      if (item == Items.AIR || count <= 0) {
-        return ItemStack.EMPTY;
-      }
-      ItemStack stack = new ItemStack(item, count);
-      stack.readShareTag(nbt);
       return stack;
     }
 
     @Override
-    public void encode(FriendlyByteBuf buffer, ItemStack stack) throws EncoderException {
-      ITEM.encode(buffer, stack);
-      if (this == READ_COUNT) {
-        COUNT.encode(buffer, stack);
-      }
-      buffer.writeNbt(stack.getShareTag());
+    public void encode(FriendlyByteBuf buffer, ItemStack stack) {
+      ItemStack.OPTIONAL_STREAM_CODEC.encode((RegistryFriendlyByteBuf) buffer, stack);
     }
   }
 }

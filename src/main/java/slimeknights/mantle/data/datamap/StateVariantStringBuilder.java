@@ -42,7 +42,7 @@ public class StateVariantStringBuilder {
     return this;
   }
 
-  /** Builds the final string. Based on {@link net.minecraftforge.client.model.generators.VariantBlockStateBuilder#toString()}*/
+  /** Builds the final string. Based on Forge's {@code VariantBlockStateBuilder#toString()}, now NeoForge's block state generators. */
   @Override
   @SuppressWarnings({"unchecked", "rawtypes"})  // not another good way to handle it
   public String toString() {

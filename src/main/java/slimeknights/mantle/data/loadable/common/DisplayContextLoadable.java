@@ -4,8 +4,6 @@ import com.google.gson.JsonSyntaxException;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.IForgeRegistry;
 import slimeknights.mantle.data.loadable.Loadable;
 import slimeknights.mantle.data.loadable.mapping.EnumMapLoadable;
 import slimeknights.mantle.data.loadable.primitive.ResourceLocationLoadable;
@@ -13,40 +11,47 @@ import slimeknights.mantle.util.typed.TypedMap;
 
 import java.util.Map;
 
-/** Special loadable for display contexts due to the Forge weirdness in {@link ItemDisplayContext} */
+/**
+ * Special loadable for display contexts.
+ * In 1.21 {@link ItemDisplayContext} is no longer a registry; it is a {@link net.minecraft.util.StringRepresentable} enum,
+ * so values are keyed by their serialized name (parsed as a {@link ResourceLocation}).
+ */
 public enum DisplayContextLoadable implements ResourceLocationLoadable<ItemDisplayContext> {
   INSTANCE;
 
-  @Override
-  public ItemDisplayContext fromKey(ResourceLocation name, String key, TypedMap context) {
-    IForgeRegistry<ItemDisplayContext> registry = ForgeRegistries.DISPLAY_CONTEXTS.get();
-    if (registry.containsKey(name)) {
-      ItemDisplayContext value = registry.getValue(name);
-      if (value != null) {
-        return value;
+  /** Resolves a context from its serialized name. The serialized name doubles as the key path (and namespace for modded entries). */
+  private static ItemDisplayContext byName(ResourceLocation name) {
+    String serialized = name.getNamespace().equals(ResourceLocation.DEFAULT_NAMESPACE) ? name.getPath() : name.toString();
+    for (ItemDisplayContext context : ItemDisplayContext.values()) {
+      if (context.getSerializedName().equals(serialized)) {
+        return context;
       }
     }
-    throw new JsonSyntaxException("Unable to parse " + key + " as the ItemDisplayContext registry does not contain ID " + name);
+    return null;
+  }
+
+  @Override
+  public ItemDisplayContext fromKey(ResourceLocation name, String key, TypedMap context) {
+    ItemDisplayContext value = byName(name);
+    if (value != null) {
+      return value;
+    }
+    throw new JsonSyntaxException("Unable to parse " + key + " as no ItemDisplayContext matches ID " + name);
   }
 
   @Override
   public ResourceLocation getKey(ItemDisplayContext object) {
-    IForgeRegistry<ItemDisplayContext> registry = ForgeRegistries.DISPLAY_CONTEXTS.get();
-    ResourceLocation location = registry.getKey(object);
-    if (location == null) {
-      throw new RuntimeException("ItemDisplayContext registry does not contain object " + object);
-    }
-    return location;
+    return ResourceLocation.parse(object.getSerializedName());
   }
 
   @Override
   public ItemDisplayContext decode(FriendlyByteBuf buffer, TypedMap context) {
-    return buffer.readRegistryIdUnsafe(ForgeRegistries.DISPLAY_CONTEXTS.get());
+    return ItemDisplayContext.BY_ID.apply(buffer.readVarInt());
   }
 
   @Override
   public void encode(FriendlyByteBuf buffer, ItemDisplayContext value) {
-    buffer.writeRegistryIdUnsafe(ForgeRegistries.DISPLAY_CONTEXTS.get(), value);
+    buffer.writeVarInt(value.getId());
   }
 
   @Override

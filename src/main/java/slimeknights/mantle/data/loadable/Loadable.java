@@ -7,6 +7,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import com.google.gson.JsonSyntaxException;
+import com.mojang.serialization.Codec;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
 import org.jetbrains.annotations.ApiStatus.NonExtendable;
 import org.jetbrains.annotations.ApiStatus.OverrideOnly;
 import org.jetbrains.annotations.Contract;
@@ -74,6 +77,27 @@ public interface Loadable<T> extends JsonDeserializer<T>, JsonSerializer<T>, Str
   @Override
   default JsonElement serialize(T object, Type type, JsonSerializationContext context) {
     return serialize(object);
+  }
+
+
+  /* Vanilla codec bridges, lets us use loadables where Mojang/NeoForge now require codecs (recipe serializers, ingredient types, conditions, ...). */
+
+  /**
+   * Gets a {@link Codec} backed by this loadable's JSON {@link #convert(JsonElement, String, TypedMap)}/{@link #serialize(Object)}.
+   * The codec runs through {@link com.mojang.serialization.JsonOps}, so it is most efficient with JSON-shaped ops.
+   */
+  @NonExtendable
+  default Codec<T> codec() {
+    return new LoadableCodec<>(this);
+  }
+
+  /**
+   * Gets a {@link StreamCodec} backed by this loadable's {@link #encode(net.minecraft.network.FriendlyByteBuf, Object)}/{@link #decode(net.minecraft.network.FriendlyByteBuf, TypedMap)}.
+   * {@link RegistryFriendlyByteBuf} extends {@code FriendlyByteBuf}, so the existing buffer methods are reused directly.
+   */
+  @NonExtendable
+  default StreamCodec<RegistryFriendlyByteBuf,T> streamCodec() {
+    return StreamCodec.of((buffer, value) -> encode(buffer, value), buffer -> decode(buffer));
   }
 
 

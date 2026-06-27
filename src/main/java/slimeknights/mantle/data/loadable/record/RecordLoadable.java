@@ -16,7 +16,9 @@ import com.mojang.datafixers.util.Function6;
 import com.mojang.datafixers.util.Function7;
 import com.mojang.datafixers.util.Function8;
 import com.mojang.datafixers.util.Function9;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.util.GsonHelper;
+import org.jetbrains.annotations.ApiStatus.NonExtendable;
 import slimeknights.mantle.data.loadable.ErrorFactory;
 import slimeknights.mantle.data.loadable.Loadable;
 import slimeknights.mantle.data.loadable.field.DirectField;
@@ -68,6 +70,18 @@ public interface RecordLoadable<T> extends Loadable<T> {
     JsonObject json = new JsonObject();
     serialize(object, json);
     return json;
+  }
+
+
+  /* Vanilla codec bridge */
+
+  /**
+   * Gets a {@link MapCodec} backed by this record loadable, suitable for NeoForge's recipe serializers, ingredient types, and conditions.
+   * Since record loadables always serialize to a JSON object, {@link MapCodec#assumeMapUnsafe(com.mojang.serialization.Codec)} safely wraps {@link #codec()}.
+   */
+  @NonExtendable
+  default MapCodec<T> mapCodec() {
+    return MapCodec.assumeMapUnsafe(codec());
   }
 
 

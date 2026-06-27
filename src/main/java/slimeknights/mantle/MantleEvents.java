@@ -8,14 +8,14 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameRules;
-import net.minecraftforge.common.util.FakePlayer;
-import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.entity.living.LivingDropsEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.common.util.FakePlayer;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus;
+import net.neoforged.fml.common.EventBusSubscriber.Bus;
 import slimeknights.mantle.datagen.MantleTags;
 
 import java.util.ArrayList;
@@ -23,9 +23,19 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-/** Handles events for any Mantle driven logic. */
-@EventBusSubscriber(modid = Mantle.modId, bus = Bus.FORGE)
+/**
+ * Handles events for any Mantle driven logic.
+ * <p>
+ * Registered automatically via {@link EventBusSubscriber} on the NeoForge game bus ({@link Bus#GAME}, formerly
+ * Forge's {@code Bus.FORGE}).
+ */
+@EventBusSubscriber(modid = Mantle.modId, bus = Bus.GAME)
 public class MantleEvents {
+  // TODO PORT (codebase-wide NBT -> data component migration): the soulbound handlers below still use the
+  // removed-in-1.21 ItemStack NBT API (getOrCreateTag/getTag/setTag) to stash the SOULBOUND_SLOT marker. Sibling
+  // files (e.g. client/book/BookHelper, client/model/NBTKeyModel) use the same pattern and are pending the same
+  // migration to DataComponents.CUSTOM_DATA (CustomData#update / #getUnsafe). The forge->neoforge event/bus imports
+  // (the entrypoint port's scope) are done; these NBT accessors converge with the rest of the codebase.
   /* Soulbound */
   /**
    * NBT key for items to preserve their slot in soulbound. Applied to items tagged {@link MantleTags.Items#SOULBOUND}.

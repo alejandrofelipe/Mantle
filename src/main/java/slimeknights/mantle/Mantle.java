@@ -3,6 +3,7 @@ package slimeknights.mantle;
 import net.minecraft.Util;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.data.PackOutput;
@@ -10,25 +11,23 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.MobType;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.neoforge.common.NeoForge;
-import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
-import net.minecraftforge.common.crafting.CraftingHelper;
-import net.minecraftforge.common.data.ExistingFileHelper;
-import net.minecraftforge.data.event.GatherDataEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.common.data.ExistingFileHelper;
+import net.neoforged.neoforge.data.event.GatherDataEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModLoadingContext;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
-import net.minecraftforge.fml.config.ModConfig.Type;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.fml.loading.FMLEnvironment;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegisterEvent;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import slimeknights.mantle.block.entity.MantleHangingSignBlockEntity;
@@ -47,7 +46,6 @@ import slimeknights.mantle.data.predicate.entity.BlockAtEntityPredicate;
 import slimeknights.mantle.data.predicate.entity.HasEnchantmentEntityPredicate;
 import slimeknights.mantle.data.predicate.entity.HasMobEffectPredicate;
 import slimeknights.mantle.data.predicate.entity.LivingEntityPredicate;
-import slimeknights.mantle.data.predicate.entity.MobTypePredicate;
 import slimeknights.mantle.data.predicate.fluid.FluidPredicate;
 import slimeknights.mantle.data.predicate.fluid.FluidTypePredicate;
 import slimeknights.mantle.data.predicate.item.ItemPredicate;
@@ -68,18 +66,15 @@ import slimeknights.mantle.loot.LootTableInjector;
 import slimeknights.mantle.loot.MantleLoot;
 import slimeknights.mantle.network.MantleNetwork;
 import slimeknights.mantle.recipe.MantleRecipes;
-import slimeknights.mantle.recipe.condition.TagCombinationCondition;
-import slimeknights.mantle.recipe.condition.TagEmptyCondition;
-import slimeknights.mantle.recipe.condition.TagFilledCondition;
+import slimeknights.mantle.recipe.condition.MantleConditions;
 import slimeknights.mantle.recipe.helper.TagPreference;
-import slimeknights.mantle.recipe.ingredient.FluidContainerIngredient;
-import slimeknights.mantle.recipe.ingredient.PotionDisplayIngredient;
-import slimeknights.mantle.recipe.ingredient.PotionIngredient;
+import slimeknights.mantle.recipe.ingredient.MantleIngredients;
+import slimeknights.mantle.registration.MantleRegistrations;
 import slimeknights.mantle.registration.RegistrationHelper;
 import slimeknights.mantle.registration.adapter.BlockEntityTypeRegistryAdapter;
 import slimeknights.mantle.util.OffhandCooldownTracker;
+import slimeknights.mantle.util.RetexturedHelper;
 
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -100,21 +95,33 @@ public class Mantle {
   /* Instance of this mod, used for grabbing prototype fields */
   public static Mantle instance;
 
-  /* Proxies for sides, used for graphics processing */
-  public Mantle() {
-    ModLoadingContext.get().registerConfig(Type.CLIENT, Config.CLIENT_SPEC);
-    ModLoadingContext.get().registerConfig(Type.SERVER, Config.SERVER_SPEC);
+  public Mantle(IEventBus bus, ModContainer container) {
+    instance = this;
+
+    // config (was ModLoadingContext in Forge; now registered on the mod container)
+    container.registerConfig(ModConfig.Type.CLIENT, Config.CLIENT_SPEC);
+    container.registerConfig(ModConfig.Type.SERVER, Config.SERVER_SPEC);
 
     FluidContainerTransferManager.INSTANCE.init();
     MantleTags.init();
 
-    instance = this;
-    IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
+    // mod-bus lifecycle listeners
     bus.addListener(EventPriority.NORMAL, false, FMLCommonSetupEvent.class, this::commonSetup);
     bus.addListener(EventPriority.NORMAL, false, RegisterCapabilitiesEvent.class, this::registerCapabilities);
     bus.addListener(EventPriority.NORMAL, false, GatherDataEvent.class, this::gatherData);
     bus.addListener(EventPriority.NORMAL, false, RegisterEvent.class, this::register);
-    MantleRecipes.init(bus);
+
+    // network payloads (replaces the old commonSetup MantleNetwork.registerPackets())
+    bus.addListener(RegisterPayloadHandlersEvent.class, MantleNetwork::registerPayloads);
+
+    // deferred registers: each .register(bus) attaches its internal handlers to the mod bus
+    MantleConditions.init(bus);            // data load condition codecs (tag_empty/tag_filled/tag_combination_filled)
+    MantleIngredients.init(bus);           // custom ingredient types (potion/potion_display/fluid_container)
+    MantleRecipes.init(bus);               // recipe serializers (crafting + cooking)
+    MantleLoot.init(bus);                  // loot conditions/functions/entries + global loot modifiers
+    RetexturedHelper.COMPONENTS.register(bus); // data component for the retextured-block texture id
+
+    // game-bus listeners
     NeoForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, PlayerInteractEvent.RightClickBlock.class, LecternBookItem::interactWithBlock);
 
     if (FMLEnvironment.dist == Dist.CLIENT) {
@@ -123,111 +130,121 @@ public class Mantle {
   }
 
   private void registerCapabilities(RegisterCapabilitiesEvent event) {
+    // entity capability: per-player offhand cooldown tracker (registered for EntityType.PLAYER)
     OffhandCooldownTracker.register(event);
+    // NOTE (item FluidHandler.ITEM caps): ContainerFoodItem.FluidContainerFoodItem and ConstantFluidContainerWrapper
+    // expose fluid handlers, but Mantle itself instantiates no concrete fluid-container item, so there is nothing to
+    // register here. Downstream mods (e.g. Tinkers) register their own items via
+    // event.registerItem(Capabilities.FluidHandler.ITEM, (stack, ctx) -> new ConstantFluidContainerWrapper(...), item).
+    // NOTE (block-entity item handler): InventoryBlockEntity is abstract and Mantle registers no concrete BlockEntityType
+    // for it, so there is no Capabilities.ItemHandler.BLOCK registration to perform here. The sign block entity types
+    // (MantleRegistrations.SIGN/HANGING_SIGN) expose no handlers either.
   }
 
   private void commonSetup(final FMLCommonSetupEvent event) {
-    MantleNetwork.registerPackets();
+    event.enqueueWork(this::registerLoadables);
     MantleCommand.init();
     OffhandCooldownTracker.init();
     TagPreference.init();
     LootTableInjector.init();
   }
 
+  /**
+   * Registers all in-memory GSON-dispatch loaders (predicates, fluid-container transfers). These are plain mutable
+   * registries rather than game registries, so they are populated once during common setup. Previously these lived in
+   * the {@code Registries.RECIPE_SERIALIZER} branch of the Forge {@code RegisterEvent}; Forge's
+   * {@code CraftingHelper.register(...)} ingredient/condition registrations from that branch are now handled by the
+   * {@link MantleConditions} and {@link MantleIngredients} deferred registers wired in the constructor.
+   */
+  private void registerLoadables() {
+    // fluid container transfer
+    FluidContainerTransferManager.TRANSFER_LOADERS.registerDeserializer(EmptyFluidContainerTransfer.ID, EmptyFluidContainerTransfer.DESERIALIZER);
+    FluidContainerTransferManager.TRANSFER_LOADERS.registerDeserializer(FillFluidContainerTransfer.ID, FillFluidContainerTransfer.DESERIALIZER);
+    FluidContainerTransferManager.TRANSFER_LOADERS.registerDeserializer(EmptyFluidWithNBTTransfer.ID, EmptyFluidWithNBTTransfer.DESERIALIZER);
+    FluidContainerTransferManager.TRANSFER_LOADERS.registerDeserializer(FillFluidWithNBTTransfer.ID, FillFluidWithNBTTransfer.DESERIALIZER);
+    FluidContainerTransferManager.TRANSFER_LOADERS.registerDeserializer(EmptyPotionTransfer.ID, EmptyPotionTransfer.DESERIALIZER);
+
+    // predicates
+    // block predicates
+    BlockPredicate.LOADER.register(getResource("requires_tool"), BlockPredicate.REQUIRES_TOOL.getLoader());
+    BlockPredicate.LOADER.register(getResource("blocks_motion"), BlockPredicate.BLOCKS_MOTION.getLoader());
+    BlockPredicate.LOADER.register(getResource("can_be_replaced"), BlockPredicate.CAN_BE_REPLACED.getLoader());
+    BlockPredicate.LOADER.register(getResource("block_properties"), BlockPropertiesPredicate.LOADER);
+
+    // item predicates
+    ItemPredicate.LOADER.register(getResource("has_container"), ItemPredicate.HAS_CONTAINER.getLoader());
+    ItemPredicate.LOADER.register(getResource("may_have_transfer"), ItemPredicate.MAY_HAVE_TRANSFER.getLoader());
+
+    // fluid predicates
+    FluidPredicate.LOADER.register(getResource("fluid_type"), FluidTypePredicate.LOADER);
+    FluidPredicate.LOADER.register(getResource("is_source"), FluidPredicate.SOURCE.getLoader());
+    FluidPredicate.LOADER.register(getResource("has_bucket"), FluidPredicate.HAS_BUCKET.getLoader());
+    FluidPredicate.LOADER.register(getResource("lighter_than_air"), FluidPredicate.LIGHTER_THAN_AIR.getLoader());
+
+    // entity predicates
+    // simple
+    LivingEntityPredicate.LOADER.register(getResource("fire_immune"), LivingEntityPredicate.FIRE_IMMUNE.getLoader());
+    LivingEntityPredicate.LOADER.register(getResource("can_freeze"), LivingEntityPredicate.CAN_FREEZE.getLoader());
+    LivingEntityPredicate.LOADER.register(getResource("water_sensitive"), LivingEntityPredicate.WATER_SENSITIVE.getLoader());
+    LivingEntityPredicate.LOADER.register(getResource("on_fire"), LivingEntityPredicate.ON_FIRE.getLoader());
+    LivingEntityPredicate.LOADER.register(getResource("is_freezing"), LivingEntityPredicate.IS_FREEZING.getLoader());
+    LivingEntityPredicate.LOADER.register(getResource("is_in_powdered_snow"), LivingEntityPredicate.IS_IN_POWDERED_SNOW.getLoader());
+    LivingEntityPredicate.LOADER.register(getResource("on_ground"), LivingEntityPredicate.ON_GROUND.getLoader());
+    LivingEntityPredicate.LOADER.register(getResource("crouching"), LivingEntityPredicate.CROUCHING.getLoader());
+    LivingEntityPredicate.LOADER.register(getResource("sprinting"), LivingEntityPredicate.SPRINTING.getLoader());
+    LivingEntityPredicate.LOADER.register(getResource("blocking"), LivingEntityPredicate.BLOCKING.getLoader());
+    LivingEntityPredicate.LOADER.register(getResource("elytra_flying"), LivingEntityPredicate.ELYTRA_FLYING.getLoader());
+    LivingEntityPredicate.LOADER.register(getResource("has_effect"), HasMobEffectPredicate.LOADER);
+    LivingEntityPredicate.LOADER.register(getResource("block_at_entity"), BlockAtEntityPredicate.LOADER);
+    LivingEntityPredicate.LOADER.register(getResource("eyes_in_water"), LivingEntityPredicate.EYES_IN_WATER.getLoader());
+    LivingEntityPredicate.LOADER.register(getResource("feet_in_water"), LivingEntityPredicate.FEET_IN_WATER.getLoader());
+    LivingEntityPredicate.LOADER.register(getResource("underwater"), LivingEntityPredicate.UNDERWATER.getLoader());
+    LivingEntityPredicate.LOADER.register(getResource("raining_at"), LivingEntityPredicate.RAINING.getLoader());
+    // property
+    // TODO PORT (data.predicate.entity stage): MobTypePredicate still references net.minecraft.world.entity.MobType,
+    // which was REMOVED in MC 1.21 (mob categorization moved to entity type tags / DamageTypeTags). Until
+    // MobTypePredicate is reworked off MobType, its loader registration and the five MobType.* constant registrations
+    // below cannot be wired. Restore once MobTypePredicate compiles:
+    //   LivingEntityPredicate.LOADER.register(getResource("mob_type"), MobTypePredicate.LOADER);
+    //   MobTypePredicate.MOB_TYPES.register(ResourceLocation.parse("undefined"), MobType.UNDEFINED); ... (undead/arthropod/illager/water)
+    LivingEntityPredicate.LOADER.register(getResource("has_enchantment"), HasEnchantmentEntityPredicate.LOADER);
+
+    // damage predicates
+    // simple
+    DamageSourcePredicate.LOADER.register(getResource("has_entity"), DamageSourcePredicate.HAS_ENTITY.getLoader());
+    DamageSourcePredicate.LOADER.register(getResource("is_indirect"), DamageSourcePredicate.IS_INDIRECT.getLoader());
+    DamageSourcePredicate.LOADER.register(getResource("can_protect"), DamageSourcePredicate.CAN_PROTECT.getLoader());
+    // fields
+    DamageSourcePredicate.LOADER.register(getResource("damage_type"), DamageTypePredicate.LOADER);
+    DamageSourcePredicate.LOADER.register(getResource("message"), SourceMessagePredicate.LOADER);
+    DamageSourcePredicate.LOADER.register(getResource("attacker"), SourceAttackerPredicate.LOADER);
+  }
+
+  /** Vanilla/NeoForge {@link RegisterEvent} handler for registries Mantle still populates imperatively. */
   private void register(RegisterEvent event) {
     ResourceKey<?> key = event.getRegistryKey();
-    if (key == Registries.RECIPE_SERIALIZER) {
-      CraftingHelper.register(TagEmptyCondition.SERIALIZER);
-      CraftingHelper.register(TagFilledCondition.SERIALIZER);
-      CraftingHelper.register(TagCombinationCondition.SERIALIZER);
-      CraftingHelper.register(FluidContainerIngredient.ID, FluidContainerIngredient.SERIALIZER);
-      CraftingHelper.register(getResource("potion"), PotionIngredient.SERIALIZER);
-      CraftingHelper.register(getResource("potion_display"), PotionDisplayIngredient.SERIALIZER);
-
-      // fluid container transfer
-      FluidContainerTransferManager.TRANSFER_LOADERS.registerDeserializer(EmptyFluidContainerTransfer.ID, EmptyFluidContainerTransfer.DESERIALIZER);
-      FluidContainerTransferManager.TRANSFER_LOADERS.registerDeserializer(FillFluidContainerTransfer.ID, FillFluidContainerTransfer.DESERIALIZER);
-      FluidContainerTransferManager.TRANSFER_LOADERS.registerDeserializer(EmptyFluidWithNBTTransfer.ID, EmptyFluidWithNBTTransfer.DESERIALIZER);
-      FluidContainerTransferManager.TRANSFER_LOADERS.registerDeserializer(FillFluidWithNBTTransfer.ID, FillFluidWithNBTTransfer.DESERIALIZER);
-      FluidContainerTransferManager.TRANSFER_LOADERS.registerDeserializer(EmptyPotionTransfer.ID, EmptyPotionTransfer.DESERIALIZER);
-
-      // predicates
-      {
-        // block predicates
-        BlockPredicate.LOADER.register(getResource("requires_tool"), BlockPredicate.REQUIRES_TOOL.getLoader());
-        BlockPredicate.LOADER.register(getResource("blocks_motion"), BlockPredicate.BLOCKS_MOTION.getLoader());
-        BlockPredicate.LOADER.register(getResource("can_be_replaced"), BlockPredicate.CAN_BE_REPLACED.getLoader());
-        BlockPredicate.LOADER.register(getResource("block_properties"), BlockPropertiesPredicate.LOADER);
-
-        // item predicates
-        ItemPredicate.LOADER.register(getResource("has_container"), ItemPredicate.HAS_CONTAINER.getLoader());
-        ItemPredicate.LOADER.register(getResource("may_have_transfer"), ItemPredicate.MAY_HAVE_TRANSFER.getLoader());
-
-        // fluid predicates
-        FluidPredicate.LOADER.register(getResource("fluid_type"), FluidTypePredicate.LOADER);
-        FluidPredicate.LOADER.register(getResource("is_source"), FluidPredicate.SOURCE.getLoader());
-        FluidPredicate.LOADER.register(getResource("has_bucket"), FluidPredicate.HAS_BUCKET.getLoader());
-        FluidPredicate.LOADER.register(getResource("lighter_than_air"), FluidPredicate.LIGHTER_THAN_AIR.getLoader());
-
-        // entity predicates
-        // simple
-        LivingEntityPredicate.LOADER.register(getResource("fire_immune"), LivingEntityPredicate.FIRE_IMMUNE.getLoader());
-        LivingEntityPredicate.LOADER.register(getResource("can_freeze"), LivingEntityPredicate.CAN_FREEZE.getLoader());
-        LivingEntityPredicate.LOADER.register(getResource("water_sensitive"), LivingEntityPredicate.WATER_SENSITIVE.getLoader());
-        LivingEntityPredicate.LOADER.register(getResource("on_fire"), LivingEntityPredicate.ON_FIRE.getLoader());
-        LivingEntityPredicate.LOADER.register(getResource("is_freezing"), LivingEntityPredicate.IS_FREEZING.getLoader());
-        LivingEntityPredicate.LOADER.register(getResource("is_in_powdered_snow"), LivingEntityPredicate.IS_IN_POWDERED_SNOW.getLoader());
-        LivingEntityPredicate.LOADER.register(getResource("on_ground"), LivingEntityPredicate.ON_GROUND.getLoader());
-        LivingEntityPredicate.LOADER.register(getResource("crouching"), LivingEntityPredicate.CROUCHING.getLoader());
-        LivingEntityPredicate.LOADER.register(getResource("sprinting"), LivingEntityPredicate.SPRINTING.getLoader());
-        LivingEntityPredicate.LOADER.register(getResource("blocking"), LivingEntityPredicate.BLOCKING.getLoader());
-        LivingEntityPredicate.LOADER.register(getResource("elytra_flying"), LivingEntityPredicate.ELYTRA_FLYING.getLoader());
-        LivingEntityPredicate.LOADER.register(getResource("has_effect"), HasMobEffectPredicate.LOADER);
-        LivingEntityPredicate.LOADER.register(getResource("block_at_entity"), BlockAtEntityPredicate.LOADER);
-        LivingEntityPredicate.LOADER.register(getResource("eyes_in_water"), LivingEntityPredicate.EYES_IN_WATER.getLoader());
-        LivingEntityPredicate.LOADER.register(getResource("feet_in_water"), LivingEntityPredicate.FEET_IN_WATER.getLoader());
-        LivingEntityPredicate.LOADER.register(getResource("underwater"), LivingEntityPredicate.UNDERWATER.getLoader());
-        LivingEntityPredicate.LOADER.register(getResource("raining_at"), LivingEntityPredicate.RAINING.getLoader());
-        // property
-        LivingEntityPredicate.LOADER.register(getResource("mob_type"), MobTypePredicate.LOADER);
-        LivingEntityPredicate.LOADER.register(getResource("has_enchantment"), HasEnchantmentEntityPredicate.LOADER);
-        // register mob types
-        MobTypePredicate.MOB_TYPES.register(ResourceLocation.parse("undefined"), MobType.UNDEFINED);
-        MobTypePredicate.MOB_TYPES.register(ResourceLocation.parse("undead"), MobType.UNDEAD);
-        MobTypePredicate.MOB_TYPES.register(ResourceLocation.parse("arthropod"), MobType.ARTHROPOD);
-        MobTypePredicate.MOB_TYPES.register(ResourceLocation.parse("illager"), MobType.ILLAGER);
-        MobTypePredicate.MOB_TYPES.register(ResourceLocation.parse("water"), MobType.WATER);
-
-        // damage predicates
-        // simple
-        DamageSourcePredicate.LOADER.register(getResource("has_entity"), DamageSourcePredicate.HAS_ENTITY.getLoader());
-        DamageSourcePredicate.LOADER.register(getResource("is_indirect"), DamageSourcePredicate.IS_INDIRECT.getLoader());
-        DamageSourcePredicate.LOADER.register(getResource("can_protect"), DamageSourcePredicate.CAN_PROTECT.getLoader());
-        // fields
-        DamageSourcePredicate.LOADER.register(getResource("damage_type"), DamageTypePredicate.LOADER);
-        DamageSourcePredicate.LOADER.register(getResource("message"), SourceMessagePredicate.LOADER);
-        DamageSourcePredicate.LOADER.register(getResource("attacker"), SourceAttackerPredicate.LOADER);
-      }
-    }
-    else if (key == Registries.BLOCK_ENTITY_TYPE) {
-      BlockEntityTypeRegistryAdapter adapter = new BlockEntityTypeRegistryAdapter(Objects.requireNonNull(event.getForgeRegistry()));
-      Set<Block> signs = MantleSignBlockEntity.buildSignBlocks();
-      if (!signs.isEmpty()) {
-        adapter.register(MantleSignBlockEntity::new, signs, "sign");
-      }
-      signs = MantleHangingSignBlockEntity.buildSignBlocks();
-      if (!signs.isEmpty()) {
-        adapter.register(MantleHangingSignBlockEntity::new, signs, "hanging_sign");
+    if (key == Registries.BLOCK_ENTITY_TYPE) {
+      Registry<BlockEntityType<?>> registry = event.getRegistry(Registries.BLOCK_ENTITY_TYPE);
+      if (registry != null) {
+        BlockEntityTypeRegistryAdapter adapter = new BlockEntityTypeRegistryAdapter(registry, modId);
+        Set<Block> signs = MantleSignBlockEntity.buildSignBlocks();
+        if (!signs.isEmpty()) {
+          // capture the registered type and assign the @ObjectHolder-replacement field (was injected by Forge)
+          MantleRegistrations.SIGN = adapter.register(MantleSignBlockEntity::new, signs, "sign");
+        }
+        signs = MantleHangingSignBlockEntity.buildSignBlocks();
+        if (!signs.isEmpty()) {
+          MantleRegistrations.HANGING_SIGN = adapter.register(MantleHangingSignBlockEntity::new, signs, "hanging_sign");
+        }
       }
     }
     else if (key == Registries.COMMAND_ARGUMENT_TYPE) {
+      // ForgeRegistries.COMMAND_ARGUMENT_TYPES is gone; register through RegisterEvent against the vanilla registry key
       ResourceOrTagKeyArgument.Info<?> info = new ResourceOrTagKeyArgument.Info<>();
-      ForgeRegistries.COMMAND_ARGUMENT_TYPES.register(getResource("resource_or_tag_key"), info);
+      event.register(Registries.COMMAND_ARGUMENT_TYPE, getResource("resource_or_tag_key"), () -> info);
       ArgumentTypeInfos.registerByClass(RegistrationHelper.genericArgumentType(ResourceOrTagKeyArgument.class), info);
     }
-    else {
-      MantleLoot.registerGlobalLootModifiers(event);
-    }
+    // global loot modifiers are now a DeferredRegister (MantleLoot.init), no longer registered here
   }
 
   private void gatherData(final GatherDataEvent event) {

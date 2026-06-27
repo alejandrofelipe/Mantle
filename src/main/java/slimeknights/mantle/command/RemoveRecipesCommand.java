@@ -25,15 +25,13 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.tags.TagKey;
-import net.minecraft.world.Container;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeInput;
 import net.minecraft.world.item.crafting.RecipeType;
-import net.minecraftforge.common.crafting.CraftingHelper;
-import net.minecraftforge.common.crafting.conditions.FalseCondition;
-import net.minecraftforge.common.crafting.conditions.ICondition;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.data.loadable.Loadable;
 import slimeknights.mantle.data.loadable.Loadables;
@@ -173,25 +171,27 @@ public class RemoveRecipesCommand {
 
   /** Runs the command */
   @SuppressWarnings("unchecked")  // not like we are using the generics at all
-  private static <C extends Container, T extends Recipe<C>> int run(CommandContext<CommandSourceStack> context, List<RecipeType<?>> recipeTypes, @Nullable Predicate<Item> removeResult, @Nullable Predicate<Item> removeInput, long startTime) {
+  private static <I extends RecipeInput, T extends Recipe<I>> int run(CommandContext<CommandSourceStack> context, List<RecipeType<?>> recipeTypes, @Nullable Predicate<Item> removeResult, @Nullable Predicate<Item> removeInput, long startTime) {
     // iterate all recipes for the type storing recipes that craft the tag
     ServerLevel level = context.getSource().getLevel();
     RegistryAccess access = level.registryAccess();
     List<ResourceLocation> recipes = new ArrayList<>();
     for (RecipeType<?> recipeType : recipeTypes) {
-      for (Recipe<?> recipe : context.getSource().getLevel().getRecipeManager().getAllRecipesFor((RecipeType<T>) recipeType)) {
+      // 1.21: getAllRecipesFor returns RecipeHolder<T>; recipe id moved to the holder and Recipe.getId() was removed
+      for (RecipeHolder<T> holder : level.getRecipeManager().getAllRecipesFor((RecipeType<T>) recipeType)) {
+        Recipe<I> recipe = holder.value();
         // result must match or not be requested
         if (removeResult == null || removeResult.test(recipe.getResultItem(access).getItem())) {
           // no input predicate? we are done
           if (removeInput == null) {
-            recipes.add(recipe.getId());
+            recipes.add(holder.id());
           } else {
             // at least one ingredient must match the ingredient predicate
             ingredientLoop:
             for (Ingredient ingredient : recipe.getIngredients()) {
               for (ItemStack stack : ingredient.getItems()) {
                 if (removeInput.test(stack.getItem())) {
-                  recipes.add(recipe.getId());
+                  recipes.add(holder.id());
                   break ingredientLoop;
                 }
               }
@@ -207,13 +207,14 @@ public class RemoveRecipesCommand {
 
     // create the object for removing recipes
     JsonObject json = new JsonObject();
-    json.add("conditions", CraftingHelper.serialize(new ICondition[]{FalseCondition.INSTANCE}));
+    json.add(GeneratePackHelper.CONDITIONS_KEY, GeneratePackHelper.serializeFalseCondition());
     String jsonString = DEFAULT_GSON.toJson(json);
 
     int successes = 0;
     Path data = pack.resolve(PackType.SERVER_DATA.getDirectory());
     for (ResourceLocation id : recipes) {
-      Path path = data.resolve(id.getNamespace() + "/recipes/" + id.getPath() + ".json");
+      // 1.21: datapack recipe folder is singular ("recipe")
+      Path path = data.resolve(id.getNamespace() + "/recipe/" + id.getPath() + ".json");
       try {
         Files.createDirectories(path.getParent());
         try (BufferedWriter writer = Files.newBufferedWriter(path)) {
@@ -243,8 +244,9 @@ public class RemoveRecipesCommand {
 
     // create the object for removing recipes
     Path data = pack.resolve(PackType.SERVER_DATA.getDirectory());
-    Path path = data.resolve(id.getNamespace() + "/recipes/" + id.getPath() + ".json");
-    if (!GeneratePackHelper.saveConditionRemove(path, "conditions")) {
+    // 1.21: datapack recipe folder is singular ("recipe")
+    Path path = data.resolve(id.getNamespace() + "/recipe/" + id.getPath() + ".json");
+    if (!GeneratePackHelper.saveConditionRemove(path)) {
       throw GeneratePackHelper.FAILED_SAVE.create(id);
     }
 

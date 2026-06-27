@@ -3,6 +3,7 @@ package slimeknights.mantle.command;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.SharedConstants;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.ClickEvent.Action;
@@ -11,12 +12,13 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.world.level.storage.LevelResource;
-import net.minecraftforge.common.crafting.CraftingHelper;
-import net.minecraftforge.common.crafting.conditions.FalseCondition;
-import net.minecraftforge.common.crafting.conditions.ICondition;
-import net.minecraftforge.fml.ModList;
+import net.neoforged.fml.ModList;
+import net.neoforged.neoforge.common.conditions.FalseCondition;
+import net.neoforged.neoforge.common.conditions.ICondition;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.util.JsonHelper;
+
+import java.util.List;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -69,16 +71,35 @@ public class GeneratePackHelper {
     }
   }
 
-  /** Saves a JSON that removes the given resource using forge conditions */
-  public static boolean saveConditionRemove(Path path, String conditionKey) {
-    JsonObject json = new JsonObject();
-    json.add(conditionKey, CraftingHelper.serialize(new ICondition[]{FalseCondition.INSTANCE}));
-    return saveJson(json, path);
+  /** Key used by NeoForge for data load conditions. */
+  public static final String CONDITIONS_KEY = "neoforge:conditions";
+
+  /** Serializes a list of conditions to a JSON array. */
+  private static JsonElement serializeConditions(ICondition... conditions) {
+    return ICondition.LIST_CODEC.encodeStart(JsonOps.INSTANCE, List.of(conditions))
+      .getOrThrow(error -> new IllegalStateException("Failed to serialize conditions: " + error));
   }
 
-  /** Saves a JSON that removes the given resource using forge conditions */
+  /** Serializes a single {@link FalseCondition} as a JSON array, for adding under {@link #CONDITIONS_KEY}. */
+  public static JsonElement serializeFalseCondition() {
+    return serializeConditions(FalseCondition.INSTANCE);
+  }
+
+  /**
+   * Saves a JSON that removes the given resource using NeoForge conditions.
+   * @param conditionKey  Ignored; NeoForge mandates the {@link #CONDITIONS_KEY} key. Kept for binary compatibility.
+   * @deprecated use {@link #saveConditionRemove(Path)}; the condition key is no longer configurable in NeoForge.
+   */
+  @Deprecated
+  public static boolean saveConditionRemove(Path path, String conditionKey) {
+    return saveConditionRemove(path);
+  }
+
+  /** Saves a JSON that removes the given resource using NeoForge conditions */
   public static boolean saveConditionRemove(Path path) {
-    return saveConditionRemove(path, "forge:conditions");
+    JsonObject json = new JsonObject();
+    json.add(CONDITIONS_KEY, serializeConditions(FalseCondition.INSTANCE));
+    return saveJson(json, path);
   }
 
   /** Creates a mcmeta to make a valid pack */

@@ -6,10 +6,10 @@ import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.GameRules;
-import net.minecraft.world.level.storage.loot.LootDataType;
 import net.neoforged.neoforge.common.NeoForge;
-import net.minecraftforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import slimeknights.mantle.command.argument.TagSourceArgument;
 import slimeknights.mantle.command.tags.ModifyTagCommand;
 
@@ -47,8 +47,11 @@ public class MantleCommand {
     TagSourceArgument.registerSuggestions();
 
     // register interesting sources
-    SourcesCommand.register(LootDataType.TABLE.directory(), (context, builder)
-      -> SharedSuggestionProvider.suggestResource(context.getSource().getServer().getLootData().getKeys(LootDataType.TABLE), builder));
+    // 1.21: getLootData()/LootDataType were removed; loot tables are now a reloadable registry.
+    // ReloadableServerRegistries.Holder#getKeys lists the ids for a given registry key.
+    SourcesCommand.register(Registries.LOOT_TABLE.location().getPath(), (context, builder)
+      -> SharedSuggestionProvider.suggestResource(
+        context.getSource().getServer().reloadableRegistries().getKeys(Registries.LOOT_TABLE), builder));
     SourcesCommand.register("recipes", (context, builder)
       -> SharedSuggestionProvider.suggestResource(context.getSource().getRecipeNames(), builder));
 

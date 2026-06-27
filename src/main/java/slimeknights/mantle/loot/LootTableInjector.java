@@ -1,18 +1,20 @@
 package slimeknights.mantle.loot;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.world.level.storage.loot.LootTable;
-import net.neoforged.neoforge.common.NeoForge;
-import net.minecraftforge.common.crafting.CraftingHelper;
-import net.minecraftforge.common.crafting.conditions.ICondition.IContext;
-import net.minecraftforge.event.AddReloadListenerEvent;
-import net.minecraftforge.event.LootTableLoadEvent;
 import net.neoforged.bus.api.EventPriority;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.common.conditions.ICondition;
+import net.neoforged.neoforge.common.conditions.ICondition.IContext;
+import net.neoforged.neoforge.event.AddReloadListenerEvent;
+import net.neoforged.neoforge.event.LootTableLoadEvent;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.data.listener.IEarlyReloadListener;
 import slimeknights.mantle.loot.LootTableInjection.LootPoolInjection;
@@ -22,6 +24,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Function;
@@ -58,7 +61,7 @@ public enum LootTableInjector implements IEarlyReloadListener {
         JsonObject json = GsonHelper.fromJson(JsonHelper.DEFAULT_GSON, reader, JsonObject.class);
         if (json != null) {
           // skip if empty for easy removals
-          if (!json.keySet().isEmpty() && CraftingHelper.processConditions(json, "conditions", context)) {
+          if (!json.keySet().isEmpty() && conditionsMatch(json)) {
             // the builder allows us to merge from multiple sources, for efficiency
             // ensures a given table name and pool name both show just once
             LootTableInjection injection = LootTableInjection.LOADABLE.deserialize(json);
@@ -80,6 +83,22 @@ public enum LootTableInjector implements IEarlyReloadListener {
                          .collect(Collectors.toUnmodifiableMap(LootTableInjection::name, Function.identity()));
     // log timer
     Mantle.logger.info("Loaded {} loot table injectors injecting into {} tables in {} ms", loaded, injections.size(), (System.nanoTime() - time) / 1000000f);
+  }
+
+  /** Checks the {@code "neoforge:conditions"} block of the given JSON against the current condition context, NeoForge style */
+  private boolean conditionsMatch(JsonObject json) {
+    if (!json.has("neoforge:conditions")) {
+      return true;
+    }
+    JsonArray conditionsJson = GsonHelper.getAsJsonArray(json, "neoforge:conditions");
+    List<ICondition> conditions = ICondition.LIST_CODEC.parse(JsonOps.INSTANCE, conditionsJson)
+      .getOrThrow(error -> new JsonParseException("Failed to parse loot injector conditions: " + error));
+    for (ICondition condition : conditions) {
+      if (!condition.test(context)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /** Called on loot table load to handle the actual injection */

@@ -1,12 +1,12 @@
 package slimeknights.mantle.loot;
 
 import com.google.gson.JsonObject;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.data.CachedOutput;
 import net.minecraft.data.PackOutput;
 import net.minecraft.data.PackOutput.Target;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.common.crafting.CraftingHelper;
-import net.minecraftforge.common.crafting.conditions.ICondition;
+import net.neoforged.neoforge.common.conditions.ICondition;
 import slimeknights.mantle.data.GenericDataProvider;
 
 import java.util.ArrayList;
@@ -33,7 +33,8 @@ public abstract class AbstractLootTableInjectionProvider extends GenericDataProv
     return allOf(builders.stream().map(builder -> {
       JsonObject json = LootTableInjection.LOADABLE.serialize(builder.build()).getAsJsonObject();
       if (builder.conditions.length > 0) {
-        json.add("conditions", CraftingHelper.serialize(builder.conditions));
+        json.add("neoforge:conditions", ICondition.LIST_CODEC.encodeStart(JsonOps.INSTANCE, List.of(builder.conditions))
+          .getOrThrow(error -> new IllegalStateException("Failed to serialize loot injector conditions: " + error)));
       }
       return saveJson(output, ResourceLocation.fromNamespaceAndPath(domain, builder.path), json);
     }));

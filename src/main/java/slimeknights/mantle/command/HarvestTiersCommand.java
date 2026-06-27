@@ -1,42 +1,24 @@
 package slimeknights.mantle.command;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.network.chat.ClickEvent;
-import net.minecraft.network.chat.ClickEvent.Action;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.item.Tier;
-import net.minecraft.world.level.block.Block;
-import net.minecraftforge.common.TierSortingRegistry;
-import slimeknights.mantle.Mantle;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
-import java.util.Objects;
-
-/** Command to dump global loot modifiers */
+/**
+ * Command to dump the tool tier ordering.
+ * TODO PORT (stage 7): TierSortingRegistry and the {@code forge:item_tier_ordering.json} concept were removed
+ *  in 1.20.5+ (verified: NeoForge 1.20.5 port notes mark TierSortingRegistry as "Removed"; vanilla replaced
+ *  tier ordering with a tag/datapack-driven system and {@code Tier.getTag()} no longer exists). There is no
+ *  direct replacement, so the command bodies are stubbed to report unavailability. Either drop this command or
+ *  rebuild it around the vanilla {@code Tiers}/incorrect-blocks-for-drops tags when the harvest-tier feature is
+ *  revisited centrally.
+ */
 public class HarvestTiersCommand {
-  /** Resource location of the global loot manager "tag" */
-  protected static final ResourceLocation HARVEST_TIERS = ResourceLocation.fromNamespaceAndPath("forge", "item_tier_ordering.json");
-  /** Path for saving the loot modifiers */
-  private static final String HARVEST_TIER_PATH = HARVEST_TIERS.getNamespace() + "/" + HARVEST_TIERS.getPath();
-
-  // loot modifiers
-  private static final Component SUCCESS_LOG = Component.translatable("command.mantle.harvest_tiers.success_log");
-  private static final Component EMPTY = Component.translatable("command.mantle.tag.empty");
+  /** Sent to the user explaining the command is no longer available */
+  private static final Component UNAVAILABLE = Component.translatable("command.mantle.harvest_tiers.unavailable");
 
   /**
    * Registers this sub command with the root command
@@ -49,69 +31,17 @@ public class HarvestTiersCommand {
               .then(Commands.literal("list").executes(HarvestTiersCommand::list));
   }
 
-  /** Creates a clickable component for a block tag */
-  private static Object getTagComponent(TagKey<Block> tag) {
-    ResourceLocation id = tag.location();
-    return Component.literal(id.toString()).withStyle(style -> style.withUnderlined(true).withClickEvent(new ClickEvent(Action.SUGGEST_COMMAND, "/mantle dump_tag " + Registries.BLOCK.location() + " " + id + " save")));
-  }
-
   /** Runs the command, dumping the tag */
   private static int list(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-    List<Tier> sortedTiers = TierSortingRegistry.getSortedTiers();
-
-    // start building output message
-    MutableComponent output = Component.translatable("command.mantle.harvest_tiers.success_list");
-    // if no values, print empty
-    if (sortedTiers.isEmpty()) {
-      output.append("\n* ").append(EMPTY);
-    } else {
-      for (Tier tier : sortedTiers) {
-        output.append("\n* ");
-        TagKey<Block> tag = tier.getTag();
-        ResourceLocation id = TierSortingRegistry.getName(tier);
-        if (tag != null) {
-          output.append(Component.translatable("command.mantle.harvest_tiers.tag", id, getTagComponent(tag)));
-        } else {
-          output.append(Component.translatable("command.mantle.harvest_tiers.no_tag", id));
-        }
-      }
-    }
-    context.getSource().sendSuccess(() -> output, true);
-    return sortedTiers.size();
+    // TODO PORT (stage 7): TierSortingRegistry removed; no sorted-tier list available in 1.21.
+    context.getSource().sendSuccess(() -> UNAVAILABLE, true);
+    return 0;
   }
 
   /** Runs the command, dumping the tag */
   private static int run(CommandContext<CommandSourceStack> context, boolean saveFile) throws CommandSyntaxException {
-    List<Tier> sortedTiers = TierSortingRegistry.getSortedTiers();
-
-    // save the list as JSON
-    JsonArray entries = new JsonArray();
-    for (Tier location : sortedTiers) {
-      entries.add(Objects.requireNonNull(TierSortingRegistry.getName(location)).toString());
-    }
-    JsonObject json = new JsonObject();
-    json.add("order", entries);
-
-    // if requested, save
-    if (saveFile) {
-      // save file
-      File output = new File(DumpAllTagsCommand.getOutputFile(context), HARVEST_TIER_PATH);
-      Path path = output.toPath();
-      try {
-        Files.createDirectories(path.getParent());
-        try (BufferedWriter writer = Files.newBufferedWriter(path)) {
-          writer.write(DumpTagCommand.GSON.toJson(json));
-        }
-      } catch (IOException ex) {
-        Mantle.logger.error("Couldn't save harvests tiers to {}", path, ex);
-      }
-      context.getSource().sendSuccess(() -> Component.translatable("command.mantle.harvest_tiers.success_save", GeneratePackHelper.getOutputComponent(output)), true);
-    } else {
-      // print to console
-      context.getSource().sendSuccess(() -> SUCCESS_LOG, true);
-      Mantle.logger.info("Dump of harvests tiers:\n{}", DumpTagCommand.GSON.toJson(json));
-    }
-    // return a number to finish
-    return sortedTiers.size();
+    // TODO PORT (stage 7): TierSortingRegistry removed; cannot dump item_tier_ordering.json in 1.21.
+    context.getSource().sendSuccess(() -> UNAVAILABLE, true);
+    return 0;
   }
 }

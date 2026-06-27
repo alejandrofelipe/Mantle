@@ -11,7 +11,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.client.event.RegisterClientCommandsEvent;
-import net.minecraftforge.common.MinecraftForge;
+import net.neoforged.neoforge.common.NeoForge;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.book.BookLoader;
 
@@ -46,7 +46,7 @@ public class MantleClientCommand {
       -> SharedSuggestionProvider.suggestResource(BuiltInRegistries.ITEM.keySet(), builder));
 
     // add command listener
-    MinecraftForge.EVENT_BUS.addListener(MantleClientCommand::registerCommand);
+    NeoForge.EVENT_BUS.addListener(MantleClientCommand::registerCommand);
   }
 
   /** Registers a sub command for the root Mantle client command */

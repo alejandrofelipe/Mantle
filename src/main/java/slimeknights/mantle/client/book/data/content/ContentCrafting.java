@@ -117,7 +117,7 @@ public class ContentCrafting extends PageContent {
 
       Level level = Minecraft.getInstance().level;
       assert level != null;
-      Recipe<?> recipe = level.getRecipeManager().byKey(new ResourceLocation(this.recipe)).orElse(null);
+      Recipe<?> recipe = level.getRecipeManager().byKey(ResourceLocation.parse(this.recipe)).orElse(null);
       if (recipe instanceof CraftingRecipe) {
         if(grid_size.equalsIgnoreCase("auto")) {
           if(recipe.canCraftInDimensions(2, 2)) {

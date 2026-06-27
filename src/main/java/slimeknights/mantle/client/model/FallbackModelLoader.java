@@ -46,7 +46,7 @@ public enum FallbackModelLoader implements IGeometryLoader<FallbackModelLoader.B
       if (entry.has("fallback_mod_id")) {
         modId = GsonHelper.getAsString(entry, "fallback_mod_id");
       } else if (entry.has("loader")) {
-        ResourceLocation loader = new ResourceLocation(GsonHelper.getAsString(entry, "loader"));
+        ResourceLocation loader = ResourceLocation.parse(GsonHelper.getAsString(entry, "loader"));
         modId = loader.getNamespace();
       }
 

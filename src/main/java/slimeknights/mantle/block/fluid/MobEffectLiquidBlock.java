@@ -11,7 +11,6 @@ import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.level.material.MapColor;
 import slimeknights.mantle.registration.deferred.FluidDeferredRegister;
 
-import java.util.ArrayList;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -27,7 +26,8 @@ public class MobEffectLiquidBlock extends LiquidBlock {
   public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
     if (entity.getFluidTypeHeight(getFluid().getFluidType()) > 0 && entity instanceof LivingEntity living) {
       MobEffectInstance effect = this.effect.get();
-      effect.setCurativeItems(new ArrayList<>());
+      // clear cures so the effect cannot be removed (replaces Forge's setCurativeItems(emptyList))
+      effect.getCures().clear();
       living.addEffect(effect);
     }
   }

@@ -91,12 +91,12 @@ public class FluidContainerIngredient implements ICustomIngredient {
   }
 
   @Override
-  public Stream<Holder<Item>> getItems() {
+  public Stream<ItemStack> getItems() {
     // no container? unfortunately hard to display this recipe so show nothing
     if (display == null) {
       return Stream.empty();
     }
-    return Stream.of(display.getItems()).map(stack -> stack.getItemHolder());
+    return Stream.of(display.getItems());
   }
 
   @Override

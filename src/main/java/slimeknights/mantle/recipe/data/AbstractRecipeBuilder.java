@@ -1,38 +1,30 @@
 package slimeknights.mantle.recipe.data;
 
-import com.google.gson.JsonObject;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import net.minecraft.advancements.Advancement;
+import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.advancements.AdvancementRequirements;
 import net.minecraft.advancements.AdvancementRewards;
 import net.minecraft.advancements.Criterion;
-import net.minecraft.advancements.CriterionTriggerInstance;
-import net.minecraft.advancements.RequirementsStrategy;
-import net.minecraft.advancements.critereon.RecipeUnlockedTrigger;
-import net.minecraft.data.recipes.FinishedRecipe;
+import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeSerializer;
-import slimeknights.mantle.data.loadable.record.RecordLoadable;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.function.Consumer;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
-// FIXME CONVERGE (datagen builders): full rewrite to the 1.21 datagen recipe API is required here.
-//   - net.minecraft.data.recipes.FinishedRecipe is removed -> use net.minecraft.data.recipes.RecipeOutput (NOT a functional interface; cannot lambda it).
-//   - net.minecraft.advancements.RequirementsStrategy is removed -> use AdvancementRequirements.Strategy (OR/AND).
-//   - Advancement.Builder.addCriterion now takes Criterion<?> (wrap the trigger instance in a Criterion). criteria map is private; use addCriterion/requirements/save.
-//   - Recipe::getId is gone; ids come from RecipeOutput.accept(ResourceLocation, Recipe, AdvancementHolder).
-//   This is design-bearing and consumed by Tinkers datagen; deferred until lombok build is fixed and the RecipeOutput contract is settled.
 /**
- * Common logic to create a recipe builder class
+ * Common logic to create a recipe builder class.
+ *
+ * <p>Ported to the 1.21 datagen API: {@code FinishedRecipe} is replaced by {@link RecipeOutput}, recipes no longer
+ * carry their own id (it is supplied to {@link RecipeOutput#accept}), and advancements are built with
+ * {@link AdvancementRequirements.Strategy} and emitted as {@link AdvancementHolder}.
  * @param <T>
  */
 @SuppressWarnings({"WeakerAccess", "unused"})
 public abstract class AbstractRecipeBuilder<T extends AbstractRecipeBuilder<T>> {
-  /** Advancement builder for this class */
-  protected final Advancement.Builder advancementBuilder = Advancement.Builder.advancement();
+  /** Criteria for the recipe advancement, by name. Insertion-ordered to keep datagen output stable. */
+  protected final Map<String,Criterion<?>> criteria = new LinkedHashMap<>();
   /** Group for this recipe */
   @Nonnull
   protected String group = "";
@@ -40,12 +32,12 @@ public abstract class AbstractRecipeBuilder<T extends AbstractRecipeBuilder<T>> 
   /**
    * Adds a criteria to the recipe
    * @param name      Criteria name
-   * @param criteria  Criteria instance
+   * @param criterion Criterion instance
    * @return  Builder
    */
   @SuppressWarnings("unchecked")
-  public T unlockedBy(String name, CriterionTriggerInstance criteria) {
-    this.advancementBuilder.addCriterion(name, criteria);
+  public T unlockedBy(String name, Criterion<?> criterion) {
+    this.criteria.put(name, criterion);
     return (T)this;
   }
 
@@ -75,98 +67,57 @@ public abstract class AbstractRecipeBuilder<T extends AbstractRecipeBuilder<T>> 
 
   /**
    * Builds the recipe with a default recipe ID, typically based on the output
-   * @param consumerIn  Recipe consumer
+   * @param output  Recipe output
    */
-  public abstract void save(Consumer<FinishedRecipe> consumerIn);
+  public abstract void save(RecipeOutput output);
 
   /**
    * Builds the recipe
-   * @param consumerIn  Recipe consumer
-   * @param id          Recipe ID
+   * @param output  Recipe output
+   * @param id      Recipe ID
    */
-  public abstract void save(Consumer<FinishedRecipe> consumerIn, ResourceLocation id);
+  public abstract void save(RecipeOutput output, ResourceLocation id);
 
   /**
    * Base logic for advancement building
    * @param id      Recipe ID
    * @param folder  Group folder for saving recipes. Vanilla typically uses item groups, but for mods might as well base on the recipe
-   * @return Advancement ID
+   * @return Advancement holder
    */
-  private ResourceLocation buildAdvancementInternal(ResourceLocation id, String folder) {
-    this.advancementBuilder
-        .parent(ResourceLocation.parse("recipes/root"))
-        .rewards(AdvancementRewards.Builder.recipe(id))
-        .requirements(RequirementsStrategy.OR);
-    // we directly add the critera through the map as we want to replace it if already added instead of erroring
-    // the rest of these setters all replace our previous recipe data
-    this.advancementBuilder.criteria.put("has_the_recipe", new Criterion(RecipeUnlockedTrigger.unlocked(id)));
-    return ResourceLocation.fromNamespaceAndPath(id.getNamespace(), "recipes/" + folder + "/" + id.getPath());
+  private AdvancementHolder buildAdvancementInternal(ResourceLocation id, String folder) {
+    Advancement.Builder builder = Advancement.Builder.recipeAdvancement()
+      .parent(ResourceLocation.parse("recipes/root"))
+      .rewards(AdvancementRewards.Builder.recipe(id))
+      .requirements(AdvancementRequirements.Strategy.OR);
+    this.criteria.forEach(builder::addCriterion);
+    return builder.build(ResourceLocation.fromNamespaceAndPath(id.getNamespace(), "recipes/" + folder + "/" + id.getPath()));
   }
 
   /**
-   * Builds and validates the advancement, intended to be called in {@link #save(Consumer, ResourceLocation)}
+   * Builds and validates the advancement, intended to be called in {@link #save(RecipeOutput, ResourceLocation)}
    * @param id      Recipe ID
    * @param folder  Group folder for saving recipes. Vanilla typically uses item groups, but for mods might as well base on the recipe
-   * @return Advancement ID
+   * @return Advancement holder
    */
-  protected ResourceLocation buildAdvancement(ResourceLocation id, String folder) {
-    if (this.advancementBuilder.getCriteria().isEmpty()) {
+  protected AdvancementHolder buildAdvancement(ResourceLocation id, String folder) {
+    if (this.criteria.isEmpty()) {
       throw new IllegalStateException("No way of obtaining recipe " + id);
     }
     return buildAdvancementInternal(id, folder);
   }
 
   /**
-   * Builds an optional advancement, intended to be called in {@link #save(Consumer, ResourceLocation)}
+   * Builds an optional advancement, intended to be called in {@link #save(RecipeOutput, ResourceLocation)}
    * @param id        Recipe ID
    * @param folder    Group folder for saving recipes. Vanilla typically uses item groups, but for mods might as well base on the recipe
-   * @return Advancement ID, or null if the advancement was not defined
+   * @return Advancement holder, or null if no criteria were defined
    */
   @SuppressWarnings("SameParameterValue")  // API
   @Nullable
-  protected ResourceLocation buildOptionalAdvancement(ResourceLocation id, String folder) {
-    if (this.advancementBuilder.getCriteria().isEmpty()) {
+  protected AdvancementHolder buildOptionalAdvancement(ResourceLocation id, String folder) {
+    if (this.criteria.isEmpty()) {
       return null;
     }
     return buildAdvancementInternal(id, folder);
-  }
-
-  /** Class to implement basic finished recipe methods */
-  @Getter
-  @RequiredArgsConstructor
-  protected abstract class AbstractFinishedRecipe implements FinishedRecipe {
-    private final ResourceLocation id;
-    @Nullable
-    private final ResourceLocation advancementId;
-
-    @Nullable
-    @Override
-    public JsonObject serializeAdvancement() {
-      if (advancementId == null) {
-        return null;
-      }
-      return advancementBuilder.serializeToJson();
-    }
-  }
-
-  /** Finished recipe using a loadable */
-  protected class LoadableFinishedRecipe<R extends Recipe<?>> extends AbstractFinishedRecipe {
-    private final R recipe;
-    private final RecordLoadable<R> loadable;
-    public LoadableFinishedRecipe(R recipe, RecordLoadable<R> loadable, @Nullable ResourceLocation advancementId) {
-      super(recipe.getId(), advancementId);
-      this.recipe = recipe;
-      this.loadable = loadable;
-    }
-
-    @Override
-    public void serializeRecipeData(JsonObject json) {
-      loadable.serialize(recipe, json);
-    }
-
-    @Override
-    public RecipeSerializer<?> getType() {
-      return recipe.getSerializer();
-    }
   }
 }

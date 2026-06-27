@@ -30,7 +30,7 @@ import static slimeknights.mantle.loot.condition.ILootModifierCondition.MODIFIER
 public class MantleLoot {
   /* Deferred registers for each loot registry; registered to the mod bus in stage 7 (Mantle.java) via {@link #init(IEventBus)}. */
   private static final DeferredRegister<LootItemConditionType> LOOT_CONDITIONS = DeferredRegister.create(Registries.LOOT_CONDITION_TYPE, Mantle.modId);
-  private static final DeferredRegister<LootItemFunctionType> LOOT_FUNCTIONS = DeferredRegister.create(Registries.LOOT_FUNCTION_TYPE, Mantle.modId);
+  private static final DeferredRegister<LootItemFunctionType<?>> LOOT_FUNCTIONS = DeferredRegister.create(Registries.LOOT_FUNCTION_TYPE, Mantle.modId);
   private static final DeferredRegister<LootPoolEntryType> LOOT_ENTRIES = DeferredRegister.create(Registries.LOOT_POOL_ENTRY_TYPE, Mantle.modId);
   private static final DeferredRegister<MapCodec<? extends IGlobalLootModifier>> GLOBAL_LOOT_MODIFIERS = DeferredRegister.create(NeoForgeRegistries.Keys.GLOBAL_LOOT_MODIFIER_SERIALIZERS, Mantle.modId);
 
@@ -49,9 +49,9 @@ public class MantleLoot {
   /** Condition for global loot modifiers that ensures a context set is present. Useful to check if we are in a specific context like entity. */
   public static final DeferredHolder<LootItemConditionType,LootItemConditionType> HAS_CONTEXT_SET = LOOT_CONDITIONS.register("has_context_set", () -> new LootItemConditionType(HasLootContextSetCondition.CODEC));
   /** Function to add block entity texture to a dropped item */
-  public static final DeferredHolder<LootItemFunctionType,LootItemFunctionType> RETEXTURED_FUNCTION = LOOT_FUNCTIONS.register("fill_retextured_block", () -> new LootItemFunctionType(RetexturedLootFunction.CODEC));
+  public static final DeferredHolder<LootItemFunctionType<?>,LootItemFunctionType<?>> RETEXTURED_FUNCTION = LOOT_FUNCTIONS.register("fill_retextured_block", () -> new LootItemFunctionType<>(RetexturedLootFunction.CODEC));
   /** Function to add a fluid to an item fluid capability */
-  public static final DeferredHolder<LootItemFunctionType,LootItemFunctionType> SET_FLUID_FUNCTION = LOOT_FUNCTIONS.register("set_fluid", () -> new LootItemFunctionType(SetFluidLootFunction.CODEC));
+  public static final DeferredHolder<LootItemFunctionType<?>,LootItemFunctionType<?>> SET_FLUID_FUNCTION = LOOT_FUNCTIONS.register("set_fluid", () -> new LootItemFunctionType<>(SetFluidLootFunction.CODEC));
   /** Entry to pull a value from a tag preference */
   public static final DeferredHolder<LootPoolEntryType,LootPoolEntryType> TAG_PREFERENCE = LOOT_ENTRIES.register("tag_preference", () -> new LootPoolEntryType(TagPreferenceLootEntry.CODEC));
 

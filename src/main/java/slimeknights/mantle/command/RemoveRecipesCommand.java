@@ -118,21 +118,21 @@ public class RemoveRecipesCommand {
   private static int runByResult(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
     long startTime = System.nanoTime();
     Holder<RecipeType<?>> recipeType = ResourceArgument.getResource(context, "recipe_type", Registries.RECIPE_TYPE);
-    return run(context, List.of(recipeType.get()), getPredicate(context, "result"), null, startTime);
+    return run(context, List.of(recipeType.value()), getPredicate(context, "result"), null, startTime);
   }
 
   /** Runs the command for provided arguments */
   private static int runByInput(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
     long startTime = System.nanoTime();
     Holder<RecipeType<?>> recipeType = ResourceArgument.getResource(context, "recipe_type", Registries.RECIPE_TYPE);
-    return run(context, List.of(recipeType.get()), null, getPredicate(context, "input"), startTime);
+    return run(context, List.of(recipeType.value()), null, getPredicate(context, "input"), startTime);
   }
 
   /** Runs the command for provided arguments */
   private static int runResultInput(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
     long startTime = System.nanoTime();
     Holder<RecipeType<?>> recipeType = ResourceArgument.getResource(context, "recipe_type", Registries.RECIPE_TYPE);
-    return run(context, List.of(recipeType.get()), getPredicate(context, "result"), getPredicate(context, "input"), startTime);
+    return run(context, List.of(recipeType.value()), getPredicate(context, "result"), getPredicate(context, "input"), startTime);
   }
 
   /** Runs the command using a JSON preset */

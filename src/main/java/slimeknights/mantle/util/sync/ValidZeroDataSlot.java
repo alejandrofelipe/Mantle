@@ -13,9 +13,11 @@ import java.util.function.Consumer;
 public class ValidZeroDataSlot extends DataSlot {
   private final ContainerData data;
   private final int idx;
+  // DataSlot#prevValue is private in 1.21.1 with no setter, so we track our own previous value seeded to an invalid
+  // value to guarantee the first checkAndClearUpdateFlag reports a change even when the actual value is 0.
+  private int lastKnownValue = Integer.MIN_VALUE;
 
   public ValidZeroDataSlot(ContainerData data, int idx) {
-    this.prevValue = Integer.MIN_VALUE;
     this.data = data;
     this.idx = idx;
   }
@@ -28,6 +30,14 @@ public class ValidZeroDataSlot extends DataSlot {
   @Override
   public void set(int value) {
     data.set(idx, value);
+  }
+
+  @Override
+  public boolean checkAndClearUpdateFlag() {
+    int value = this.get();
+    boolean changed = value != this.lastKnownValue;
+    this.lastKnownValue = value;
+    return changed;
   }
 
   /**

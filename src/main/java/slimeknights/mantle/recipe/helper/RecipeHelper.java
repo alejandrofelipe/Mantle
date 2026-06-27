@@ -50,7 +50,7 @@ public class RecipeHelper {
    * @return  List of recipes from the manager
    */
   public static <I extends RecipeInput, T extends Recipe<I>, C extends T> List<C> getRecipes(RecipeManager manager, RecipeType<T> type, Class<C> clazz) {
-    return manager.byType(type).stream()
+    return manager.getAllRecipesFor(type).stream()
                   .map(RecipeHolder::value)
                   .filter(clazz::isInstance)
                   .map(clazz::cast)
@@ -69,7 +69,7 @@ public class RecipeHelper {
    * @return  Recipe list
    */
   public static <I extends RecipeInput, T extends Recipe<I>, C extends T> List<C> getUIRecipes(RecipeManager manager, RecipeType<T> type, Class<C> clazz, Predicate<? super C> filter) {
-    return manager.byType(type).stream()
+    return manager.getAllRecipesFor(type).stream()
                   // sort by holder ID to keep order consistent on both sides, then unwrap to the recipe value
                   .sorted(Comparator.comparing(RecipeHolder::id))
                   .map(RecipeHolder::value)
@@ -121,6 +121,6 @@ public class RecipeHelper {
    * @return  List of flattened recipes from the manager
    */
   public static <I extends RecipeInput, T extends Recipe<I>, C> List<C> getJEIRecipes(RegistryAccess access, RecipeManager manager, RecipeType<T> type, Class<C> clazz) {
-    return getJEIRecipes(access, manager.byType(type).stream(), clazz);
+    return getJEIRecipes(access, manager.getAllRecipesFor(type).stream(), clazz);
   }
 }

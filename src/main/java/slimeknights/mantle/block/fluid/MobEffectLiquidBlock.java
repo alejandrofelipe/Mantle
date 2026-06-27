@@ -18,13 +18,14 @@ import java.util.function.Supplier;
 public class MobEffectLiquidBlock extends LiquidBlock {
   private final Supplier<MobEffectInstance> effect;
   public MobEffectLiquidBlock(Supplier<? extends FlowingFluid> supplier, Properties properties, Supplier<MobEffectInstance> effect) {
-    super(supplier, properties);
+    // 1.21.1 LiquidBlock takes the FlowingFluid directly instead of a supplier, so resolve it here.
+    super(supplier.get(), properties);
     this.effect = effect;
   }
 
   @Override
   public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
-    if (entity.getFluidTypeHeight(getFluid().getFluidType()) > 0 && entity instanceof LivingEntity living) {
+    if (entity.getFluidTypeHeight(this.fluid.getFluidType()) > 0 && entity instanceof LivingEntity living) {
       MobEffectInstance effect = this.effect.get();
       // clear cures so the effect cannot be removed (replaces Forge's setCurativeItems(emptyList))
       effect.getCures().clear();

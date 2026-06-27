@@ -140,7 +140,7 @@ public class DumpTagCommand {
     switch (action) {
       case SAVE -> {
         // save creates a file in the data dump location of the tag at the proper path
-        Path output = DumpAllTagsCommand.getOutputFile(context).toPath().resolve(path.getNamespace() + "/" + path.getPath());
+        Path output = DumpAllTagsCommand.getOutputFile(context).resolve(path.getNamespace() + "/" + path.getPath());
         saveTag(list, output);
         context.getSource().sendSuccess(() -> Component.translatable("command.mantle.dump_tag.success_log", regName, name, GeneratePackHelper.getOutputComponent(output)), true);
       }

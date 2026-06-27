@@ -1,10 +1,8 @@
 package slimeknights.mantle.loot.condition;
 
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParam;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSet;
@@ -13,17 +11,10 @@ import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
 import net.minecraft.world.level.storage.loot.predicates.LootItemConditionType;
 import slimeknights.mantle.loot.MantleLoot;
 
-import java.util.Objects;
-
 /** Loot condition that only runs if all required values in the given loot context set are present. Good heuristic for using that set. */
 public record HasLootContextSetCondition(LootContextParamSet set) implements LootItemCondition {
-  /** Codec mapping a param set to/from its registered key */
-  private static final Codec<LootContextParamSet> SET_CODEC = ResourceLocation.CODEC.comapFlatMap(
-    key -> {
-      LootContextParamSet set = LootContextParamSets.get(key);
-      return set == null ? DataResult.error(() -> "Unknown LootContextParamSet " + key) : DataResult.success(set);
-    },
-    set -> Objects.requireNonNull(LootContextParamSets.getKey(set), "Unregistered loot LootContextParamSets"));
+  /** Codec mapping a param set to/from its registered key. 1.21.1 exposes this directly on {@link LootContextParamSets#CODEC}. */
+  private static final Codec<LootContextParamSet> SET_CODEC = LootContextParamSets.CODEC;
 
   public static final MapCodec<HasLootContextSetCondition> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
     SET_CODEC.fieldOf("set").forGetter(HasLootContextSetCondition::set)

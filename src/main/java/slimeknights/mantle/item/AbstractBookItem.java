@@ -12,6 +12,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickAction;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -39,18 +40,17 @@ public abstract class AbstractBookItem extends LecternBookItem {
 
   /** Checks if the given menu supports opening the menu */
   public static boolean isValidContainer(AbstractContainerMenu menu) {
-    // player inventory has a null type, which throws when used through the getter
-    if (menu.menuType == null) {
+    // the menuType field is private in 1.21.1; the player inventory menu has a null type and getType() throws
+    // UnsupportedOperationException for it. Treat that throw as "player inventory" (valid), and protect other
+    // unexpected throws by returning false.
+    MenuType<?> type;
+    try {
+      type = menu.getType();
+    } catch (UnsupportedOperationException e) {
+      // player inventory has a null type
       return true;
     }
-    // because vanilla set the throw precedent, add protection for other cases, just in case
-    // the try here is basically free
-    try {
-      return RegistryHelper.contains(BuiltInRegistries.MENU, MantleTags.MenuTypes.REPLACEABLE, menu.getType());
-    }
-    catch (UnsupportedOperationException e) {
-      return false;
-    }
+    return RegistryHelper.contains(BuiltInRegistries.MENU, MantleTags.MenuTypes.REPLACEABLE, type);
   }
 
   @Override

@@ -9,6 +9,7 @@ import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.BlockElement;
 import net.minecraft.client.renderer.block.model.BlockElementFace;
 import net.minecraft.client.renderer.block.model.BlockElementRotation;
+import net.minecraft.client.renderer.block.model.FaceBakery;
 import net.minecraft.client.renderer.block.model.ItemOverrides;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
@@ -39,8 +40,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Function;
 
-import static net.minecraft.client.renderer.block.model.BlockModel.FACE_BAKERY;
-
 /**
  * Block model for setting color, luminosity, and per element uv lock. Similar to {@link MantleItemLayerModel} but for blocks
  */
@@ -48,6 +47,8 @@ import static net.minecraft.client.renderer.block.model.BlockModel.FACE_BAKERY;
 public class ColoredBlockModel extends SimpleBlockModel {
   /** Model loader to allow doing basic coloring outside of other models */
   public static final IGeometryLoader<SimpleBlockModel> LOADER = ColoredBlockModel::deserialize;
+  /** Shared face bakery instance, replaces the removed {@code BlockModel.FACE_BAKERY} field */
+  private static final FaceBakery FACE_BAKERY = new FaceBakery();
 
   /** Colors to use for each piece */
   @Getter

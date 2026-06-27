@@ -310,7 +310,7 @@ public class JsonHelper {
 
     // on a dedicated server, the client is running a separate game instance, this is where we send packets, plus fully loaded should already be true
     // this event is not fired when connecting to a server
-    if (!player.connection.connection.isMemoryConnection()) {
+    if (!player.connection.getConnection().isMemoryConnection()) {
       for (ISimplePacket packet : packets) {
         network.sendTo(packet, player);
       }

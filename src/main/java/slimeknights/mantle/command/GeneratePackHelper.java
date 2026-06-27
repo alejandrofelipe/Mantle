@@ -39,7 +39,7 @@ public class GeneratePackHelper {
   public static Path getDatapackPath(MinecraftServer server, String packName) {
     // if we have JSON Things, do a global datapack
     if (ModList.get().isLoaded("jsonthings")) {
-      return server.getServerDirectory().toPath().resolve("thingpacks/" + packName);
+      return server.getServerDirectory().resolve("thingpacks/" + packName);
     }
     // TODO: consider option to put in the standard datapacks folder via config property
     // otherwise, do a world local datapack

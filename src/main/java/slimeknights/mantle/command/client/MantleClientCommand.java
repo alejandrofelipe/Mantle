@@ -8,7 +8,6 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.synchronization.SuggestionProviders;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 import net.neoforged.neoforge.common.NeoForge;
@@ -26,6 +25,12 @@ public class MantleClientCommand {
   /** Suggestion provider that lists registered book domains */
   public static SuggestionProvider<CommandSourceStack> REGISTERED_BOOK_DOMAINS;
 
+  /** Well-known vanilla atlas ids, used for {@code mantle sources atlases} suggestions since the live atlas set is private */
+  private static final java.util.List<ResourceLocation> VANILLA_ATLASES = java.util.stream.Stream.of(
+    "blocks", "banner_patterns", "beds", "chests", "shield_patterns", "shulker_boxes",
+    "signs", "mob_effects", "paintings", "particles", "armor_trims", "decorated_pot", "gui"
+  ).map(name -> ResourceLocation.fromNamespaceAndPath("minecraft", "textures/atlas/" + name + ".png")).toList();
+
 
   /** Registers all Mantle client command related content */
   @SuppressWarnings("deprecation")
@@ -37,9 +42,10 @@ public class MantleClientCommand {
       SharedSuggestionProvider.suggest(BookLoader.getAllBooks().stream().map(ResourceLocation::getNamespace).distinct(), builder));
 
     // source command suggestions
-    FileToIdConverter atlases = new FileToIdConverter("textures/atlas", ".png");
+    // ModelManager#atlases (and AtlasSet#atlases) are private in 1.21.1 with no public enumeration API,
+    // so suggest the well-known vanilla atlas ids instead of reflecting the live atlas set.
     ClientSourcesCommand.registerMinecraft("atlases", (context, builder)
-      -> SharedSuggestionProvider.suggestResource(Minecraft.getInstance().getModelManager().atlases.atlases.keySet().stream().map(atlases::fileToId), builder));
+      -> SharedSuggestionProvider.suggestResource(VANILLA_ATLASES.stream(), builder));
     ClientSourcesCommand.registerMinecraft("blockstates", (context, builder)
       -> SharedSuggestionProvider.suggestResource(BuiltInRegistries.BLOCK.keySet(), builder));
     ClientSourcesCommand.register("item_models", "models/item", ".json", (context, builder)

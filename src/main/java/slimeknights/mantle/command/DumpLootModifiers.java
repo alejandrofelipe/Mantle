@@ -17,7 +17,6 @@ import net.minecraft.util.GsonHelper;
 import slimeknights.mantle.Mantle;
 
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
@@ -90,15 +89,14 @@ public class DumpLootModifiers {
     // if requested, save
     if (saveFile) {
       // save file
-      File output = new File(DumpAllTagsCommand.getOutputFile(context), LOOT_MODIFIER_PATH);
-      Path path = output.toPath();
+      Path output = DumpAllTagsCommand.getOutputFile(context).resolve(LOOT_MODIFIER_PATH);
       try {
-        Files.createDirectories(path.getParent());
-        try (BufferedWriter writer = Files.newBufferedWriter(path)) {
+        Files.createDirectories(output.getParent());
+        try (BufferedWriter writer = Files.newBufferedWriter(output)) {
           writer.write(DumpTagCommand.GSON.toJson(json));
         }
       } catch (IOException ex) {
-        Mantle.logger.error("Couldn't save global loot manager to {}", path, ex);
+        Mantle.logger.error("Couldn't save global loot manager to {}", output, ex);
       }
       context.getSource().sendSuccess(() -> Component.translatable("command.mantle.dump_loot_modifiers.success_save", GeneratePackHelper.getOutputComponent(output)), true);
     } else {

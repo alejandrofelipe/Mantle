@@ -50,8 +50,10 @@ public class CombatHelper {
     if (entity.level().isClientSide) {
       return entity.getMainHandItem();
     }
-    // serverside, use the last item stack instead of the current. Should be the same, but if they mismatch then last item stack has correct attributes
-    return entity.getLastHandItem(EquipmentSlot.MAINHAND);
+    // serverside, the original used LivingEntity#getLastHandItem for attribute-accurate values, but that method is now
+    // private in 1.21.1 with no public accessor. Fall back to the current mainhand stack (matches the clientside branch).
+    // FIXME CONVERGE (stage 8 combat): revisit if/when an attribute-accurate "last hand item" accessor is needed.
+    return entity.getMainHandItem();
   }
 
   /**

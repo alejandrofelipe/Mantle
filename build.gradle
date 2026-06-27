@@ -164,4 +164,7 @@ publishing {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+    // During the 1.21.1 port the codebase compiles incrementally; raise javac's
+    // error/warning caps (default 100) so per-package verification sees every error.
+    options.compilerArgs.addAll(['-Xmaxerrs', '100000', '-Xmaxwarns', '100000'])
 }

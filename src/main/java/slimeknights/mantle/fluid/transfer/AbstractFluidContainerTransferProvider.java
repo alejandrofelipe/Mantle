@@ -10,8 +10,7 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.material.Fluid;
-import net.minecraftforge.common.crafting.CraftingHelper;
-import net.minecraftforge.common.crafting.conditions.ICondition;
+import net.neoforged.neoforge.common.conditions.ICondition;
 import slimeknights.mantle.data.GenericDataProvider;
 import slimeknights.mantle.recipe.helper.FluidOutput;
 import slimeknights.mantle.recipe.helper.ItemOutput;
@@ -102,7 +101,11 @@ public abstract class AbstractFluidContainerTransferProvider extends GenericData
       if (conditions.length != 0) {
         JsonArray array = new JsonArray();
         for (ICondition condition : conditions) {
-          array.add(CraftingHelper.serialize(condition));
+          // TODO PORT (stage 5 recipe conditions): NeoForge conditions are codec-based; the Forge
+          //  CraftingHelper.serialize(ICondition) -> JsonObject helper is gone. Serialize each condition with
+          //  ICondition.CODEC (via a ConditionalOps/RegistryOps-backed JsonOps) once the recipe condition stack is
+          //  ported. Until then conditions passed to datagen are dropped from the output.
+          throw new UnsupportedOperationException("Fluid transfer condition serialization not yet ported to NeoForge codecs (stage 5)");
         }
         element.getAsJsonObject().add("conditions", array);
       }

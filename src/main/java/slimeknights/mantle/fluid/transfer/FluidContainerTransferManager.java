@@ -10,18 +10,16 @@ import lombok.extern.log4j.Log4j2;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
-import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ItemLike;
 import net.neoforged.neoforge.common.NeoForge;
-import net.minecraftforge.common.crafting.CraftingHelper;
-import net.minecraftforge.common.crafting.conditions.ICondition.IContext;
-import net.minecraftforge.event.AddReloadListenerEvent;
-import net.minecraftforge.event.OnDatapackSyncEvent;
+import net.neoforged.neoforge.common.conditions.ICondition.IContext;
+import net.neoforged.neoforge.event.AddReloadListenerEvent;
+import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.neoforged.bus.api.EventPriority;
-import net.minecraftforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.FluidStack;
 import slimeknights.mantle.data.gson.GenericRegisteredSerializer;
 import slimeknights.mantle.network.MantleNetwork;
 import slimeknights.mantle.util.JsonHelper;
@@ -92,9 +90,11 @@ public class FluidContainerTransferManager extends SimpleJsonResourceReloadListe
   @Nullable
   private IFluidContainerTransfer loadFluidTransfer(ResourceLocation key, JsonObject json) {
     try {
-      if (!json.has("conditions") || CraftingHelper.processConditions(GsonHelper.getAsJsonArray(json, "conditions"), context)) {
-        return GSON.fromJson(json, IFluidContainerTransfer.class);
-      }
+      // TODO PORT (stage 5 recipe conditions): the Forge CraftingHelper.processConditions(JsonArray, IContext) gate is
+      //  gone; NeoForge load conditions are codec-based and resolved via a ConditionalOps-backed decode using the
+      //  IContext from AddReloadListenerEvent#getConditionContext (stored in `context`). Until the recipe condition
+      //  stack is ported, a "conditions" array in the JSON is ignored and the transfer is always loaded.
+      return GSON.fromJson(json, IFluidContainerTransfer.class);
     } catch (JsonSyntaxException e) {
       log.error("Failed to load fluid container transfer info from {}", key, e);
     }

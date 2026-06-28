@@ -1,6 +1,5 @@
 {
-  "type": "mantle:fill_nbt",
-  "conditions": [
+  "neoforge:conditions": [
     {
       "type": "mantle:tag_filled",
       "registry": "minecraft:fluid",
@@ -11,6 +10,7 @@
       "tag": "forge:bottles/splash"
     }
   ],
+  "type": "mantle:fill_nbt",
   "fluid": {
     "amount": 250,
     "tag": "forge:potion"

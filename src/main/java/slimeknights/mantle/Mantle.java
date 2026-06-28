@@ -104,6 +104,9 @@ public class Mantle {
 
     FluidContainerTransferManager.INSTANCE.init();
     MantleTags.init();
+    // Populate the in-memory GSON-dispatch loaders (fluid-container transfers + predicates) synchronously
+    // during construction so they are available for datagen, which runs before commonSetup's enqueueWork.
+    registerLoadables();
 
     // mod-bus lifecycle listeners
     bus.addListener(EventPriority.NORMAL, false, FMLCommonSetupEvent.class, this::commonSetup);
@@ -142,7 +145,6 @@ public class Mantle {
   }
 
   private void commonSetup(final FMLCommonSetupEvent event) {
-    event.enqueueWork(this::registerLoadables);
     MantleCommand.init();
     OffhandCooldownTracker.init();
     TagPreference.init();

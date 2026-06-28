@@ -99,15 +99,9 @@ public abstract class AbstractFluidContainerTransferProvider extends GenericData
       JsonElement element = FluidContainerTransferManager.GSON.toJsonTree(transfer, IFluidContainerTransfer.class);
       assert element.isJsonObject();
       if (conditions.length != 0) {
-        JsonArray array = new JsonArray();
-        for (ICondition condition : conditions) {
-          // TODO PORT (stage 5 recipe conditions): NeoForge conditions are codec-based; the Forge
-          //  CraftingHelper.serialize(ICondition) -> JsonObject helper is gone. Serialize each condition with
-          //  ICondition.CODEC (via a ConditionalOps/RegistryOps-backed JsonOps) once the recipe condition stack is
-          //  ported. Until then conditions passed to datagen are dropped from the output.
-          throw new UnsupportedOperationException("Fluid transfer condition serialization not yet ported to NeoForge codecs (stage 5)");
-        }
-        element.getAsJsonObject().add("conditions", array);
+        // NeoForge conditions are codec-based and live under the "neoforge:conditions" key
+        element.getAsJsonObject().add("neoforge:conditions",
+          ICondition.LIST_CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, java.util.List.of(conditions)).getOrThrow());
       }
       return element;
     }

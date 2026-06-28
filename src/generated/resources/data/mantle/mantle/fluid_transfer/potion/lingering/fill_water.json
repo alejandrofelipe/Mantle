@@ -1,11 +1,11 @@
 {
-  "type": "mantle:fill_item",
-  "conditions": [
+  "neoforge:conditions": [
     {
       "type": "mantle:tag_filled",
       "tag": "forge:bottles/lingering"
     }
   ],
+  "type": "mantle:fill_item",
   "fluid": {
     "amount": 500,
     "tag": "mantle:water"
@@ -14,9 +14,11 @@
     "tag": "forge:bottles/lingering"
   },
   "result": {
-    "item": "minecraft:lingering_potion",
-    "nbt": {
-      "Potion": "minecraft:water"
-    }
+    "components": {
+      "minecraft:potion_contents": {
+        "potion": "minecraft:water"
+      }
+    },
+    "item": "minecraft:lingering_potion"
   }
 }

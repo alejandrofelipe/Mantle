@@ -51,18 +51,10 @@ public class MantleFluidTransferProvider extends AbstractFluidContainerTransferP
     optionalFillEmpty("rabbit_stew_",   Items.RABBIT_STEW,   Items.BOWL,         MantleTags.Fluids.RABBIT_STEW,   MantleValues.BOWL,   false);
   }
 
-  /**
-   * TODO PORT (stage 5 recipe conditions): Mantle's {@link slimeknights.mantle.recipe.condition.TagFilledCondition}
-   * still implements the Forge {@code net.minecraftforge.common.crafting.conditions.ICondition} (the whole
-   * {@code slimeknights.mantle.recipe.condition} package is unported). The datagen providers now consume the NeoForge
-   * {@code net.neoforged.neoforge.common.conditions.ICondition}, so the "tag is filled" condition cannot be constructed
-   * here yet. Once {@code TagFilledCondition} is ported to the NeoForge MapCodec-based ICondition, replace this with
-   * {@code new NotCondition(new <ported>TagEmptyCondition<>(tag))} (or the ported TagFilledCondition directly).
-   * Returns a NeoForge-typed condition so the surrounding recipe structure compiles; it throws if actually evaluated,
-   * matching the existing stage-5 stub in {@link AbstractFluidContainerTransferProvider} which also rejects conditions.
-   */
+  /** Builds a "tag is filled" NeoForge condition for the given tag. */
+  @SuppressWarnings("unchecked")
   private static ICondition tagFilled(TagKey<?> tag) {
-    throw new UnsupportedOperationException("Mantle TagFilledCondition not yet ported to NeoForge codecs (stage 5): " + tag);
+    return new slimeknights.mantle.recipe.condition.TagFilledCondition<>((TagKey<Object>) tag);
   }
 
   /** Adds generic fill and empty for a container */

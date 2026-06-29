@@ -11,7 +11,7 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import java.util.function.Supplier;
 
 /** Object holding an entity and it's egg */
-public class EntityObject<T extends Entity> implements Supplier<EntityType<T>>, ItemLike, IdAwareObject {
+public class EntityObject<T extends Entity> implements Supplier<EntityType<T>>, ItemLike, IdAwareObject<ResourceLocation> {
   private final ResourceLocation id;
   private final Supplier<? extends EntityType<T>> type;
   private final Supplier<? extends SpawnEggItem> spawnEgg;

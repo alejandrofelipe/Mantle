@@ -12,7 +12,7 @@ import java.util.Map;
  * Generic registry of a {@link IdAwareObject}.
  * @param <T> Type of the component being registered.
  */
-public class IdAwareComponentRegistry<T extends IdAwareObject> extends AbstractNamedComponentRegistry<T> {
+public class IdAwareComponentRegistry<T extends IdAwareObject<ResourceLocation>> extends AbstractNamedComponentRegistry<T> {
   /** Registered box expansion types */
   private final Map<ResourceLocation,T> values = new HashMap<>();
 

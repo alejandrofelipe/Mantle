@@ -16,7 +16,7 @@ import java.util.function.Supplier;
  * @param <I>  Item class
  */
 @SuppressWarnings({"unused", "WeakerAccess"})
-public class ItemObject<I extends ItemLike> implements Supplier<I>, ItemLike, IdAwareObject {
+public class ItemObject<I extends ItemLike> implements Supplier<I>, ItemLike, IdAwareObject<ResourceLocation> {
   /** Supplier to the registry entry */
   private final Supplier<? extends I> entry;
   /** Registry name for this entry, allows fetching the name before the entry resolves if registry object is used */

@@ -24,7 +24,7 @@ import java.util.function.Supplier;
  * @see FlowingFluidObject
  */
 @SuppressWarnings("WeakerAccess")
-public class FluidObject<F extends Fluid> implements Supplier<F>, ItemLike, IdAwareObject {
+public class FluidObject<F extends Fluid> implements Supplier<F>, ItemLike, IdAwareObject<ResourceLocation> {
   /** Fluid name, used for tag creation */
   @Nonnull
   protected final ResourceLocation id;

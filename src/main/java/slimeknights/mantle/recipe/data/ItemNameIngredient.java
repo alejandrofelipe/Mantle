@@ -1,11 +1,14 @@
 package slimeknights.mantle.recipe.data;
 
-import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.common.crafting.ICustomIngredient;
 import net.neoforged.neoforge.common.crafting.IngredientType;
+import slimeknights.mantle.data.loadable.Loadables;
+import slimeknights.mantle.data.loadable.record.RecordLoadable;
+import slimeknights.mantle.recipe.helper.LoadableIngredientSerializer;
+import slimeknights.mantle.recipe.ingredient.MantleIngredients;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -13,17 +16,20 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * Ingredient for a non-NBT sensitive item from another mod, should never be used outside datagen.
+ * Ingredient matching items by registry name, used to reference items from optional mods during datagen.
  *
- * <p>TODO PORT (stage 7 datagen ingredients): in 1.20/Forge this extended {@code AbstractIngredient} and serialized to
- * the vanilla {@code {"item": id}} JSON via {@code VanillaIngredientSerializer}, allowing recipes to reference items
- * from mods that are not loaded at datagen time. In NeoForge 1.21 vanilla ingredients are backed by a {@code HolderSet}
- * which requires the referenced item to exist in the registry, so there is no drop-in equivalent. The cross-mod
- * datagen schema is undecided and there are no internal Mantle callers, so this is left as a minimal
- * {@link ICustomIngredient} stub. Stage 7 must decide whether to register an {@link IngredientType} for it (to
- * {@code NeoForgeRegistries.INGREDIENT_TYPES}) and what JSON form downstream mods (Tinkers) expect.
+ * <p>In 1.20/Forge this serialized to the vanilla {@code {"item": id}} JSON via {@code VanillaIngredientSerializer},
+ * letting recipes reference items from mods that are not loaded at datagen time. In NeoForge 1.21 vanilla ingredients
+ * are backed by a {@code HolderSet} that requires the referenced item to exist, so instead this is a custom
+ * {@link ICustomIngredient} serialized as {@code mantle:item_name} with a list of names. Recipes using it are guarded
+ * by mod/item conditions, so {@link #test} and {@link #getItems} only run when the referenced items are present.
  */
 public class ItemNameIngredient implements ICustomIngredient {
+  /** Serializer instance, registered as an {@link IngredientType} in {@link MantleIngredients} */
+  public static final LoadableIngredientSerializer<ItemNameIngredient> SERIALIZER = new LoadableIngredientSerializer<>(RecordLoadable.create(
+    Loadables.RESOURCE_LOCATION.list(1).requiredField("names", ItemNameIngredient::getNames),
+    ItemNameIngredient::new));
+
   private final List<ResourceLocation> names;
   protected ItemNameIngredient(List<ResourceLocation> names) {
     this.names = names;
@@ -46,23 +52,25 @@ public class ItemNameIngredient implements ICustomIngredient {
 
   @Override
   public boolean test(@Nullable ItemStack stack) {
-    throw new UnsupportedOperationException();
+    return stack != null && names.contains(BuiltInRegistries.ITEM.getKey(stack.getItem()));
   }
 
   @Override
   public Stream<ItemStack> getItems() {
-    throw new UnsupportedOperationException();
+    // only the items that are actually present in the registry; absent names (unloaded mods) are skipped
+    return names.stream()
+                .filter(BuiltInRegistries.ITEM::containsKey)
+                .map(BuiltInRegistries.ITEM::get)
+                .map(ItemStack::new);
   }
 
   @Override
   public boolean isSimple() {
-    return false;
+    return true;
   }
 
   @Override
   public IngredientType<?> getType() {
-    // TODO PORT (stage 7 datagen ingredients): no IngredientType registered; this ingredient is datagen-only and its
-    // cross-mod JSON schema is undecided. See class javadoc.
-    throw new UnsupportedOperationException("ItemNameIngredient is not yet ported to a NeoForge IngredientType (stage 7)");
+    return MantleIngredients.ITEM_NAME.get();
   }
 }

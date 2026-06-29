@@ -46,6 +46,7 @@ import slimeknights.mantle.data.predicate.entity.BlockAtEntityPredicate;
 import slimeknights.mantle.data.predicate.entity.HasEnchantmentEntityPredicate;
 import slimeknights.mantle.data.predicate.entity.HasMobEffectPredicate;
 import slimeknights.mantle.data.predicate.entity.LivingEntityPredicate;
+import slimeknights.mantle.data.predicate.entity.MobTypePredicate;
 import slimeknights.mantle.data.predicate.fluid.FluidPredicate;
 import slimeknights.mantle.data.predicate.fluid.FluidTypePredicate;
 import slimeknights.mantle.data.predicate.item.ItemPredicate;
@@ -203,12 +204,8 @@ public class Mantle {
     LivingEntityPredicate.LOADER.register(getResource("underwater"), LivingEntityPredicate.UNDERWATER.getLoader());
     LivingEntityPredicate.LOADER.register(getResource("raining_at"), LivingEntityPredicate.RAINING.getLoader());
     // property
-    // TODO PORT (data.predicate.entity stage): MobTypePredicate still references net.minecraft.world.entity.MobType,
-    // which was REMOVED in MC 1.21 (mob categorization moved to entity type tags / DamageTypeTags). Until
-    // MobTypePredicate is reworked off MobType, its loader registration and the five MobType.* constant registrations
-    // below cannot be wired. Restore once MobTypePredicate compiles:
-    //   LivingEntityPredicate.LOADER.register(getResource("mob_type"), MobTypePredicate.LOADER);
-    //   MobTypePredicate.MOB_TYPES.register(ResourceLocation.parse("undefined"), MobType.UNDEFINED); ... (undead/arthropod/illager/water)
+    // 1.21: MobType was removed; MobTypePredicate now matches an entity type tag (e.g. minecraft:undead) instead
+    LivingEntityPredicate.LOADER.register(getResource("mob_type"), MobTypePredicate.LOADER);
     LivingEntityPredicate.LOADER.register(getResource("has_enchantment"), HasEnchantmentEntityPredicate.LOADER);
 
     // damage predicates

@@ -76,7 +76,13 @@ public class LoadableRecipeSerializer<T extends Recipe<?>> implements RecipeSeri
 
   @Override
   public StreamCodec<RegistryFriendlyByteBuf,T> streamCodec() {
-    return loadable.streamCodec();
+    // network decode needs the same injected context as codec(): a recipe's RecordLoadable may include ContextFields
+    // (notably TYPED_SERIALIZER) that are rebuilt purely from context and write nothing to the buffer. Loadable#streamCodec
+    // would decode with an empty context and throw "Unable to fetch typed_serializer from context" during update_recipes sync.
+    TypedMap context = context();
+    return StreamCodec.of(
+      (buffer, value) -> loadable.encode(buffer, value),
+      buffer -> loadable.decode(buffer, context));
   }
 
   public static class TypeAware<T extends Recipe<?>> extends LoadableRecipeSerializer<T> implements TypeAwareRecipeSerializer<T> {

@@ -326,12 +326,14 @@ public abstract class ItemOutput implements Supplier<ItemStack> {
 
     @Override
     public ItemOutput decode(FriendlyByteBuf buffer, TypedMap context) {
-      return fromStack(stack.decode(buffer, context));
+      // tolerate an empty stack on the wire: the non-empty check is meant for JSON parsing, but vanilla's update_recipes
+      // sync streams every loaded recipe and must not crash (and disconnect the player) if a result happens to be empty
+      return fromStack(ItemStack.OPTIONAL_STREAM_CODEC.decode((RegistryFriendlyByteBuf) buffer));
     }
 
     @Override
     public void encode(FriendlyByteBuf buffer, ItemOutput object) {
-      stack.encode(buffer, object.get());
+      ItemStack.OPTIONAL_STREAM_CODEC.encode((RegistryFriendlyByteBuf) buffer, object.get());
     }
 
 

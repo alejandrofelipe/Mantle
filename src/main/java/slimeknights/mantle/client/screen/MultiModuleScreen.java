@@ -205,7 +205,12 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
       }
     }
 
-    // slot positions are now final and set at construction (Slot.x/y), so no runtime sync is needed
+    // the main menu holds WrapperSlots whose x/y are frozen at construction; the module repositions the WRAPPED parent
+    // slot in updateSlots(), so copy the parent's live position onto the wrapper before rendering (and hovering)
+    if (slotIn instanceof WrapperSlot wrapper) {
+      slotIn.x = wrapper.parent.x;
+      slotIn.y = wrapper.parent.y;
+    }
     super.renderSlot(graphics, slotIn);
   }
 

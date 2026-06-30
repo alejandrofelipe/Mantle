@@ -12,6 +12,7 @@ import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.ResourceLocationException;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -322,7 +323,14 @@ public class JsonHelper {
     // send to single player
     ServerPlayer targetedPlayer = event.getPlayer();
     if (targetedPlayer != null) {
-      sendPackets(network, targetedPlayer, packets);
+      // a joining player receives this event during placeNewPlayer, before the connection is ready for play-phase
+      // payloads ("may not be sent to the client"); defer to the next server tick when the player is fully in play
+      MinecraftServer server = targetedPlayer.getServer();
+      if (server != null) {
+        server.execute(() -> sendPackets(network, targetedPlayer, packets));
+      } else {
+        sendPackets(network, targetedPlayer, packets);
+      }
     } else {
       // send to all players
       for (ServerPlayer player : event.getPlayerList().getPlayers()) {

@@ -414,10 +414,11 @@ public class MantleItemLayerModel implements IUnbakedGeometry<MantleItemLayerMod
     // for the side, Y axis's use of getOpposite is related to the swapping of V direction
     float dx = side.getNormal().getX() * eps / width;
     float dy = side.getNormal().getY() * eps / height;
-    float u0 = 16f * (x0 - dx);
-    float u1 = 16f * (x1 - dx);
-    float v0 = 16f * (1f - y0 - dy);
-    float v1 = 16f * (1f - y1 - dy);
+    // 1.21: TextureAtlasSprite.getU/getV take a normalized [0,1] coordinate (1.20 took [0,16]) — no *16
+    float u0 = x0 - dx;
+    float u1 = x1 - dx;
+    float v0 = 1f - y0 - dy;
+    float v1 = 1f - y1 - dy;
     buildQuad(builder, consumer, (side.getAxis() == Axis.Y ? side.getOpposite() : side),
       color, luminosity,
       x0, y0, z0, sprite.getU(u0), sprite.getV(v0),

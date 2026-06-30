@@ -1,5 +1,7 @@
 package slimeknights.mantle.recipe.helper;
 
+import com.google.gson.JsonElement;
+import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.MapCodec;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -8,10 +10,13 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
+import slimeknights.mantle.data.JsonCodec;
 import slimeknights.mantle.data.loadable.field.ContextKey;
 import slimeknights.mantle.data.loadable.field.LoadableField;
 import slimeknights.mantle.data.loadable.primitive.StringLoadable;
 import slimeknights.mantle.data.loadable.record.RecordLoadable;
+import slimeknights.mantle.util.typed.TypedMap;
+import slimeknights.mantle.util.typed.TypedMapBuilder;
 
 import java.util.function.Supplier;
 
@@ -43,9 +48,30 @@ public class LoadableRecipeSerializer<T extends Recipe<?>> implements RecipeSeri
     return new TypeAware<>(loadable, type);
   }
 
+  /**
+   * Builds the deserialization context for this serializer. 1.21 recipe codecs only receive the recipe value (the ID is
+   * the external {@link net.minecraft.world.item.crafting.RecipeHolder} key), so the serializer itself is the only
+   * context we can supply. Recipes that need {@link #SERIALIZER}/{@link #TYPED_SERIALIZER}/{@link #TYPE} read it from here.
+   */
+  protected TypedMap context() {
+    return TypedMapBuilder.builder().put(SERIALIZER, this).build();
+  }
+
   @Override
   public MapCodec<T> codec() {
-    return loadable.mapCodec();
+    // inject the context (notably the serializer) since NeoForge's codec-based recipe loading provides none
+    TypedMap context = context();
+    return MapCodec.assumeMapUnsafe(new JsonCodec<T>() {
+      @Override
+      public T deserialize(JsonElement element, DynamicOps<?> ops) {
+        return loadable.convert(element, "codec", context);
+      }
+
+      @Override
+      public JsonElement serialize(T object, DynamicOps<?> ops) {
+        return loadable.serialize(object);
+      }
+    });
   }
 
   @Override
@@ -63,6 +89,11 @@ public class LoadableRecipeSerializer<T extends Recipe<?>> implements RecipeSeri
     @Override
     public RecipeType<?> getType() {
       return type.get();
+    }
+
+    @Override
+    protected TypedMap context() {
+      return TypedMapBuilder.builder().put(SERIALIZER, this).put(TYPED_SERIALIZER, this).put(TYPE, type.get()).build();
     }
   }
 }

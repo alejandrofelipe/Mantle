@@ -141,7 +141,12 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
 
   @Override
   public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
-    this.renderBackground(graphics, mouseX, mouseY, partialTicks);
+    // 1.21: Screen.render (via super.render) now calls renderBackground itself, and AbstractContainerScreen's
+    // renderBackground runs renderBg. The old explicit renderBackground call here (1.20 style) therefore rendered the
+    // whole container a second time BEFORE leftPos/topPos were corrected to the main-window corner — the stale-offset
+    // duplicate showed through for anything drawn at depth > 0 (e.g. GUI fluids at z=100 painted over the correct
+    // pass). Only wrap super.render (and the explicit tooltip pass, which 1.21 still leaves to subclasses) in the
+    // corrected bounds.
     int oldX = this.leftPos;
     int oldY = this.topPos;
     int oldW = this.imageWidth;

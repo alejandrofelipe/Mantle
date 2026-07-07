@@ -34,23 +34,14 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 // sets version to the slimeKnights version format
 task buildInfo {
-    try {
-        def cmd = "git rev-parse --short HEAD"
-        def proc = cmd.execute()
-        proc.waitFor()
-        if (proc.exitValue() == 0) {
-            ext.revision = proc.text.trim()
-        } else {
-            ext.revision = "GITBORK"
-        }
-    } catch (all) {
-        ext.revision = "gitgud"
-    }
-
     if (System.getenv().BUILD_NUMBER != null) {
         ext.buildNum = "${System.getenv().BUILD_NUMBER}"
     } else {
-        ext.buildNum = "DEV.${project.buildInfo.revision}"
+        // stable dev version — the old git-hash suffix made the version churn (the hash was even
+        // cwd-dependent under the composite build, picking up the TINKERS commit or failing to
+        // "GITBORK"), so :jar was never up-to-date and every tinkers compile rewrote this jar
+        // underneath a running client, breaking its mantle resource pack on /reload and rejoin.
+        ext.buildNum = "DEV"
     }
 }
 ext.artifact_version = 'NFG'
@@ -135,8 +126,9 @@ tasks.named('jar', Jar).configure {
                 "Specification-Version"   : "1",
                 "Implementation-Title"    : project.name,
                 "Implementation-Version"  : "${version}",
-                "Implementation-Vendor"   : "Slime Knights",
-                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+                "Implementation-Vendor"   : "Slime Knights"
+                // no Implementation-Timestamp: a per-build Date made the jar task never up-to-date,
+                // so every composite compile rewrote this jar underneath a running client
         ])
     }
 }

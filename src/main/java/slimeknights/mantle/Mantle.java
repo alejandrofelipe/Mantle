@@ -90,8 +90,8 @@ import java.util.concurrent.CompletableFuture;
 public class Mantle {
   public static final String modId = "mantle";
   public static final Logger logger = LogManager.getLogger("Mantle");
-  /** Namespace for common tags, used for easier migration to the future "c" standard */
-  public static final String COMMON = "forge";
+  /** Namespace for common tags, migrated from "forge" to the "c" standard on 1.21 */
+  public static final String COMMON = "c";
 
   /* Instance of this mod, used for grabbing prototype fields */
   public static Mantle instance;
@@ -270,7 +270,7 @@ public class Mantle {
   }
 
   /**
-   * Gets a resource location for the common namespace, which is "forge" for 1.20 and "c" for 1.21.
+   * Gets a resource location for the common namespace. Was "forge" on 1.20, is "c" on 1.21.
    * @param name  Name
    * @return  Resource location instance
    */

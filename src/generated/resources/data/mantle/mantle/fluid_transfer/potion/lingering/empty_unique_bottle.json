@@ -2,7 +2,7 @@
   "neoforge:conditions": [
     {
       "type": "mantle:tag_filled",
-      "tag": "forge:bottles/lingering"
+      "tag": "c:bottles/lingering"
     }
   ],
   "type": "mantle:empty_potion",
@@ -11,6 +11,6 @@
     "item": "minecraft:lingering_potion"
   },
   "result": {
-    "tag": "forge:bottles/lingering"
+    "tag": "c:bottles/lingering"
   }
 }

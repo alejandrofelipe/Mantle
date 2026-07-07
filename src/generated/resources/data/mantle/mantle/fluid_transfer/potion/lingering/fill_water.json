@@ -2,7 +2,7 @@
   "neoforge:conditions": [
     {
       "type": "mantle:tag_filled",
-      "tag": "forge:bottles/lingering"
+      "tag": "c:bottles/lingering"
     }
   ],
   "type": "mantle:fill_item",
@@ -11,7 +11,7 @@
     "tag": "mantle:water"
   },
   "input": {
-    "tag": "forge:bottles/lingering"
+    "tag": "c:bottles/lingering"
   },
   "result": {
     "components": {

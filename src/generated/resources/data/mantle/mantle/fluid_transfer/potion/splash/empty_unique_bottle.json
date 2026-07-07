@@ -2,7 +2,7 @@
   "neoforge:conditions": [
     {
       "type": "mantle:tag_filled",
-      "tag": "forge:bottles/splash"
+      "tag": "c:bottles/splash"
     }
   ],
   "type": "mantle:empty_potion",
@@ -11,6 +11,6 @@
     "item": "minecraft:splash_potion"
   },
   "result": {
-    "tag": "forge:bottles/splash"
+    "tag": "c:bottles/splash"
   }
 }

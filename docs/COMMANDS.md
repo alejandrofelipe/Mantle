@@ -189,6 +189,47 @@ git log --oneline -5
 
 ---
 
+## Hot-reload dev loop (tinkers `runClientHotswap`)
+
+Apply Java changes to a **running** client without restarting — terminal-only, no IDE. Lives in the
+**tinkers** repo (`tinkers/build.gradle` + `tinkers/hotswap.ps1`), proven live on this machine.
+
+**How it works:** the `clientHotswap` run selects a **JetBrains Runtime 21** as its JVM (DCEVM built in —
+`-XX:+AllowEnhancedClassRedefinition` allows structural class changes) and exposes **JDWP** on
+`127.0.0.1:5005`. Reloads are triggered explicitly by `hotswap.ps1`, which finds recently recompiled
+`.class` files (tinkers **and** mantle roots) and injects each via `jdb redefine` — the same JDI path IDE
+hotswap uses. (HotswapAgent's `autoHotswap` file-watcher was tried first and is **unreliable under
+ModLauncher/Windows** — watcher registered but silently delivered no events in 2 of 3 sessions.)
+
+**The loop:**
+
+```powershell
+# 1. once per session (background; window opens, keep it open):
+GW runClientHotswap           # from the tinkers repo: gradlew.bat -p tinkers runClientHotswap
+# 2. edit code, then:
+GW compileJava
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\aleja\DEV\New Tinkers\tinkers\hotswap.ps1"
+# 3. see it in the running client (for datapack-driven paths, /reload in-game first)
+```
+
+Data/assets don't need any of this: `GW processResources`, then in-game `/reload` (recipes/tags/loot)
+or **F3+T** (textures/models/lang).
+
+**Hard limits (restart required):** newly ADDED classes, registration changes (blocks/items/menus),
+new event listeners, changed static initializers. Method-body/GUI/render/recipe-logic edits reload fine.
+
+**Setup notes & gotchas (all hit and solved on this machine):**
+
+| Thing | Detail |
+|---|---|
+| JBR selection | `org.gradle.java.installations.paths=C:/Users/aleja/tools/jbr21` (tinkers `gradle.properties`) + `javaLauncher` with `JvmVendorSpec.JETBRAINS` in `build.gradle`. Gradle may satisfy the spec with its own cached JetBrains JDK — any DCEVM-capable JBR 21 is fine. A raw `executable` override does NOT work (Gradle 8+ validates it against `javaLauncher` and throws). |
+| AMD driver crash at boot | With JDWP active, the FML early window can crash `atio6axx.dll` at "Trying GL version 4.6". Fix: `earlyWindowControl = false` in `tinkers/run/clientHotswap/config/fml.toml` (run-dir config — re-apply if the run dir is wiped). Boot shows no progress window; that's normal, not a hang. |
+| Mantle jar stability | Mantle's dev version/manifest are deliberately stable (no git hash, no build timestamp — see repo `build.gradle`). Do NOT reintroduce per-build values: they made every tinkers compile rewrite the jar underneath the running client, breaking its `mantle` pack on `/reload`/rejoin (`Failed to read pack.mcmeta`). |
+| `hotswap.ps1` internals | Stages classes into a space-free temp dir (jdb's `redefine` splits on whitespace), uses the explicit `SocketAttach` connector (Windows `-attach` means shared memory), ASCII pipe encoding (PS5 BOM ate the first command), and reports never-loaded classes (datagen-only) as skips. |
+| `hotswap-agent.jar` | Still at `C:\Users\aleja\tools\` but **unused** since the jdb pivot — safe to delete. |
+
+---
+
 ## Troubleshooting — symptom → cause → fix (all retry-savers)
 
 | Symptom in output | Real cause | Fix |

@@ -24,7 +24,7 @@ import java.util.Map;
  * finally writes uitest-results.json and stops the client. Active only with -Dmantle.uitest=true.
  */
 public class UiTestSuite {
-  private enum Phase { WAIT_WORLD, PREPARE, PREPARE_SETTLE, OPEN, SETTLE, CAPTURE, CLOSE, FINISH }
+  private enum Phase { WAIT_WORLD, PREPARE_SETTLE, SETTLE, FINISH }
 
   /** Ticks with a player present before the suite starts (world/chunk warmup). */
   private static final int WORLD_WARMUP_TICKS = 100;
@@ -33,14 +33,9 @@ public class UiTestSuite {
   /** Whole-suite ceiling; overruns finish (and report) whatever ran. */
   private static final int SUITE_TIMEOUT_TICKS = 20 * 60 * 10;
 
-  public static void init() {
-    NeoForge.EVENT_BUS.addListener(new UiTestSuite()::onClientTick);
-    Mantle.logger.info("uitest: suite armed, {} scenario(s) will run once the world loads",
-      UiTestScenarios.all().size());
-  }
-
   private final Map<String, String> results = new LinkedHashMap<>();
   private Phase phase = Phase.WAIT_WORLD;
+  private boolean finished = false;
   private int phaseTicks = 0;
   private int scenarioTicks = 0;
   private int suiteTicks = 0;
@@ -48,7 +43,16 @@ public class UiTestSuite {
   private List<UiTestScenario> scenarios;
   private File outputDir;
 
+  public static void init() {
+    NeoForge.EVENT_BUS.addListener(new UiTestSuite()::onClientTick);
+    Mantle.logger.info("uitest: suite armed; {} scenario(s) registered so far (registry is snapshotted at world load)",
+      UiTestScenarios.all().size());
+  }
+
   private void onClientTick(ClientTickEvent.Post event) {
+    if (finished) {
+      return; // client is stopping; ignore the few catch-up ticks the dying frame still delivers
+    }
     Minecraft mc = Minecraft.getInstance();
     suiteTicks++;
     phaseTicks++;
@@ -75,7 +79,7 @@ public class UiTestSuite {
         }
       }
       case PREPARE_SETTLE -> {
-        if (scenarioTimedOut()) return;
+        if (scenarioTimedOut(mc)) return;
         if (phaseTicks >= current().prepareSettleTicks()) {
           if (runGuarded(mc, "open", () -> current().open(new UiTestContext(mc)))) {
             enter(Phase.SETTLE);
@@ -83,13 +87,12 @@ public class UiTestSuite {
         }
       }
       case SETTLE -> {
-        if (scenarioTimedOut()) return;
+        if (scenarioTimedOut(mc)) return;
         if (phaseTicks >= current().settleTicks()) {
           capture(mc);
         }
       }
       case FINISH -> finish(mc);
-      default -> {}
     }
   }
 
@@ -146,11 +149,11 @@ public class UiTestSuite {
     }
   }
 
-  private boolean scenarioTimedOut() {
+  private boolean scenarioTimedOut(Minecraft mc) {
     if (scenarioTicks > SCENARIO_TIMEOUT_TICKS) {
       results.put(current().id().toString(), "fail: timeout");
       index++;
-      startScenario(Minecraft.getInstance());
+      startScenario(mc);
       return true;
     }
     return false;
@@ -170,7 +173,7 @@ public class UiTestSuite {
     } catch (Exception e) {
       Mantle.logger.error("uitest: failed to write results", e);
     }
-    phase = Phase.WAIT_WORLD; // prevent re-entry while stopping
+    finished = true;
     mc.stop();
   }
 }

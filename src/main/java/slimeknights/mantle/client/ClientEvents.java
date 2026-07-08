@@ -55,6 +55,8 @@ import slimeknights.mantle.client.model.util.MantleItemLayerModel;
 import slimeknights.mantle.client.model.util.ModelHelper;
 import slimeknights.mantle.client.render.FluidCuboid;
 import slimeknights.mantle.client.render.RenderItem;
+import slimeknights.mantle.client.uitest.UiTestScenarios;
+import slimeknights.mantle.client.uitest.UiTestSuite;
 import slimeknights.mantle.command.client.MantleClientCommand;
 import slimeknights.mantle.datagen.MantleTags;
 import slimeknights.mantle.fluid.texture.FluidTextureManager;
@@ -110,6 +112,11 @@ public class ClientEvents {
 
     BookLoader.registerBook(Mantle.getResource("test"), new FileRepository(Mantle.getResource("books/test")));
     MantleClientCommand.init();
+
+    // automated GUI screenshot suite — inert unless -Dmantle.uitest=true
+    if (UiTestScenarios.isActive()) {
+      event.enqueueWork(UiTestSuite::init);
+    }
   }
 
   @SubscribeEvent

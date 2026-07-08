@@ -125,7 +125,7 @@ Set-Location "C:\Users\aleja\DEV\New Tinkers\repo"; $env:JAVA_HOME = "C:\Users\a
 | **Datagen** | `runData` | Writes/refreshes `src/generated/resources/`. Background it; review the git diff afterward. |
 | **Run client** *(post-migration)* | `runClient` | Launches the game. **Background it and watch the log**; success = main menu, `mantle` in the mod list, no `mantle` registration errors. |
 | Run server *(post-migration)* | `runServer` | `--nogui` is preconfigured. Background it. |
-| Game tests | `runGameTestServer` | **Does not exist by default** — no `gameTestServer` run is defined in `build.gradle runs{}` (current or planned). It only becomes a task if such a run is explicitly added. Don't run it expecting it to be there. |
+| Game tests | `runGameTestServer` | **Not defined in Mantle's `build.gradle runs{}`** — Mantle has no game-test suite. The **tinkers** repo defines this run; see [Automated tests & screenshots](#automated-tests--screenshots). |
 | Clean | `clean` | Deletes `build/`. The next run re-downloads/re-decompiles — slow. |
 | Upgrade wrapper (one-time) | see [prereq 2](#2-upgrade-the-gradle-wrapper-to-921) | Prefer editing the properties file. |
 
@@ -227,6 +227,62 @@ new event listeners, changed static initializers. Method-body/GUI/render/recipe-
 | Mantle jar stability | Mantle's dev version/manifest are deliberately stable (no git hash, no build timestamp — see repo `build.gradle`). Do NOT reintroduce per-build values: they made every tinkers compile rewrite the jar underneath the running client, breaking its `mantle` pack on `/reload`/rejoin (`Failed to read pack.mcmeta`). |
 | `hotswap.ps1` internals | Stages classes into a space-free temp dir (jdb's `redefine` splits on whitespace), uses the explicit `SocketAttach` connector (Windows `-attach` means shared memory), ASCII pipe encoding (PS5 BOM ate the first command), and reports never-loaded classes (datagen-only) as skips. |
 | `hotswap-agent.jar` | Still at `C:\Users\aleja\tools\` but **unused** since the jdb pivot — safe to delete. |
+
+---
+
+## Automated tests & screenshots
+
+Two automated suites live in the **tinkers** repo (`tinkers/build.gradle`) — a repeatable alternative to
+manual smoke testing after runtime-affecting changes: `runGameTestServer` for headless logic tests, and
+`runClientUiTest` for a self-driving visual GUI suite. Same `JAVA_HOME` + `-p` pattern as the
+[canonical invocation](#the-canonical-invocation), just pointed at `tinkers` instead of `repo`.
+
+### `runGameTestServer` (headless logic tests)
+
+```powershell
+$env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\aleja\DEV\New Tinkers\tinkers\gradlew.bat" -p "C:\Users\aleja\DEV\New Tinkers\tinkers" runGameTestServer
+```
+
+Runs every `@GameTest` class in `slimeknights.tconstruct.gametest`, gated by the
+`neoforge.enabledGameTestNamespaces=tconstruct` system property (the same flag also enables them on the
+`client` run for in-game `/test`). Current suite = 3 smeltery tests: `smeltery_melts`, `smeltery_casts`,
+`alloyer_alloys`. A green run takes ~3-4 min cold and prints `All 3 required tests passed :)` +
+`BUILD SUCCESSFUL`.
+
+> **Zero-tests trap.** With no matching tests the run still exits 0 (`No test functions were given!` +
+> `BUILD SUCCESSFUL`) — green only means something once you know tests exist. With tests present, a
+> failure exits non-zero as expected.
+
+Arena templates are datagen-generated (`gametest/empty_5x5x5` / `empty_9x9x9`, via
+`GameTestStructureProvider`); rigs come from `SmelteryRigs` — fail-fast helpers that throw with a
+diagnostic message instead of timing out silently.
+
+### `runClientUiTest` (self-driving visual suite)
+
+```powershell
+$env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\aleja\DEV\New Tinkers\tinkers\gradlew.bat" -p "C:\Users\aleja\DEV\New Tinkers\tinkers" runClientUiTest
+```
+
+Boots a real client straight into the committed superflat world `UITest` (`--quickPlaySingleplayer`,
+1280×720, `-Dmantle.uitest=true`), drives the 5 registered scenarios (`tinker_station`, `part_builder`,
+`smeltery`, `melter`, `casting_pour`), writes `run/clientUiTest/uitest-screenshots/*.png` +
+`run/clientUiTest/uitest-results.json` (scenario id → `"ok"` / `"fail: ..."`), then **exits on its own**
+(`BUILD SUCCESSFUL`; verified full run ≈ 6-7 min cold including the build, ~3 min in-world, zero leftover
+processes). **Do not interact with the window while it runs.**
+
+> **Result-reading rule.** A `FATAL` `Error executing task` line in the log overrides an `"ok"` in
+> `uitest-results.json` — server-thread scenario guards log there instead of failing the recorded result,
+> so check the log even when the JSON looks clean.
+
+World regeneration: delete `run/clientUiTest/saves/UITest`; the `prepareUiTestWorld` task re-extracts the
+committed `src/uitest/uitest-world.zip` automatically before `runClientUiTest` whenever the world is
+missing.
+
+**Adding a scenario:** implement `slimeknights.mantle.client.uitest.UiTestScenario` — driven by the suite
+through `id` → `prepare` → `prepareSettleTicks` (wait) → `open` → `settleTicks` (wait) → capture
+(screenshot) → `close` — and call `UiTestScenarios.register(...)` during client setup, gated on
+`UiTestScenarios.isActive()`; see `slimeknights.tconstruct.client.uitest.TinkerUiTestScenarios` as the
+template. Registration must happen before world load — the suite snapshots the registry at world load.
 
 ---
 

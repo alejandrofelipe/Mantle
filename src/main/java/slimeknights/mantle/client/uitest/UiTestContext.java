@@ -4,12 +4,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.commands.arguments.EntityAnchorArgument.Anchor;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.core.Direction;
 
 import java.util.Objects;
 
@@ -35,7 +35,7 @@ public record UiTestContext(Minecraft mc) {
     player().connection.sendCommand(command);
   }
 
-  /** Client-side block interaction — opens the block's real menu with real server data. */
+  /** Client-side block interaction — opens the block's real menu with real server data. Always hits the NORTH face at block center; not suitable for face- or hit-position-sensitive interactions (e.g. channels). */
   public void useBlock(BlockPos pos) {
     Vec3 hit = Vec3.atCenterOf(pos);
     Objects.requireNonNull(mc.gameMode).useItemOn(player(), InteractionHand.MAIN_HAND,

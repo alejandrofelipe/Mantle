@@ -232,10 +232,25 @@ new event listeners, changed static initializers. Method-body/GUI/render/recipe-
 
 ## Automated tests & screenshots
 
-Two automated suites live in the **tinkers** repo (`tinkers/build.gradle`) — a repeatable alternative to
-manual smoke testing after runtime-affecting changes: `runGameTestServer` for headless logic tests, and
-`runClientUiTest` for a self-driving visual GUI suite. Same `JAVA_HOME` + `-p` pattern as the
+Three automated suites live in the **tinkers** repo (`tinkers/build.gradle`) — a repeatable alternative
+to manual smoke testing after runtime-affecting changes: `test` for the plain-JVM unit suite,
+`runGameTestServer` for headless logic tests, and `runClientUiTest` for a self-driving visual GUI suite.
+Same `JAVA_HOME` + `-p` pattern as the
 [canonical invocation](#the-canonical-invocation), just pointed at `tinkers` instead of `repo`.
+
+### `test` (JVM unit tests)
+
+```powershell
+$env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\aleja\DEV\New Tinkers\tinkers\gradlew.bat" -p "C:\Users\aleja\DEV\New Tinkers\tinkers" test
+```
+
+Runs the JUnit 5 + Mockito unit suite (`src/test/java`, `slimeknights.tconstruct.*`) on a plain JVM —
+no Minecraft boot. Current suite = 185 tests passing + 2 `@Disabled` (each carries its reason in-code).
+Reports land in `build/reports/tests/test/` (HTML) and `build/test-results/test/` (JUnit XML).
+
+> **UP-TO-DATE trap.** `build` already executes this suite, so a `test` right after a green `build`
+> prints `> Task :test UP-TO-DATE` and runs nothing — that is still a pass (the tests ran inside
+> `build`); read the reports above for the totals.
 
 ### `runGameTestServer` (headless logic tests)
 
@@ -245,9 +260,9 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 
 Runs every `@GameTest` class in `slimeknights.tconstruct.gametest`, gated by the
 `neoforge.enabledGameTestNamespaces=tconstruct` system property (the same flag also enables them on the
-`client` run for in-game `/test`). Current suite = 3 smeltery tests: `smeltery_melts`, `smeltery_casts`,
-`alloyer_alloys`. A green run takes ~3-4 min cold and prints `All 3 required tests passed :)` +
-`BUILD SUCCESSFUL`.
+`client` run for in-game `/test`). Current suite = 5 tests: `smeltery_melts`, `smeltery_melts_amethyst`,
+`smeltery_casts`, `alloyer_alloys`, `tool_crafting`. A green run takes ~3-4 min cold and prints
+`All 5 required tests passed :)` + `BUILD SUCCESSFUL`.
 
 > **Zero-tests trap.** With no matching tests the run still exits 0 (`No test functions were given!` +
 > `BUILD SUCCESSFUL`) — green only means something once you know tests exist. With tests present, a
@@ -264,8 +279,9 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 Boots a real client straight into the committed superflat world `UITest` (`--quickPlaySingleplayer`,
-1280×720, `-Dmantle.uitest=true`), drives the 5 registered scenarios (`tinker_station`, `part_builder`,
-`smeltery`, `melter`, `casting_pour`), writes `run/clientUiTest/uitest-screenshots/*.png` +
+1280×720, `-Dmantle.uitest=true`), drives the 7 registered scenarios (`tinker_station`, `part_builder`,
+`smeltery`, `melter`, `casting_pour`, `book_materials_and_you`, `jei_melting_category`), writes
+`run/clientUiTest/uitest-screenshots/*.png` +
 `run/clientUiTest/uitest-results.json` (scenario id → `"ok"` / `"fail: ..."`), then **exits on its own**
 (`BUILD SUCCESSFUL`; verified full run ≈ 6-7 min cold including the build, ~3 min in-world, zero leftover
 processes). **Do not interact with the window while it runs.**

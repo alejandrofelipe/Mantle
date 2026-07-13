@@ -70,6 +70,8 @@ public class BookScreen extends Screen {
   public boolean enableAnimations = true;
   /** If true, text elements are drawn. Set to false during export of book html */
   public boolean drawText = true;
+  /** If true, the vanilla screen background (1.21 blur pass) is drawn. Set to false during export, where it would rebind the main framebuffer mid-export. */
+  public boolean drawScreenBackground = true;
 
   private ArrowButton previousArrow, nextArrow, backArrow, indexArrow;
 
@@ -155,6 +157,17 @@ public class BookScreen extends Screen {
   public void render(GuiGraphics graphics, int mouseX ,int mouseY, float partialTicks) {
     if(this.minecraft == null) {
       return;
+    }
+
+    // book content is drawn in renderBackground below: super.render runs it before the widgets
+    super.render(graphics, mouseX, mouseY, partialTicks);
+  }
+
+  @Override
+  public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+    // 1.21 blurs the whole framebuffer inside Screen.renderBackground, so it must run before any book content or the book renders blurred
+    if (this.drawScreenBackground) {
+      super.renderBackground(graphics, mouseX, mouseY, partialTicks);
     }
 
     Font fontRenderer = getFontRenderer();
@@ -245,8 +258,6 @@ public class BookScreen extends Screen {
         }
       }
     }
-
-    super.render(graphics, mouseX, mouseY, partialTicks);
   }
 
   private boolean shouldRenderPage(int pageNum, boolean rightSide) {

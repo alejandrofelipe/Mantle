@@ -203,6 +203,7 @@ public class BookCommand {
       screen.mouseInput = false;
       screen.drawText = !html;
       screen.enableAnimations = false;
+      screen.drawScreenBackground = false;
 
       Matrix4f matrix = (new Matrix4f()).setOrtho(0.0F, width, height, 0.0F, 1000.0F, zFar);
       RenderSystem.setProjectionMatrix(matrix, VertexSorting.ORTHOGRAPHIC_Z);

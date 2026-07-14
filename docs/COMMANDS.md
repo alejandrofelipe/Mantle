@@ -252,6 +252,13 @@ Reports land in `build/reports/tests/test/` (HTML) and `build/test-results/test/
 > prints `> Task :test UP-TO-DATE` and runs nothing — that is still a pass (the tests ran inside
 > `build`); read the reports above for the totals.
 
+> **Coverage (JaCoCo).** `test` is `finalizedBy jacocoTestReport`, so a normal `test` run also refreshes
+> a coverage report at `build/reports/jacoco/test/html/index.html` (machine-readable XML alongside at
+> `jacocoTestReport.xml`). The measured % is scoped to the pure-logic core: it excludes client
+> render/screens, datagen providers, compat plugins, gametests, and registration/holder classes — code
+> that isn't unit-testable in isolation and is instead covered by `runClientUiTest` / `runData` / load —
+> so it reads higher than a raw whole-mod number would.
+
 ### `runGameTestServer` (headless logic tests)
 
 ```powershell

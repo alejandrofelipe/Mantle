@@ -302,6 +302,31 @@ through `id` → `prepare` → `prepareSettleTicks` (wait) → `open` → `settl
 `UiTestScenarios.isActive()`; see `slimeknights.tconstruct.client.uitest.TinkerUiTestScenarios` as the
 template. Registration must happen before world load — the suite snapshots the registry at world load.
 
+### Focused testing — run only the changed domain
+
+When a change touched one area, run just its slice instead of the whole battery.
+
+**Unit** — native Gradle test filtering (`--tests`, glob on the FQCN/method):
+
+```powershell
+$env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\aleja\DEV\New Tinkers\tinkers\gradlew.bat" -p "C:\Users\aleja\DEV\New Tinkers\tinkers" test --tests "*ResponsiveLayout*"
+```
+
+**uitest** — `-PuitestOnly=<substring>` keeps only scenarios whose id path contains the token
+(comma-separated for several); e.g. `station_` runs `station_reflow`, `station_collapsed` and
+`station_collapsed_overlay`:
+
+```powershell
+$env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\aleja\DEV\New Tinkers\tinkers\gradlew.bat" -p "C:\Users\aleja\DEV\New Tinkers\tinkers" runClientUiTest -PuitestOnly=station_
+```
+
+The suite logs `uitest: filtered to N of M scenario(s) via mantle.uitest.only=station_`; an empty match
+logs a warning and finishes cleanly (no crash). Property unset = all 12 scenarios run (the default).
+
+**gametest** — filtered only at the namespace level via `neoforge.enabledGameTestNamespaces` (already
+`tconstruct`); NeoForge has no clean per-test CLI filter, but the suite is ~5 tests (~1 s), so just run
+them all with `runGameTestServer`.
+
 ---
 
 ## Troubleshooting — symptom → cause → fix (all retry-savers)

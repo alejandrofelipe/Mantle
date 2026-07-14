@@ -279,9 +279,10 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 Boots a real client straight into the committed superflat world `UITest` (`--quickPlaySingleplayer`,
-1280×720, `-Dmantle.uitest=true`), drives the 9 registered scenarios (`tinker_station`, `part_builder`,
+1280×720, `-Dmantle.uitest=true`), drives the 12 registered scenarios (`tinker_station`, `part_builder`,
 `smeltery`, `melter`, `casting_pour`, `book_materials_and_you`, `jei_melting_category`,
-`jei_item_list_cleanup`, `book_interior`), writes
+`jei_item_list_cleanup`, `book_interior`, `station_reflow`, `station_collapsed`,
+`station_collapsed_overlay`), writes
 `run/clientUiTest/uitest-screenshots/*.png` +
 `run/clientUiTest/uitest-results.json` (scenario id → `"ok"` / `"fail: ..."`), then **exits on its own**
 (`BUILD SUCCESSFUL`; verified full run ≈ 6-7 min cold including the build, ~3 min in-world, zero leftover

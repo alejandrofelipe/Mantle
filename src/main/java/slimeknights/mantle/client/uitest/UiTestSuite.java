@@ -4,6 +4,7 @@ import com.google.gson.GsonBuilder;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
+import net.minecraft.client.tutorial.TutorialSteps;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import org.apache.commons.io.FileUtils;
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +56,16 @@ public class UiTestSuite {
       return; // client is stopping; ignore the few catch-up ticks the dying frame still delivers
     }
     Minecraft mc = Minecraft.getInstance();
+    // Keep the framebuffer clean for captures: every in-world tick drop any queued/visible toasts
+    // (e.g. the movement tutorial) and command feedback in chat (the scenarios' /tp). Doing this here
+    // rather than inside capture() matters — a toast rendered on the previous frame would otherwise
+    // still be on screen when the screenshot is taken.
+    if (mc.level != null) {
+      mc.getToasts().clear();
+      if (mc.gui != null) { // gui can be null very early in startup
+        mc.gui.getChat().clearMessages(false);
+      }
+    }
     suiteTicks++;
     phaseTicks++;
     scenarioTicks++;
@@ -66,7 +78,8 @@ public class UiTestSuite {
       case WAIT_WORLD -> {
         if (mc.level != null && mc.player != null && mc.screen == null) {
           if (phaseTicks >= WORLD_WARMUP_TICKS) {
-            scenarios = UiTestScenarios.all();
+            mc.getTutorial().setStep(TutorialSteps.NONE); // stop the movement tutorial toast at the source (also clears the active step)
+            scenarios = filtered(UiTestScenarios.all());
             outputDir = new File(mc.gameDirectory, "uitest-screenshots");
             try {
               FileUtils.deleteDirectory(outputDir);
@@ -94,6 +107,30 @@ public class UiTestSuite {
       }
       case FINISH -> finish(mc);
     }
+  }
+
+  /**
+   * Applies the optional {@code -Dmantle.uitest.only=<tokens>} filter: keeps scenarios whose id path
+   * contains any of the comma-separated (substring) tokens, so {@code station_} keeps every
+   * {@code station_*} scenario. Unset/blank runs everything (default). An empty result is logged and
+   * lets the suite finish gracefully rather than crash.
+   */
+  private static List<UiTestScenario> filtered(List<UiTestScenario> all) {
+    String only = System.getProperty("mantle.uitest.only");
+    if (only == null || only.isBlank()) {
+      return all;
+    }
+    List<String> tokens = Arrays.stream(only.split(","))
+      .map(String::trim).filter(s -> !s.isEmpty()).toList();
+    List<UiTestScenario> kept = all.stream()
+      .filter(s -> tokens.stream().anyMatch(t -> s.id().getPath().contains(t)))
+      .toList();
+    Mantle.logger.info("uitest: filtered to {} of {} scenario(s) via mantle.uitest.only={}",
+      kept.size(), all.size(), only);
+    if (kept.isEmpty()) {
+      Mantle.logger.warn("uitest: mantle.uitest.only={} matched no scenarios; the suite will finish immediately", only);
+    }
+    return kept;
   }
 
   private UiTestScenario current() {

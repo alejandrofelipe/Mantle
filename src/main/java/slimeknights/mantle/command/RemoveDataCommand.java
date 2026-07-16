@@ -30,7 +30,7 @@ import static net.neoforged.neoforge.registries.NeoForgeRegistries.Keys.BIOME_MO
  */
 public class RemoveDataCommand {
   /* Name is invalid */
-  private static final Dynamic2CommandExceptionType INVALID_REGISTRY = new Dynamic2CommandExceptionType((name, registry) -> Mantle.makeComponent("command", "key.wrong_registry", name, registry));
+  private static final Dynamic2CommandExceptionType INVALID_REGISTRY = new Dynamic2CommandExceptionType((name, registry) -> Mantle.makeComponent("command", "key.wrong_registry", name.toString(), registry.toString()));
   // success
   /** Translation key for successfully removing structure sets */
   private static final String STRUCTURE_SET_SUCCESS = Mantle.makeDescriptionId("command", "remove_data.structure.success");
@@ -58,7 +58,7 @@ public class RemoveDataCommand {
     if (key.isFor(registry)) {
       return (ResourceKey<T>) key;
     }
-    throw INVALID_REGISTRY.create(key, registry.location());
+    throw INVALID_REGISTRY.create(key.location(), registry.location());
   }
 
   /** Empties the given structure set */
@@ -76,12 +76,12 @@ public class RemoveDataCommand {
     // save the final JSON
     Path path = pack.resolve(PackType.SERVER_DATA.getDirectory()).resolve(setLocation.getNamespace() + '/' + setLocation.getPath());
     if (!GeneratePackHelper.saveConditionRemove(path)) {
-      throw GeneratePackHelper.FAILED_SAVE.create(id);
+      throw GeneratePackHelper.FAILED_SAVE.create(id.location());
     }
 
     // send success
     float time = (System.nanoTime() - startTime) / 1000000f;
-    context.getSource().sendSuccess(() -> Component.translatable(STRUCTURE_SET_SUCCESS, id.location(), time, GeneratePackHelper.getOutputComponent(pack)), true);
+    context.getSource().sendSuccess(() -> Component.translatable(STRUCTURE_SET_SUCCESS, id.location().toString(), time, GeneratePackHelper.getOutputComponent(pack)), true);
     return 1;
   }
 
@@ -106,7 +106,7 @@ public class RemoveDataCommand {
 
     // send success
     float time = (System.nanoTime() - startTime) / 1000000f;
-    context.getSource().sendSuccess(() -> Component.translatable(BIOME_MODIFIER_SUCCESS, id.location(), time, GeneratePackHelper.getOutputComponent(pack)), true);
+    context.getSource().sendSuccess(() -> Component.translatable(BIOME_MODIFIER_SUCCESS, id.location().toString(), time, GeneratePackHelper.getOutputComponent(pack)), true);
     return 1;
   }
 }

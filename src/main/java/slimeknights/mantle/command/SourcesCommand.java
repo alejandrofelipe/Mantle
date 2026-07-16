@@ -23,7 +23,7 @@ import java.util.List;
 /** Command to list all sources for a file in a datapack */
 public class SourcesCommand {
   /** Error on invalid item or tag ID */
-  private static final DynamicCommandExceptionType NOT_FOUND = new DynamicCommandExceptionType(id -> Mantle.makeComponent("command", "sources.not_found", id));
+  private static final DynamicCommandExceptionType NOT_FOUND = new DynamicCommandExceptionType(id -> Mantle.makeComponent("command", "sources.not_found", id.toString()));
   /** List of subcommands to add */
   private static final List<SourceFolder> FOLDERS = new ArrayList<>();
 
@@ -58,7 +58,7 @@ public class SourcesCommand {
     }
     // print all the packs its found in
     context.getSource().sendSuccess(() -> {
-      MutableComponent component = Component.translatable("command.mantle.sources.success", path);
+      MutableComponent component = Component.translatable("command.mantle.sources.success", path.toString());
       for (String pack : packs) {
         component = component.append(Component.literal("\n* " + (pack.isEmpty() ? "<unnamed>" : pack)));
       }

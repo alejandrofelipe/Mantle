@@ -3,8 +3,10 @@ package slimeknights.mantle.fluid.transfer;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.neoforged.neoforge.fluids.FluidStack;
 import slimeknights.mantle.Mantle;
@@ -21,10 +23,12 @@ public class FillFluidWithNBTTransfer extends FillFluidContainerTransfer {
   @Override
   protected ItemStack getFilled(FluidStack drained) {
     ItemStack filled = super.getFilled(drained);
-    // TODO PORT (stage 4 fluid components): in 1.20.1 this copied the drained fluid's CompoundTag back onto the item
-    //  (filled.setTag(drained.getTag().copy())). FluidStack no longer carries a generic CompoundTag and ItemStack#setTag
-    //  is gone; both now use DataComponentPatch. Restoring this round-trip requires deciding which DataComponentType(s)
-    //  carry the data on the fluid and applying the matching patch to the item here (mirrors EmptyFluidWithNBTTransfer).
+    // carry the potion contents from the fluid back onto the item, mirroring EmptyPotionTransfer. 1.20.1 copied the
+    // whole CompoundTag; here we bridge the one component the potion fluid carries (this transfer is wired for potions).
+    PotionContents contents = drained.get(DataComponents.POTION_CONTENTS);
+    if (contents != null) {
+      filled.set(DataComponents.POTION_CONTENTS, contents);
+    }
     return filled;
   }
 

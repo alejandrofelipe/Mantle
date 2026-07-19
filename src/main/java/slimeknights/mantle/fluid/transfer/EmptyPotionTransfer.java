@@ -2,6 +2,7 @@ package slimeknights.mantle.fluid.transfer;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
+import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -52,13 +53,13 @@ public class EmptyPotionTransfer extends EmptyFluidContainerTransfer {
     if (isWaterPotion(stack)) {
       return fluid.copy();
     }
-    // if it's not water, we need a potion fluid to return anything
-    // TODO PORT (stage 4 fluid components): the 1.20.1 version copied the item's CompoundTag (the potion NBT) onto the
-    //  fluid via new FluidStack(value, amount, stack.getTag()). With components the potion data lives in
-    //  DataComponents.POTION_CONTENTS; the fluid should carry it through a fluid-side component once that schema is
-    //  decided. For now we return the potion fluid without the potion contents copied over.
+    // if it's not water, carry the item's potion contents onto the resulting potion fluid.
+    // 1.20.1 copied the item's CompoundTag; 1.21 stores potion data in DataComponents.POTION_CONTENTS,
+    // which the potion fluid type reads back off the same component (see PotionFluidType).
+    PotionContents contents = stack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY);
+    DataComponentPatch patch = DataComponentPatch.builder().set(DataComponents.POTION_CONTENTS, contents).build();
     return TagPreference.getPreference(MantleTags.Fluids.POTION)
-      .map(value -> new FluidStack(value, fluid.getAmount()))
+      .map(value -> new FluidStack(value.builtInRegistryHolder(), fluid.getAmount(), patch))
       .orElse(FluidStack.EMPTY);
   }
 

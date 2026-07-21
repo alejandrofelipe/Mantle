@@ -51,7 +51,9 @@ public abstract class AbstractFluidContainerTransferProvider extends GenericData
   /** Adds generic fill and empty for a container */
   protected void addFillEmpty(String prefix, ItemLike item, ItemLike container, FluidOutput fill, FluidIngredient drain, boolean nbt, ICondition... conditions) {
     if (nbt) {
-      addTransfer(prefix + "empty", new EmptyFluidWithNBTTransfer(Ingredient.of(item), ItemOutput.fromItem(container), fill), conditions);
+      // EmptyFluidWithNBTTransfer was a no-op stub (== EmptyFluidContainerTransfer) in 1.21 and was removed; only the
+      // fill side carries data (a component, e.g. potion contents). The empty side is the plain container transfer.
+      addTransfer(prefix + "empty", new EmptyFluidContainerTransfer(Ingredient.of(item), ItemOutput.fromItem(container), fill), conditions);
       addTransfer(prefix + "fill", new FillFluidWithNBTTransfer(Ingredient.of(container), ItemOutput.fromItem(item), drain), conditions);
     } else {
       addTransfer(prefix + "empty", new EmptyFluidContainerTransfer(Ingredient.of(item), ItemOutput.fromItem(container), fill), conditions);

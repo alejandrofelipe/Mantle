@@ -2,11 +2,9 @@ package slimeknights.mantle.util;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
@@ -16,8 +14,6 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation;
-import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.ItemAbilities;
@@ -78,24 +74,6 @@ public class CombatHelper {
   }
 
   /**
-   * Gets the attribute for the offhand by subtracting mainhand attributes and adding in offhand stack attributes.
-   * <p>
-   * TODO PORT (stage 8): {@code ItemStack#getAttributeModifiers(EquipmentSlot)} was replaced by the
-   * {@code ItemAttributeModifiers} data component / {@code forEachModifier} in 1.21, and {@link Operation} constants were
-   * renamed. This method reimplements Tinkers' offhand attribute logic and depends on that combat redesign, so it is
-   * stubbed to the cached attribute value until the combat layer is ported. Behaviour: returns the entity's current
-   * attribute value (ignoring the mainhand/offhand swap), which is safe but not offhand-accurate.
-   */
-  public static float getOffhandAttribute(ItemStack stack, LivingEntity entity, Attribute attribute) {
-    Holder<Attribute> holder = BuiltInRegistries.ATTRIBUTE.wrapAsHolder(attribute);
-    AttributeInstance instance = entity.getAttribute(holder);
-    if (instance == null) {
-      return (float) entity.getAttributeBaseValue(holder);
-    }
-    return (float) instance.getValue();
-  }
-
-  /**
    * Computes the value for the given attribute. Copied from {@link AttributeInstance#calculateValue}
    * <p>
    * TODO PORT (stage 8): {@link Operation} constants were renamed in 1.21 ({@code ADDITION}->{@code ADD_VALUE},
@@ -122,67 +100,6 @@ public class CombatHelper {
   /** Checks if the given entity can be attacked. */
   public static boolean isAttackable(Entity attacker, Entity target) {
     return target.isAttackable() && !target.skipAttackInteraction(attacker);
-  }
-
-  /**
-   * Performs an attack, mimicking {@link Player#attack(Entity)}.
-   * For use in {@link net.minecraft.world.item.Item#interactLivingEntity(ItemStack, Player, LivingEntity, InteractionHand)} primarily,
-   * but can also be used to fake an attack.
-   *
-   * @param stack         Stack used for attacking.
-   * @param target        Entity target
-   * @param targetLiving  Living entity target. May be different in the case of multipart entities.
-   * @param hand          Hand used for attacking.
-   */
-  public static boolean attack(ItemStack stack, Player player, Entity target, @Nullable LivingEntity targetLiving, InteractionHand hand) {
-    return attack(stack, player, target, targetLiving, hand, player.damageSources().playerAttack(player));
-  }
-
-  /**
-   * Performs an attack, mimicking {@link Player#attack(Entity)} but allowing the damage source to be swapped.
-   *
-   * @param stack         Stack used for attacking.
-   * @param target        Entity target
-   * @param targetLiving  Living entity target. May be different in the case of multipart entities.
-   * @param hand          Hand used for attacking.
-   * @param damageSource  Damage source to apply
-   */
-  public static boolean attack(ItemStack stack, Player player, Entity target, @Nullable LivingEntity targetLiving, InteractionHand hand, DamageSource damageSource) {
-    // TODO PORT (stage 8): this method is a full reimplementation of Player#attack and depended entirely on APIs that
-    //  were removed or fundamentally reshaped in 1.20.5-1.21:
-    //   - net.minecraft.world.entity.MobType was deleted; LivingEntity#getMobType is gone.
-    //   - EnchantmentHelper#getDamageBonus(stack, MobType), #getKnockbackBonus(player), #getFireAspect(player),
-    //     #getSweepingDamageRatio(player) were all removed; enchantments are data-driven and require a ServerLevel
-    //     (EnchantmentHelper#modifyDamage / getDamage / runIterationOnItem).
-    //   - net.minecraftforge.common.ForgeHooks#getCriticalHit -> net.neoforged.neoforge.common.CommonHooks#fireCriticalHit
-    //     (CriticalHitEvent#isCriticalHit / #getDamageMultiplier), and ForgeEventFactory#onPlayerDestroyItem ->
-    //     net.neoforged.neoforge.event.EventHooks#onPlayerDestroyItem.
-    //   - Entity#setSecondsOnFire -> #igniteForSeconds; ItemStack#getSweepHitBox / Player#getEntityReach moved.
-    //   - net.minecraftforge.entity.PartEntity -> net.neoforged.neoforge.entity.PartEntity.
-    //   - getOffhandAttribute (above) is itself stubbed pending the attribute-system port.
-    //  Faithfully porting it requires the Tinkers combat/enchantment redesign, which is out of scope for the shared
-    //  util package. Stubbed to a basic vanilla-equivalent hurt so callers keep compiling and a stack still deals
-    //  damage; replace with the real implementation when the combat layer is ported.
-    if (!isAttackable(player, target)) {
-      return false;
-    }
-    float damage = hand == InteractionHand.OFF_HAND
-                   ? getOffhandAttribute(stack, player, Attributes.ATTACK_DAMAGE.value())
-                   : (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE);
-    float cooldown = hand == InteractionHand.OFF_HAND ? OffhandCooldownTracker.getCooldown(player) : player.getAttackStrengthScale(0.5F);
-    damage *= 0.2F + cooldown * cooldown * 0.8F;
-    if (damage > 0) {
-      target.hurt(damageSource, damage);
-      if (!player.level().isClientSide && !stack.isEmpty() && target instanceof LivingEntity living) {
-        stack.hurtEnemy(living, player);
-      }
-    }
-    if (hand == InteractionHand.OFF_HAND) {
-      OffhandCooldownTracker.applyCooldown(player, getOffhandAttribute(stack, player, Attributes.ATTACK_SPEED.value()), 20);
-    } else {
-      player.resetAttackStrengthTicker();
-    }
-    return true;
   }
 
 

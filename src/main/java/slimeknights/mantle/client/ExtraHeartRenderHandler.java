@@ -84,15 +84,6 @@ public class ExtraHeartRenderHandler {
     if (renderer == HeartRenderer.DISABLE || !event.getName().equals(VanillaGuiLayers.PLAYER_HEALTH)) {
       return;
     }
-    // TODO PORT (stage 6 book): the custom heart renderer relied on Forge's ForgeGui internals
-    //  (leftHeight, setupOverlayRenderState, shouldDrawSurvivalElements) and the cancellable
-    //  RenderGuiOverlayEvent.Pre/Post pair, all of which were removed in the 1.21 Gui rewrite.
-    //  NeoForge's RenderGuiLayerEvent.Pre is cancellable but no longer exposes the layout cursor
-    //  (leftHeight) needed to position rows. Re-implement against the new Gui/LayeredDraw layout
-    //  before re-enabling. Disabled for now so vanilla hearts render.
-    if (true) {
-      return;
-    }
     // ensure its visible
     if (mc.options.hideGui) {
       return;
@@ -103,6 +94,8 @@ public class ExtraHeartRenderHandler {
     }
 
     this.mc.getProfiler().push("health");
+    // our custom hearts replace the vanilla health layer
+    event.setCanceled(true);
 
     // based on the top of Gui#renderPlayerHealth
     int tickCount = this.mc.gui.getGuiTicks();
@@ -131,8 +124,7 @@ public class ExtraHeartRenderHandler {
     // setup window size
     Window window = this.mc.getWindow();
     int left = window.getGuiScaledWidth() / 2 - 91;
-    // TODO PORT (stage 6 book): leftHeight was ForgeGui's layout cursor; placeholder until re-implemented
-    int leftHeight = 39;
+    int leftHeight = this.mc.gui.leftHeight;
     int top = window.getGuiScaledHeight() - leftHeight;
 
     // grab max health as the max of it or the health we will display
@@ -229,10 +221,14 @@ public class ExtraHeartRenderHandler {
       renderHearts(graphics, left, top - absorptionOffset, absorpOffset, absorb, 10);
     }
 
+    // advance the vanilla HUD layout cursor so armor/food sit above the rows we drew
+    int rowsDrawn = 1;                                   // the health row
+    if (absorb > 0 && !compactAbsorption) rowsDrawn++;   // a separate absorption row
+    if (renderer != HeartRenderer.NO_MAX && maxHealth > 20) rowsDrawn++; // the max-health container overflow row
+    this.mc.gui.leftHeight += rowsDrawn * ROW_HEIGHT;
+
     // prepare the GUI for the event
     RenderSystem.setShaderTexture(0, ICON_VANILLA);
-    // TODO PORT (stage 6 book): cancel the vanilla health layer and advance the layout cursor once
-    //  the new Gui layout API is wired up. event.setCanceled(true) is valid on RenderGuiLayerEvent.Pre.
     RenderSystem.disableBlend();
     this.mc.getProfiler().pop();
   }

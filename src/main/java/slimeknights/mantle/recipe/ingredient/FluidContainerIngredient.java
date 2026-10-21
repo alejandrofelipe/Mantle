@@ -30,12 +30,12 @@ public class FluidContainerIngredient implements ICustomIngredient {
   /** Loadable field for the fluid ingredient */
   private static final LoadableField<FluidIngredient,FluidContainerIngredient> FLUID_FIELD = FluidIngredient.LOADABLE.requiredField("fluid", i -> i.fluidIngredient);
   /** Loadable field for the optional display ingredient */
-  private static final LoadableField<Ingredient,FluidContainerIngredient> DISPLAY_FIELD = slimeknights.mantle.data.loadable.common.IngredientLoadable.ALLOW_EMPTY.defaultField("display", Ingredient.EMPTY, false, i -> i.display == null ? Ingredient.EMPTY : i.display);
+  private static final LoadableField<Ingredient,FluidContainerIngredient> DISPLAY_FIELD = slimeknights.mantle.data.loadable.common.IngredientLoadable.ALLOW_EMPTY.nullableField("display", i -> i.display);
 
   /** Serializer instance for the ingredient type */
   public static final LoadableIngredientSerializer<FluidContainerIngredient> SERIALIZER = new LoadableIngredientSerializer<>(RecordLoadable.create(
     FLUID_FIELD, DISPLAY_FIELD,
-    (fluid, display) -> new FluidContainerIngredient(fluid, display.isEmpty() ? null : display)));
+    FluidContainerIngredient::new));
 
   /** Ingredient to use for matching */
   private final FluidIngredient fluidIngredient;
@@ -91,12 +91,12 @@ public class FluidContainerIngredient implements ICustomIngredient {
   }
 
   @Override
-  public Stream<ItemStack> getItems() {
+  public Stream<Holder<Item>> items() {
     // no container? unfortunately hard to display this recipe so show nothing
     if (display == null) {
       return Stream.empty();
     }
-    return Stream.of(display.getItems());
+    return display.items();
   }
 
   @Override

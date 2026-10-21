@@ -22,7 +22,7 @@ public enum DataLoadedConditionContext implements ICondition.IContext {
   public <T> Collection<Holder<T>> getTag(TagKey<T> key) {
     Registry<T> registry = RegistryHelper.getRegistry(key.registry());
     if (registry != null) {
-      Optional<HolderSet.Named<T>> tag = registry.getTag(key);
+      Optional<HolderSet.Named<T>> tag = registry.get(key);
       if (tag.isPresent()) {
         return tag.get().stream().toList();
       }
@@ -34,7 +34,8 @@ public enum DataLoadedConditionContext implements ICondition.IContext {
   public <T> Map<ResourceLocation,Collection<Holder<T>>> getAllTags(ResourceKey<? extends Registry<T>> key) {
     Registry<T> registry = RegistryHelper.getRegistry(key);
     if (registry != null) {
-      return registry.getTags().collect(Collectors.toMap(entry -> entry.getFirst().location(), entry -> entry.getSecond().stream().toList()));
+      // 1.21.4: Registry.getTags() now streams HolderSet.Named directly (was a Pair of tag key and holder set)
+      return registry.getTags().collect(Collectors.toMap(named -> named.key().location(), named -> named.stream().toList()));
     }
     return Map.of();
   }

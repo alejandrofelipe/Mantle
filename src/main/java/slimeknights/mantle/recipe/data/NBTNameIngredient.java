@@ -1,8 +1,10 @@
 package slimeknights.mantle.recipe.data;
 
+import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.common.crafting.ICustomIngredient;
 import net.neoforged.neoforge.common.crafting.IngredientType;
@@ -77,9 +79,10 @@ public class NBTNameIngredient implements ICustomIngredient {
   }
 
   @Override
-  public Stream<ItemStack> getItems() {
+  public Stream<Holder<Item>> items() {
+    // Holder<Item> cannot carry the component patch, so report just the referenced item; test() still enforces components
     ItemStack stack = makeStack();
-    return stack.isEmpty() ? Stream.empty() : Stream.of(stack);
+    return stack.isEmpty() ? Stream.empty() : Stream.of(stack.getItemHolder());
   }
 
   @Override

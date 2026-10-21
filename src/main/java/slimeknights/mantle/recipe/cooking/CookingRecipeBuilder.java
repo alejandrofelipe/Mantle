@@ -15,6 +15,8 @@ import slimeknights.mantle.data.loadable.Loadables;
 import slimeknights.mantle.recipe.data.AbstractRecipeBuilder;
 import slimeknights.mantle.recipe.helper.ItemOutput;
 
+import javax.annotation.Nullable;
+
 /** Builder for {@link SmeltingResultRecipe}, {@link BlastingResultRecipe}, {@link SmokingResultRecipe}, and {@link CampfireResultRecipe} */
 @SuppressWarnings({"unchecked", "unused"})
 @CanIgnoreReturnValue
@@ -22,7 +24,9 @@ public class CookingRecipeBuilder<T extends CookingRecipeBuilder<T>> extends Abs
   protected final ItemOutput result;
   protected float experience = 1.0f;
   protected int cookingTime = 200;
-  protected Ingredient ingredient = Ingredient.EMPTY;
+  // 1.21.4 has no empty Ingredient; null marks "not yet set"
+  @Nullable
+  protected Ingredient ingredient = null;
   protected CookingBookCategory category = CookingBookCategory.MISC;
   protected CookingType type = CookingType.SMELTING;
 
@@ -103,7 +107,7 @@ public class CookingRecipeBuilder<T extends CookingRecipeBuilder<T>> extends Abs
   /** Helper to save a recipe */
   @SuppressWarnings("unchecked")
   private <R extends AbstractCookingRecipe> T save(RecipeOutput output, ResourceLocation id, CookingConstructor<R> constructor, int cookingTime) {
-    if (ingredient == Ingredient.EMPTY) {
+    if (ingredient == null) {
       throw new IllegalStateException("Ingredient must be set");
     }
     AdvancementHolder advancement = buildOptionalAdvancement(id, "cooking");

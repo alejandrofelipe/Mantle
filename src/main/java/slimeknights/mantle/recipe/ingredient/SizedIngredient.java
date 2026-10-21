@@ -14,6 +14,7 @@ import slimeknights.mantle.data.loadable.common.IngredientLoadable;
 import slimeknights.mantle.data.loadable.primitive.IntLoadable;
 import slimeknights.mantle.data.loadable.record.RecordLoadable;
 
+import javax.annotation.Nullable;
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.List;
@@ -25,16 +26,17 @@ import java.util.stream.Collectors;
  */
 @RequiredArgsConstructor(staticName = "of")
 public class SizedIngredient implements Predicate<ItemStack> {
-  /** Empty sized ingredient wrapper. Matches only the empty stack of size 0 */
-  public static final SizedIngredient EMPTY = of(Ingredient.EMPTY, 0);
+  /** Empty sized ingredient wrapper, used as a "not set" sentinel. 1.21.4 has no empty {@link Ingredient}, so the ingredient is {@code null} here and this matches nothing. */
+  public static final SizedIngredient EMPTY = of(null, 0);
 
   public static final RecordLoadable<SizedIngredient> LOADABLE = RecordLoadable.create(
     IngredientLoadable.DISALLOW_EMPTY.tryDirectField("ingredient", SizedIngredient::getIngredient, "amount_needed"),
     IntLoadable.FROM_ONE.defaultField("amount_needed", 1, SizedIngredient::getAmountNeeded),
     SizedIngredient::new);
 
-  /** Ingredient to use in recipe match */
+  /** Ingredient to use in recipe match; {@code null} only for {@link #EMPTY} */
   @Getter
+  @Nullable
   private final Ingredient ingredient;
   /** Amount of this ingredient needed */
   @Getter
@@ -94,7 +96,7 @@ public class SizedIngredient implements Predicate<ItemStack> {
 
   @Override
   public boolean test(ItemStack stack) {
-    return stack.getCount() >= amountNeeded && ingredient.test(stack);
+    return ingredient != null && stack.getCount() >= amountNeeded && ingredient.test(stack);
   }
 
   /**
@@ -102,7 +104,7 @@ public class SizedIngredient implements Predicate<ItemStack> {
    * @return  True if the ingredient has no matching stacks
    */
   public boolean isEmpty() {
-    return ingredient.isEmpty();
+    return ingredient == null || ingredient.isEmpty();
   }
 
   /**
@@ -110,6 +112,9 @@ public class SizedIngredient implements Predicate<ItemStack> {
    * @return  List of matching stacks
    */
   public List<ItemStack> getMatchingStacks() {
+    if (ingredient == null) {
+      return List.of();
+    }
     // 1.21.2: Ingredient.getItems() was replaced by items(), which returns item holders instead of stacks
     ItemStack[] ingredientMatch = ingredient.items().map(ItemStack::new).toArray(ItemStack[]::new);
     // if we never cached, or the array instance changed since we last cached, recache

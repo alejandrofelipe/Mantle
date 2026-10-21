@@ -107,7 +107,7 @@ public class IngredientData implements IDataElement {
           try {
             data.ingredients[i] = readIngredient(array.get(i));
           } catch (Exception e) {
-            data.ingredients[i] = SizedIngredient.of(Ingredient.of(data.getMissingItem(e.getMessage())));
+            data.ingredients[i] = SizedIngredient.of(Ingredient.of(data.getMissingItem(e.getMessage()).getItem()));
           }
         }
 

@@ -1,7 +1,9 @@
 package slimeknights.mantle.recipe.data;
 
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.common.crafting.ICustomIngredient;
 import net.neoforged.neoforge.common.crafting.IngredientType;
@@ -22,7 +24,7 @@ import java.util.stream.Stream;
  * letting recipes reference items from mods that are not loaded at datagen time. In NeoForge 1.21 vanilla ingredients
  * are backed by a {@code HolderSet} that requires the referenced item to exist, so instead this is a custom
  * {@link ICustomIngredient} serialized as {@code mantle:item_name} with a list of names. Recipes using it are guarded
- * by mod/item conditions, so {@link #test} and {@link #getItems} only run when the referenced items are present.
+ * by mod/item conditions, so {@link #test} and {@link #items} only run when the referenced items are present.
  */
 public class ItemNameIngredient implements ICustomIngredient {
   /** Serializer instance, registered as an {@link IngredientType} in {@link MantleIngredients} */
@@ -56,12 +58,12 @@ public class ItemNameIngredient implements ICustomIngredient {
   }
 
   @Override
-  public Stream<ItemStack> getItems() {
+  public Stream<Holder<Item>> items() {
     // only the items that are actually present in the registry; absent names (unloaded mods) are skipped
     return names.stream()
                 .filter(BuiltInRegistries.ITEM::containsKey)
-                .map(BuiltInRegistries.ITEM::get)
-                .map(ItemStack::new);
+                .map(BuiltInRegistries.ITEM::getValue)
+                .map(Item::builtInRegistryHolder);
   }
 
   @Override

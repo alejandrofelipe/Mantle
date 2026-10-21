@@ -29,7 +29,6 @@ public class BlockEntityTypeDeferredRegister extends DeferredRegisterWrapper<Blo
    * @param <T>      Tile entity type
    * @return  Registry object instance
    */
-  @SuppressWarnings("ConstantConditions")
   public <T extends BlockEntity> DeferredHolder<BlockEntityType<?>, BlockEntityType<T>> register(String name, BlockEntitySupplier<? extends T> factory, Supplier<? extends Block> block) {
     return register.register(name, () ->  new BlockEntityType<>(factory, block.get()));
   }
@@ -42,7 +41,6 @@ public class BlockEntityTypeDeferredRegister extends DeferredRegisterWrapper<Blo
    * @param <T>      Tile entity type
    * @return  Tile entity type registry object
    */
-  @SuppressWarnings("ConstantConditions")
   public <T extends BlockEntity> DeferredHolder<BlockEntityType<?>, BlockEntityType<T>> register(String name, BlockEntitySupplier<? extends T> factory, EnumObject<?, ? extends Block> blocks) {
     return register.register(name, () ->  new BlockEntityType<>(factory, ImmutableSet.copyOf(blocks.values()), false));
   }
@@ -55,7 +53,6 @@ public class BlockEntityTypeDeferredRegister extends DeferredRegisterWrapper<Blo
    * @param <T>              Tile entity type
    * @return  Tile entity type registry object
    */
-  @SuppressWarnings("ConstantConditions")
   public <T extends BlockEntity> DeferredHolder<BlockEntityType<?>, BlockEntityType<T>> register(String name, BlockEntitySupplier<? extends T> factory, Consumer<ImmutableSet.Builder<Block>> blockCollector) {
     return register.register(name, () ->  {
       ImmutableSet.Builder<Block> blocks = ImmutableSet.builder();

@@ -1,5 +1,6 @@
 package slimeknights.mantle.registration.deferred;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.StringRepresentable;
@@ -91,6 +92,11 @@ public class BlockDeferredRegister extends DeferredRegisterWrapper<Block> {
     return ResourceKey.create(Registries.ITEM, resource(name));
   }
 
+  /** Creates an item resource key matching the registry name of the given (already registered) block, for its block item */
+  private static ResourceKey<Item> blockItemKey(Block block) {
+    return ResourceKey.create(Registries.ITEM, BuiltInRegistries.BLOCK.getKey(block));
+  }
+
 
   /* Blocks with no items */
 
@@ -141,6 +147,7 @@ public class BlockDeferredRegister extends DeferredRegisterWrapper<Block> {
    */
   public <B extends Block> ItemObject<B> register(String name, Supplier<? extends B> block, final Function<? super B, ? extends BlockItem> item) {
     DeferredHolder<Block, B> blockObj = registerNoItem(name, block);
+    // 1.21.4: caller-supplied item function owns its Properties; its setId is done at the call site
     itemRegister.register(name, () -> item.apply(blockObj.get()));
     return new ItemObject<>(blockObj);
   }
@@ -156,6 +163,7 @@ public class BlockDeferredRegister extends DeferredRegisterWrapper<Block> {
    */
   public <B extends Block> ItemObject<B> register(String name, Function<BlockBehaviour.Properties, ? extends B> factory, BlockBehaviour.Properties props, Function<? super B, ? extends BlockItem> item) {
     ResourceKey<Block> key = blockKey(name);
+    // sets the block id here; the caller-supplied item function owns the item Properties, so its setId is done at the call site
     return register(name, () -> factory.apply(props.setId(key)), item);
   }
 
@@ -275,17 +283,18 @@ public class BlockDeferredRegister extends DeferredRegisterWrapper<Block> {
     BiFunction<? super Block, ? super Block, ? extends BlockItem> burnableSignItem;
     BiFunction<? super Block, ? super Block, ? extends BlockItem> burnableHangingSignItem;
     Item.Properties signProps = new Item.Properties().stacksTo(16);
+    // itemProps and signProps are shared across all block items below; each lambda sets its own id (matching the block it is registered under) immediately before constructing
     if (flammable) {
-      burnableItem     = burnTime -> block -> new BurnableBlockItem(block, itemProps, burnTime);
-      burnableTallItem = block -> new BurnableTallBlockItem(block, itemProps, 200);
-      burnableSignItem = (standing, wall) -> new BurnableSignItem(signProps, standing, wall, 200);
-      burnableHangingSignItem = (standing, wall) -> new BurnableHangingSignItem(signProps, standing, wall, 200);
+      burnableItem     = burnTime -> block -> new BurnableBlockItem(block, itemProps.setId(blockItemKey(block)), burnTime);
+      burnableTallItem = block -> new BurnableTallBlockItem(block, itemProps.setId(blockItemKey(block)), 200);
+      burnableSignItem = (standing, wall) -> new BurnableSignItem(signProps.setId(blockItemKey(standing)), standing, wall, 200);
+      burnableHangingSignItem = (standing, wall) -> new BurnableHangingSignItem(signProps.setId(blockItemKey(standing)), standing, wall, 200);
     } else {
-      Function<? super Block, ? extends BlockItem> defaultItemBlock = block -> new BlockItem(block, itemProps);
+      Function<? super Block, ? extends BlockItem> defaultItemBlock = block -> new BlockItem(block, itemProps.setId(blockItemKey(block)));
       burnableItem = burnTime -> defaultItemBlock;
-      burnableTallItem = block -> new DoubleHighBlockItem(block, itemProps);
-      burnableSignItem = (standing, wall) -> new SignItem(signProps, standing, wall);
-      burnableHangingSignItem = (standing, wall) -> new HangingSignItem(standing, wall, signProps);
+      burnableTallItem = block -> new DoubleHighBlockItem(block, itemProps.setId(blockItemKey(block)));
+      burnableSignItem = (standing, wall) -> new SignItem(signProps.setId(blockItemKey(standing)), standing, wall);
+      burnableHangingSignItem = (standing, wall) -> new HangingSignItem(standing, wall, signProps.setId(blockItemKey(standing)));
     }
 
     // planks

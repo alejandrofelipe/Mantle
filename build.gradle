@@ -131,6 +131,8 @@ tasks.named('jar', Jar).configure {
                 // so every composite compile rewrote this jar underneath a running client
         ])
     }
+    // MIT (SlimeKnights): the copyright + permission notice must ship in every copy; bundle LICENSE at the jar root.
+    from("LICENSE")
 }
 
 java {

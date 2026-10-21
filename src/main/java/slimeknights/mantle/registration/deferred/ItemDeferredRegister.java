@@ -1,6 +1,7 @@
 package slimeknights.mantle.registration.deferred;
 
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
 import slimeknights.mantle.registration.object.EnumObject;
 import slimeknights.mantle.registration.object.ItemObject;
@@ -29,13 +30,25 @@ public class ItemDeferredRegister extends DeferredRegisterWrapper<Item> {
   }
 
   /**
+   * Adds a new item to the list to be registered, building it from the given properties with the ID set
+   * @param name     Item name
+   * @param factory  Function to create the item from the properties
+   * @param props    Item properties
+   * @return  Item registry object
+   */
+  public <I extends Item> ItemObject<I> register(String name, Function<Item.Properties, ? extends I> factory, Item.Properties props) {
+    ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, resource(name));
+    return register(name, () -> factory.apply(props.setId(key)));
+  }
+
+  /**
    * Adds a new item to the list to be registered, based on the given item properties
    * @param name   Item name
    * @param props  Item properties
    * @return  Item registry object
    */
   public ItemObject<Item> register(String name, Item.Properties props) {
-    return register(name, () -> new Item(props));
+    return register(name, Item::new, props);
   }
 
   /**

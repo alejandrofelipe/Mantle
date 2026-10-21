@@ -1,6 +1,7 @@
 package slimeknights.mantle.registration.deferred;
 
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.Item;
@@ -151,7 +152,7 @@ public class FluidDeferredRegister extends DeferredRegisterWrapper<Fluid> {
 
     /** Creates the default bucket */
     public Builder bucket() {
-      return bucket(itemRegister.register(name + "_bucket", () -> new BucketItem(stillDelayed.get(), RegistrationHelper.BUCKET_PROPS)));
+      return bucket(itemRegister.register(name + "_bucket", () -> new BucketItem(stillDelayed.get(), RegistrationHelper.BUCKET_PROPS.setId(ResourceKey.create(Registries.ITEM, resource(name + "_bucket"))))));
     }
 
 
@@ -168,7 +169,7 @@ public class FluidDeferredRegister extends DeferredRegisterWrapper<Fluid> {
 
     /** Creates the default block from the given material and light level */
     public Builder block(MapColor color, int lightLevel) {
-      return block(sup -> new LiquidBlock(sup.get(), createProperties(color, lightLevel)));
+      return block(sup -> new LiquidBlock(sup.get(), createProperties(color, lightLevel).setId(ResourceKey.create(Registries.BLOCK, resource(name + "_fluid")))));
     }
 
     /** Creates a block that lights entities on fire and damages them over time */

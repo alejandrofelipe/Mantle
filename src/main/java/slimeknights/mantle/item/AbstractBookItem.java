@@ -6,7 +6,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -74,12 +73,12 @@ public abstract class AbstractBookItem extends LecternBookItem {
   }
 
   @Override
-  public InteractionResultHolder<ItemStack> use(Level world, Player player, InteractionHand hand) {
+  public InteractionResult use(Level world, Player player, InteractionHand hand) {
     ItemStack stack = player.getItemInHand(hand);
     if (world.isClientSide) {
       openScreen(player, hand, stack);
     }
-    return new InteractionResultHolder<>(InteractionResult.SUCCESS, stack);
+    return InteractionResult.SUCCESS;
   }
 
   /** Called on the client to open the screen when right-clicked in the GUI */

@@ -154,9 +154,9 @@ public class BlockRegistryAdapter extends EnumRegistryAdapter<Block> {
     ButtonBlock button = register(new ButtonBlock(setType, 30, redstoneProps), name + "_button");
     // signs
     StandingSignBlock standingSign = register(new MantleStandingSignBlock(behaviorCreator.apply(WoodVariant.PLANKS).forceSolidOn().instrument(NoteBlockInstrument.BASS).noCollission().strength(1.0F), woodType), name + "_sign");
-    WallSignBlock wallSign = register(new MantleWallSignBlock(behaviorCreator.apply(WoodVariant.PLANKS).forceSolidOn().instrument(NoteBlockInstrument.BASS).noCollission().strength(1.0F).dropsLike(standingSign), woodType), name + "_wall_sign");
+    WallSignBlock wallSign = register(new MantleWallSignBlock(behaviorCreator.apply(WoodVariant.PLANKS).forceSolidOn().instrument(NoteBlockInstrument.BASS).noCollission().strength(1.0F).overrideLootTable(standingSign.getLootTable()), woodType), name + "_wall_sign");
     MantleCeilingHangingSignBlock hangingSign = register(new MantleCeilingHangingSignBlock(behaviorCreator.apply(WoodVariant.PLANKS).forceSolidOn().instrument(NoteBlockInstrument.BASS).noCollission().strength(1.0F), woodType), name + "_hanging_sign");
-    MantleWallHangingSignBlock wallHangingSign = register(new MantleWallHangingSignBlock(behaviorCreator.apply(WoodVariant.PLANKS).forceSolidOn().instrument(NoteBlockInstrument.BASS).noCollission().strength(1.0F).dropsLike(hangingSign), woodType), name + "_wall_hanging_sign");
+    MantleWallHangingSignBlock wallHangingSign = register(new MantleWallHangingSignBlock(behaviorCreator.apply(WoodVariant.PLANKS).forceSolidOn().instrument(NoteBlockInstrument.BASS).noCollission().strength(1.0F).overrideLootTable(hangingSign.getLootTable()), woodType), name + "_wall_hanging_sign");
     // tell mantle to inject these into the TE
     MantleSignBlockEntity.registerSignBlock(() -> standingSign);
     MantleSignBlockEntity.registerSignBlock(() -> wallSign);

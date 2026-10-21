@@ -5,10 +5,12 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import lombok.Getter;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
+import net.minecraft.util.ExtraCodecs;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.level.block.Block;
@@ -28,7 +30,7 @@ import java.util.Map.Entry;
  * Generic JSON serializer which reads data from a block state style file for a mapping from block state to data.
  * @param <T>  Type of data
  */
-public class BlockStateDataMapLoader<T> extends SimpleJsonResourceReloadListener {
+public class BlockStateDataMapLoader<T> extends SimpleJsonResourceReloadListener<JsonElement> {
   private final String name;
   @Getter
   private final String folder;
@@ -38,7 +40,8 @@ public class BlockStateDataMapLoader<T> extends SimpleJsonResourceReloadListener
   private Map<BlockState,T> dataMap = Map.of();
 
   public BlockStateDataMapLoader(String name, String folder, Loadable<T> dataLoader) {
-    super(JsonHelper.DEFAULT_GSON, folder);
+    // 1.21.4: SimpleJsonResourceReloadListener is codec-based; pass a passthrough JSON codec so #apply still receives raw JsonElements
+    super(ExtraCodecs.JSON, FileToIdConverter.json(folder));
     this.name = name;
     this.folder = folder;
     this.dataLoader = dataLoader;

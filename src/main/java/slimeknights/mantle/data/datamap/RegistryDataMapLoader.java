@@ -5,10 +5,12 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import lombok.Getter;
 import net.minecraft.core.Registry;
+import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
+import net.minecraft.util.ExtraCodecs;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
 import slimeknights.mantle.Mantle;
@@ -27,7 +29,7 @@ import java.util.Map.Entry;
 import java.util.function.BiConsumer;
 
 /** Simple loader mapping from a registry object to a piece of data parsed from JSON. Supports parenting to reuse data from another file */
-public class RegistryDataMapLoader<R,D> extends SimpleJsonResourceReloadListener {
+public class RegistryDataMapLoader<R,D> extends SimpleJsonResourceReloadListener<JsonElement> {
   /** Merges data from the parent JSON into the passed JSOn */
   public static final BiConsumer<JsonObject,JsonObject> COPY_PARENT_DATA = (json, parentJson) -> {
     for (Entry<String,JsonElement> entry : parentJson.entrySet()) {
@@ -68,7 +70,8 @@ public class RegistryDataMapLoader<R,D> extends SimpleJsonResourceReloadListener
    * @param merger      Logic to copy data from the parent into the target element
    */
   public RegistryDataMapLoader(String name, String folder, Registry<R> registry, RecordLoadable<D> dataLoader, BiConsumer<JsonObject,JsonObject> merger) {
-    super(JsonHelper.DEFAULT_GSON, folder);
+    // 1.21.4: SimpleJsonResourceReloadListener is codec-based; pass a passthrough JSON codec so #apply still receives raw JsonElements
+    super(ExtraCodecs.JSON, FileToIdConverter.json(folder));
     this.name = name;
     this.registry = registry;
     this.dataLoader = dataLoader;

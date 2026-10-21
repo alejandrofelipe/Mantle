@@ -29,7 +29,7 @@ public class MantleBlockEntity extends BlockEntity {
   public void setChangedFast() {
     if (level != null) {
       if (level.hasChunkAt(worldPosition)) {
-        level.getChunkAt(worldPosition).setUnsaved(true);
+        level.getChunkAt(worldPosition).markUnsaved();
       }
     }
   }

@@ -87,7 +87,7 @@ public class FluidContainerIngredient implements ICustomIngredient {
     int amount = fluidIngredient.getAmount(fluid);
     FluidStack drained = copyCap.drain(amount, FluidAction.EXECUTE);
     // we need an exact match, and we need the resulting container item to be the same as the item stack's container item
-    return drained.getFluid() == fluid && drained.getAmount() == amount && ItemStack.matches(stack.getCraftingRemainingItem(), copyCap.getContainer());
+    return drained.getFluid() == fluid && drained.getAmount() == amount && ItemStack.matches(stack.getCraftingRemainder(), copyCap.getContainer());
   }
 
   @Override

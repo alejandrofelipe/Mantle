@@ -36,7 +36,8 @@ public class TagFilledCondition<T> extends TagCondition<T> implements LootItemCo
 
   @Override
   public boolean test(IContext context) {
-    return !context.getTag(tag).isEmpty();
+    // 1.21.4: IContext#getTag was removed; a tag counts as filled when it is loaded (inverse of NeoForge's TagEmptyCondition)
+    return context.isTagLoaded(tag);
   }
 
   @Override

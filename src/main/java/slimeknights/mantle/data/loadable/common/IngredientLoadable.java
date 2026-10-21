@@ -14,8 +14,8 @@ import slimeknights.mantle.util.typed.TypedMap;
 public enum IngredientLoadable implements Loadable<Ingredient> {
   /** Allows the empty ingredient ({@code []}) */
   ALLOW_EMPTY(Ingredient.CODEC),
-  /** Disallows the empty ingredient */
-  DISALLOW_EMPTY(Ingredient.CODEC_NONEMPTY);
+  /** Disallows the empty ingredient (1.21.4 dropped Ingredient.CODEC_NONEMPTY; the standard codec already rejects empty ingredients) */
+  DISALLOW_EMPTY(Ingredient.CODEC);
 
   private final Codec<Ingredient> codec;
 

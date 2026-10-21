@@ -10,9 +10,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.neoforged.neoforge.common.conditions.ICondition;
 import slimeknights.mantle.Mantle;
+import slimeknights.mantle.util.RegistryHelper;
 
 import javax.annotation.Nullable;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -70,21 +70,22 @@ public record TagCombinationCondition<T>(List<TagKey<T>> match, @Nullable TagKey
 
   @Override
   public boolean test(IContext context) {
-    // if there is just one tag, just needs to be filled
-    List<Collection<Holder<T>>> tags = match.stream().map(context::getTag).toList();
-    Collection<Holder<T>> ignored = ignore == null ? List.of() : context.getTag(ignore);
-    if (tags.size() == 1 && ignored.isEmpty()) {
-      return !tags.get(0).isEmpty();
+    // if there is just one tag with no ignore, it only needs to be filled (1.21.4 IContext no longer exposes tag contents)
+    if (match.size() == 1 && ignore == null) {
+      return context.isTagLoaded(match.get(0));
     }
-    // if any remaining tag is empty, give up
-    int count = tags.size();
-    for (int i = 1; i < count; i++) {
-      if (tags.get(i).isEmpty()) {
+    // otherwise we must inspect tag contents to compute the intersection; read them straight from the registries
+    List<List<Holder<T>>> tags = match.stream().map(t -> RegistryHelper.getTagStream(t).toList()).toList();
+    List<Holder<T>> ignored = ignore == null ? List.of() : RegistryHelper.getTagStream(ignore).toList();
+    // if any tag is empty, give up
+    for (List<Holder<T>> entries : tags) {
+      if (entries.isEmpty()) {
         return false;
       }
     }
 
     // all tags have something, so find the first item that is in all tags
+    int count = tags.size();
     itemLoop:
     for (Holder<T> entry : tags.get(0)) {
       if (ignored.contains(entry)) {

@@ -4,10 +4,14 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.Consumable;
+import net.minecraft.world.item.consume_effects.ApplyStatusEffectsConsumeEffect;
+import net.minecraft.world.item.consume_effects.ConsumeEffect;
 import slimeknights.mantle.util.TranslationHelper;
 
 import java.util.List;
@@ -28,11 +32,14 @@ public class EdibleItem extends Item {
   public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flagIn) {
     TranslationHelper.addOptionalTooltip(stack, tooltip);
     // TODO: use ContainerFoodItem helper for more potion like effects?
-    FoodProperties food = stack.getFoodProperties(null);
-    if (food != null) {
-      for (FoodProperties.PossibleEffect possible : food.effects()) {
-        if (possible.effect() != null) {
-          tooltip.add(Component.literal(I18n.get(possible.effect().getDescriptionId()).trim()).withStyle(ChatFormatting.GRAY));
+    // 1.21.4: status effects moved from FoodProperties to the Consumable component
+    Consumable consumable = stack.get(DataComponents.CONSUMABLE);
+    if (consumable != null) {
+      for (ConsumeEffect consumeEffect : consumable.onConsumeEffects()) {
+        if (consumeEffect instanceof ApplyStatusEffectsConsumeEffect applyEffects) {
+          for (MobEffectInstance effect : applyEffects.effects()) {
+            tooltip.add(Component.literal(I18n.get(effect.getDescriptionId()).trim()).withStyle(ChatFormatting.GRAY));
+          }
         }
       }
     }

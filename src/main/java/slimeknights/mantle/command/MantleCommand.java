@@ -53,7 +53,8 @@ public class MantleCommand {
       -> SharedSuggestionProvider.suggestResource(
         context.getSource().getServer().reloadableRegistries().getKeys(Registries.LOOT_TABLE), builder));
     SourcesCommand.register("recipes", (context, builder)
-      -> SharedSuggestionProvider.suggestResource(context.getSource().getRecipeNames(), builder));
+      // 1.21.4: CommandSourceStack#getRecipeNames was removed; recipe ids come from the server's RecipeManager
+      -> SharedSuggestionProvider.suggestResource(context.getSource().getServer().getRecipeManager().getRecipes().stream().map(holder -> holder.id().location()), builder));
 
     // add command listener
     NeoForge.EVENT_BUS.addListener(MantleCommand::registerCommand);

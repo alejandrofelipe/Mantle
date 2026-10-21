@@ -7,19 +7,22 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
+import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
+import net.minecraft.util.ExtraCodecs;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ItemLike;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.conditions.ICondition.IContext;
-import net.neoforged.neoforge.event.AddReloadListenerEvent;
+import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.fluids.FluidStack;
+import slimeknights.mantle.Mantle;
 import slimeknights.mantle.data.gson.GenericRegisteredSerializer;
 import slimeknights.mantle.network.MantleNetwork;
 import slimeknights.mantle.util.JsonHelper;
@@ -35,7 +38,7 @@ import java.util.function.Consumer;
 
 /** Logic for filling and emptying fluid containers that are not fluid handlers */
 @Log4j2
-public class FluidContainerTransferManager extends SimpleJsonResourceReloadListener {
+public class FluidContainerTransferManager extends SimpleJsonResourceReloadListener<JsonElement> {
   /** Map of all modifier types that are expected to load in data packs */
   public static final GenericRegisteredSerializer<IFluidContainerTransfer> TRANSFER_LOADERS = new GenericRegisteredSerializer<>();
   /** Folder for saving the logic */
@@ -61,7 +64,8 @@ public class FluidContainerTransferManager extends SimpleJsonResourceReloadListe
   private IContext context = IContext.EMPTY;
 
   private FluidContainerTransferManager() {
-    super(GSON, FOLDER);
+    // 1.21.4: SimpleJsonResourceReloadListener is codec-based; pass a passthrough JSON codec so #apply still receives raw JsonElements (the custom GSON handles decoding)
+    super(ExtraCodecs.JSON, FileToIdConverter.json(FOLDER));
   }
 
   /** Lazily initializes the set of container items */
@@ -79,8 +83,8 @@ public class FluidContainerTransferManager extends SimpleJsonResourceReloadListe
 
   /** For internal use only */
   public void init() {
-    NeoForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, AddReloadListenerEvent.class, e -> {
-      e.addListener(this);
+    NeoForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, AddServerReloadListenersEvent.class, e -> {
+      e.addListener(Mantle.getResource("fluid_container_transfer"), this);
       this.context = e.getConditionContext();
     });
     NeoForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, OnDatapackSyncEvent.class, e -> JsonHelper.syncPackets(e, MantleNetwork.INSTANCE, new FluidContainerTransferPacket(this.getContainerItems())));

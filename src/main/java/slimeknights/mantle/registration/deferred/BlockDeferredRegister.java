@@ -293,7 +293,7 @@ public class BlockDeferredRegister extends DeferredRegisterWrapper<Block> {
       Function<? super Block, ? extends BlockItem> defaultItemBlock = block -> new BlockItem(block, itemProps.setId(blockItemKey(block)));
       burnableItem = burnTime -> defaultItemBlock;
       burnableTallItem = block -> new DoubleHighBlockItem(block, itemProps.setId(blockItemKey(block)));
-      burnableSignItem = (standing, wall) -> new SignItem(signProps.setId(blockItemKey(standing)), standing, wall);
+      burnableSignItem = (standing, wall) -> new SignItem(standing, wall, signProps.setId(blockItemKey(standing)));
       burnableHangingSignItem = (standing, wall) -> new HangingSignItem(standing, wall, signProps.setId(blockItemKey(standing)));
     }
 
@@ -318,9 +318,9 @@ public class BlockDeferredRegister extends DeferredRegisterWrapper<Block> {
     ItemObject<ButtonBlock> button = register(name + "_button", () -> new ButtonBlock(setType, 30, redstoneProps.setId(blockKey(name + "_button"))), burnableItem.apply(100));
     // signs
     DeferredHolder<Block, StandingSignBlock> standingSign = registerNoItem(name + "_sign", () -> new MantleStandingSignBlock(behaviorCreator.apply(WoodBlockObject.WoodVariant.PLANKS).instrument(NoteBlockInstrument.BASS).forceSolidOn().noCollission().strength(1.0F).setId(blockKey(name + "_sign")), woodType));
-    DeferredHolder<Block, WallSignBlock> wallSign = registerNoItem(name + "_wall_sign", () -> new MantleWallSignBlock(behaviorCreator.apply(WoodBlockObject.WoodVariant.PLANKS).instrument(NoteBlockInstrument.BASS).forceSolidOn().noCollission().strength(1.0F).lootFrom(standingSign).setId(blockKey(name + "_wall_sign")), woodType));
+    DeferredHolder<Block, WallSignBlock> wallSign = registerNoItem(name + "_wall_sign", () -> new MantleWallSignBlock(behaviorCreator.apply(WoodBlockObject.WoodVariant.PLANKS).instrument(NoteBlockInstrument.BASS).forceSolidOn().noCollission().strength(1.0F).overrideLootTable(standingSign.get().getLootTable()).setId(blockKey(name + "_wall_sign")), woodType));
     DeferredHolder<Block, MantleCeilingHangingSignBlock> hangingSign = registerNoItem(name + "_hanging_sign", () -> new MantleCeilingHangingSignBlock(behaviorCreator.apply(WoodBlockObject.WoodVariant.PLANKS).instrument(NoteBlockInstrument.BASS).forceSolidOn().noCollission().strength(1.0F).setId(blockKey(name + "_hanging_sign")), woodType));
-    DeferredHolder<Block, MantleWallHangingSignBlock> wallHangingSign = registerNoItem(name + "_wall_hanging_sign", () -> new MantleWallHangingSignBlock(behaviorCreator.apply(WoodBlockObject.WoodVariant.PLANKS).instrument(NoteBlockInstrument.BASS).forceSolidOn().noCollission().strength(1.0F).lootFrom(hangingSign).setId(blockKey(name + "_wall_hanging_sign")), woodType));
+    DeferredHolder<Block, MantleWallHangingSignBlock> wallHangingSign = registerNoItem(name + "_wall_hanging_sign", () -> new MantleWallHangingSignBlock(behaviorCreator.apply(WoodBlockObject.WoodVariant.PLANKS).instrument(NoteBlockInstrument.BASS).forceSolidOn().noCollission().strength(1.0F).overrideLootTable(hangingSign.get().getLootTable()).setId(blockKey(name + "_wall_hanging_sign")), woodType));
     // tell mantle to inject these into the TE
     MantleSignBlockEntity.registerSignBlock(standingSign);
     MantleSignBlockEntity.registerSignBlock(wallSign);

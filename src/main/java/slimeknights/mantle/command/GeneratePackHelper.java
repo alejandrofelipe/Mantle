@@ -13,8 +13,8 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.fml.ModList;
-import net.neoforged.neoforge.common.conditions.FalseCondition;
 import net.neoforged.neoforge.common.conditions.ICondition;
+import net.neoforged.neoforge.common.conditions.NeverCondition;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.util.JsonHelper;
 
@@ -82,7 +82,7 @@ public class GeneratePackHelper {
 
   /** Serializes a single {@link FalseCondition} as a JSON array, for adding under {@link #CONDITIONS_KEY}. */
   public static JsonElement serializeFalseCondition() {
-    return serializeConditions(FalseCondition.INSTANCE);
+    return serializeConditions(NeverCondition.INSTANCE);
   }
 
   /**
@@ -98,7 +98,7 @@ public class GeneratePackHelper {
   /** Saves a JSON that removes the given resource using NeoForge conditions */
   public static boolean saveConditionRemove(Path path) {
     JsonObject json = new JsonObject();
-    json.add(CONDITIONS_KEY, serializeConditions(FalseCondition.INSTANCE));
+    json.add(CONDITIONS_KEY, serializeConditions(NeverCondition.INSTANCE));
     return saveJson(json, path);
   }
 

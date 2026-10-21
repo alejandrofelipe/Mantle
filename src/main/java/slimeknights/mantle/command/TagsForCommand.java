@@ -229,7 +229,7 @@ public class TagsForCommand {
     CommandSourceStack source = context.getSource();
     ItemStack stack = source.getPlayerOrException().getMainHandItem();
     if (stack.getItem() instanceof SpawnEggItem egg) {
-      EntityType<?> type = egg.getType(stack);
+      EntityType<?> type = egg.getType(source.registryAccess(), stack);
       return printOwningTags(context, BuiltInRegistries.ENTITY_TYPE, type);
     }
     source.sendSuccess(() -> NO_HELD_ENTITY, true);

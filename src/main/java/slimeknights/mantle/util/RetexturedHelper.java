@@ -6,6 +6,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -51,7 +52,7 @@ public final class RetexturedHelper {
    * {@code Mantle}) for the component to actually register. Until then the holder is unbound and item-stack texture
    * accessors will fail at runtime (compiles fine).
    */
-  public static final DeferredRegister.DataComponents COMPONENTS = DeferredRegister.createDataComponents(Mantle.modId);
+  public static final DeferredRegister.DataComponents COMPONENTS = DeferredRegister.createDataComponents(Registries.DATA_COMPONENT_TYPE, Mantle.modId);
   /** Data component storing the texture block id on an item stack, replacing the old {@link #TAG_TEXTURE} string NBT key. */
   public static final DeferredHolder<DataComponentType<?>,DataComponentType<ResourceLocation>> TEXTURE = COMPONENTS.registerComponentType(
     TAG_TEXTURE,

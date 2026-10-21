@@ -5,8 +5,8 @@ import com.google.gson.JsonElement;
 import net.minecraft.advancements.AdvancementProgress;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
+import net.neoforged.neoforge.common.conditions.AlwaysCondition;
 import net.neoforged.neoforge.common.conditions.ICondition;
-import net.neoforged.neoforge.common.conditions.TrueCondition;
 import slimeknights.mantle.client.book.BookLoader;
 import slimeknights.mantle.client.book.IHTML;
 import slimeknights.mantle.client.book.data.content.ContentError;
@@ -33,7 +33,7 @@ public class SectionData implements IDataItem, IConditional, IHTML {
   public Set<String> requirements = Sets.newHashSet();
   public boolean hideWhenLocked = false;
   public String data = "";
-  public ICondition condition = TrueCondition.INSTANCE;
+  public ICondition condition = AlwaysCondition.INSTANCE;
 
   /** Contains arbitrary data to be used by custom transformers and other things */
   public Map<ResourceLocation, JsonElement> extraData = Collections.emptyMap();

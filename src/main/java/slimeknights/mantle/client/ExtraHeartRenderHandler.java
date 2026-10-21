@@ -6,8 +6,10 @@ import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.util.profiling.Profiler;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -93,7 +95,7 @@ public class ExtraHeartRenderHandler {
       return;
     }
 
-    this.mc.getProfiler().push("health");
+    Profiler.get().push("health");
     // our custom hearts replace the vanilla health layer
     event.setCanceled(true);
 
@@ -230,7 +232,7 @@ public class ExtraHeartRenderHandler {
     // prepare the GUI for the event
     RenderSystem.setShaderTexture(0, ICON_VANILLA);
     RenderSystem.disableBlend();
-    this.mc.getProfiler().pop();
+    Profiler.get().pop();
   }
 
   /** Computes the color U offset for a given heart index */
@@ -332,11 +334,11 @@ public class ExtraHeartRenderHandler {
   private void renderHeartRow(GuiGraphics graphics, int x, int y, int indexOffset, int uOffset, int vOffset, int start, int end, boolean half) {
     // draw full hearts
     for (int i = start; i < end; i += 1) {
-      graphics.blit(ICON_HEARTS, x + HEART_OFFSET * i, y + offsets[i + indexOffset], uOffset, vOffset, HEART_SIZE, HEART_SIZE);
+      graphics.blit(RenderType::guiTextured, ICON_HEARTS, x + HEART_OFFSET * i, y + offsets[i + indexOffset], (float) uOffset, (float) vOffset, HEART_SIZE, HEART_SIZE, 256, 256);
     }
     // draw half heart
     if (half) {
-      graphics.blit(ICON_HEARTS, x + HEART_OFFSET * end, y + offsets[end + indexOffset], uOffset + HEART_SIZE, vOffset, HEART_SIZE, HEART_SIZE);
+      graphics.blit(RenderType::guiTextured, ICON_HEARTS, x + HEART_OFFSET * end, y + offsets[end + indexOffset], (float) (uOffset + HEART_SIZE), (float) vOffset, HEART_SIZE, HEART_SIZE, 256, 256);
     }
   }
 

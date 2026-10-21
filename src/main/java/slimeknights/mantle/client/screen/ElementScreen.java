@@ -2,6 +2,7 @@ package slimeknights.mantle.client.screen;
 
 import lombok.AllArgsConstructor;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 
 /**
@@ -37,7 +38,7 @@ public class ElementScreen {
    * @param yPos Y-Coordinate on the screen
    */
   public void draw(GuiGraphics graphics, int xPos, int yPos, int blitOffset) {
-    graphics.blit(this.texture, xPos, yPos, blitOffset, this.x, this.y, this.w, this.h, this.texW, this.texH);
+    graphics.blit(RenderType::guiTextured, this.texture, xPos, yPos, (float) this.x, (float) this.y, this.w, this.h, this.texW, this.texH);
   }
 
   /**

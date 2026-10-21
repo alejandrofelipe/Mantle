@@ -1,5 +1,6 @@
 package slimeknights.mantle.command.client;
 
+import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -7,7 +8,6 @@ import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexSorting;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -104,7 +104,7 @@ public class BookCommand {
     BookData bookData = BookLoader.getBook(book);
     if(bookData != null) {
       // Delay execution to ensure chat window is closed
-      Minecraft.getInstance().tell(() ->
+      Minecraft.getInstance().execute(() ->
         bookData.openGui(Component.literal("Book"), "", null, null)
       );
     } else {
@@ -206,18 +206,16 @@ public class BookCommand {
       screen.drawScreenBackground = false;
 
       Matrix4f matrix = (new Matrix4f()).setOrtho(0.0F, width, height, 0.0F, 1000.0F, zFar);
-      RenderSystem.setProjectionMatrix(matrix, VertexSorting.ORTHOGRAPHIC_Z);
+      RenderSystem.setProjectionMatrix(matrix, ProjectionType.ORTHOGRAPHIC);
 
       Matrix4fStack stack = RenderSystem.getModelViewStack();
       stack.pushMatrix();
       stack.identity();
       stack.translate(0, 0, 1000F - zFar);
       stack.scale(scale, scale, 1);
-      RenderSystem.applyModelViewMatrix();
       Lighting.setupFor3DItems();
 
-      RenderTarget target = new TextureTarget(width, height, true, Minecraft.ON_OSX);
-      target.enableStencil();
+      RenderTarget target = new TextureTarget(width, height, true, true);
 
       try {
         MultiBufferSource.BufferSource buffer = Minecraft.getInstance().renderBuffers().bufferSource();
@@ -240,7 +238,7 @@ public class BookCommand {
         String modName = mod == null ? book.getNamespace() : mod.getModInfo().getDisplayName();
 
         do {
-          RenderSystem.clear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
+          RenderSystem.clear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
 
           screen.tick();
 
@@ -302,7 +300,6 @@ public class BookCommand {
         }
       } finally {
         stack.popMatrix();
-        RenderSystem.applyModelViewMatrix();
         RenderSystem.defaultBlendFunc();
         target.unbindWrite();
         target.destroyBuffers();

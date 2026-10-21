@@ -9,6 +9,7 @@ import net.minecraft.client.Options;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.Sheets;
 import net.minecraft.client.renderer.blockentity.HangingSignRenderer;
 import net.minecraft.client.renderer.blockentity.SignRenderer;
@@ -26,8 +27,8 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
-import net.neoforged.neoforge.client.event.ModelEvent.RegisterGeometryLoaders;
-import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
+import net.neoforged.neoforge.client.event.ModelEvent.RegisterLoaders;
+import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.neoforged.neoforge.common.NeoForge;
@@ -92,18 +93,17 @@ public class ClientEvents {
     }
   }
 
-  @SuppressWarnings("removal")
   @SubscribeEvent
-  static void registerListeners(RegisterClientReloadListenersEvent event) {
-    event.registerReloadListener(ModelHelper.LISTENER);
-    event.registerReloadListener(new BookLoader());
+  static void registerListeners(AddClientReloadListenersEvent event) {
+    event.addListener(Mantle.getResource("model_helper"), ModelHelper.LISTENER);
+    event.addListener(Mantle.getResource("book_loader"), new BookLoader());
     ResourceColorManager.init(event);
     FluidTooltipHandler.init(event);
     FluidTextureManager.init(event);
-    event.registerReloadListener(FluidCuboid.REGISTRY);
-    event.registerReloadListener(RenderItem.REGISTRY);
-    event.registerReloadListener(RenderItem.STATE_REGISTRY);
-    event.registerReloadListener(TextureColorHelper.RELOAD_LISTENER);
+    event.addListener(Mantle.getResource("fluid_cuboid"), FluidCuboid.REGISTRY);
+    event.addListener(Mantle.getResource("render_item"), RenderItem.REGISTRY);
+    event.addListener(Mantle.getResource("render_item_states"), RenderItem.STATE_REGISTRY);
+    event.addListener(Mantle.getResource("texture_color_helper"), TextureColorHelper.RELOAD_LISTENER);
   }
 
   @SubscribeEvent
@@ -120,7 +120,7 @@ public class ClientEvents {
   }
 
   @SubscribeEvent
-  static void registerModelLoaders(RegisterGeometryLoaders event) {
+  static void registerModelLoaders(RegisterLoaders event) {
     // standard models - useful in resource packs for any model
     event.register(Mantle.getResource("connected"), ConnectedModel.LOADER);
     event.register(Mantle.getResource("item_layer"), MantleItemLayerModel.LOADER);
@@ -182,8 +182,8 @@ public class ClientEvents {
             int x = minecraft.getWindow().getGuiScaledWidth() / 2 - 8;
             int width = (int)(cooldown * 17.0F);
             // 1.21.1: GUI atlas coordinates replaced by named sprites
-            graphics.blitSprite(CROSSHAIR_ATTACK_INDICATOR_BACKGROUND_SPRITE, x, y, 16, 4);
-            graphics.blitSprite(CROSSHAIR_ATTACK_INDICATOR_PROGRESS_SPRITE, 16, 4, 0, 0, x, y, width, 4);
+            graphics.blitSprite(RenderType::guiTextured, CROSSHAIR_ATTACK_INDICATOR_BACKGROUND_SPRITE, x, y, 16, 4);
+            graphics.blitSprite(RenderType::guiTextured, CROSSHAIR_ATTACK_INDICATOR_PROGRESS_SPRITE, 16, 4, 0, 0, x, y, width, 4);
             RenderSystem.defaultBlendFunc();
           }
         }
@@ -202,8 +202,8 @@ public class ClientEvents {
           int l1 = (int)(cooldown * 19.0F);
           RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
           // 1.21.1: GUI atlas coordinates replaced by named sprites
-          graphics.blitSprite(HOTBAR_ATTACK_INDICATOR_BACKGROUND_SPRITE, x, y, 18, 18);
-          graphics.blitSprite(HOTBAR_ATTACK_INDICATOR_PROGRESS_SPRITE, 18, 18, 0, 18 - l1, x, y + 18 - l1, 18, l1);
+          graphics.blitSprite(RenderType::guiTextured, HOTBAR_ATTACK_INDICATOR_BACKGROUND_SPRITE, x, y, 18, 18);
+          graphics.blitSprite(RenderType::guiTextured, HOTBAR_ATTACK_INDICATOR_PROGRESS_SPRITE, 18, 18, 0, 18 - l1, x, y + 18 - l1, 18, l1);
         }
         break;
     }

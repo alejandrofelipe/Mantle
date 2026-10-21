@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.Rect2i;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
@@ -115,8 +116,7 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
   }
 
   protected void drawBackground(GuiGraphics graphics, ResourceLocation background) {
-    graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
-    graphics.blit(background, this.cornerX, this.cornerY, 0, 0, this.realWidth, this.realHeight);
+    graphics.blit(RenderType::guiTextured, background, this.cornerX, this.cornerY, 0.0F, 0.0F, this.realWidth, this.realHeight, 256, 256);
   }
 
   protected void drawContainerName(GuiGraphics graphics) {

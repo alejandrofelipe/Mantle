@@ -2,7 +2,8 @@ package slimeknights.mantle.client.render;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.Block;
-import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
+import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
+import slimeknights.mantle.Mantle;
 import slimeknights.mantle.data.datamap.RegistryDataMapLoader;
 import slimeknights.mantle.data.loadable.record.RecordLoadable;
 
@@ -31,12 +32,12 @@ public record ChannelFluids(FluidCuboid down, Center center, Side side) {
   /**
    * Call during the event to register the reload listener
    */
-  public static void initialize(RegisterClientReloadListenersEvent event) {
+  public static void initialize(AddClientReloadListenersEvent event) {
     if (initialized) {
       return;
     }
     initialized = true;
-    event.registerReloadListener(REGISTRY);
+    event.addListener(Mantle.getResource("channel_fluids"), REGISTRY);
   }
 
   /** Gets a fluid for the center */

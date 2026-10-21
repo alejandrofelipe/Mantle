@@ -12,10 +12,10 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.font.FontManager;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientAdvancements;
-import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FastColor;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -137,18 +137,18 @@ public class BookScreen extends Screen {
   }
 
   private Vector3f splitRGB(int color) {
-    float r = FastColor.ARGB32.red(color) / 255.F;
-    float g = FastColor.ARGB32.green(color)  / 255.F;
-    float b = FastColor.ARGB32.blue(color)  / 255.F;
+    float r = ARGB.red(color) / 255.F;
+    float g = ARGB.green(color)  / 255.F;
+    float b = ARGB.blue(color)  / 255.F;
 
     return new Vector3f(r, g, b);
   }
 
   private Vector4f splitRGBA(int color) {
-    float r = FastColor.ARGB32.red(color) / 255.F;
-    float g = FastColor.ARGB32.green(color)  / 255.F;
-    float b = FastColor.ARGB32.blue(color)  / 255.F;
-    float a = FastColor.ARGB32.alpha(color)  / 255.F;
+    float r = ARGB.red(color) / 255.F;
+    float g = ARGB.green(color)  / 255.F;
+    float b = ARGB.blue(color)  / 255.F;
+    float a = ARGB.alpha(color)  / 255.F;
 
     return new Vector4f(r, g, b, a);
   }
@@ -177,7 +177,6 @@ public class BookScreen extends Screen {
       graphics.drawString(this.font, "DEBUG", 2, 2, 0xFFFFFFFF, false);
     }
 
-    RenderSystem.setShader(GameRenderer::getPositionTexShader);
     // RenderSystem.enableAlphaTest(); TODO: still needed?
     RenderSystem.enableBlend();
 
@@ -277,13 +276,12 @@ public class BookScreen extends Screen {
     int centerX = this.width / 2 - PAGE_WIDTH_UNSCALED / 2;
     int centerY = this.height / 2 - PAGE_HEIGHT_UNSCALED / 2;
 
-    RenderSystem.setShaderColor(coverColor.x(), coverColor.y(), coverColor.z(), 1.0f);
-    graphics.blit(cover, centerX, centerY, 0, 0, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE);
-    RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+    int coverTint = ARGB.colorFromFloat(1.0f, coverColor.x(), coverColor.y(), coverColor.z());
+    graphics.blit(RenderType::guiTextured, cover, centerX, centerY, 0.0F, 0.0F, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE, coverTint);
 
     PoseStack matrixStack = graphics.pose();
     if (!this.book.appearance.title.isEmpty()) {
-      graphics.blit(cover, centerX, centerY, 0, PAGE_HEIGHT_UNSCALED, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE);
+      graphics.blit(RenderType::guiTextured, cover, centerX, centerY, 0.0F, (float) PAGE_HEIGHT_UNSCALED, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE);
 
       matrixStack.pushPose();
 
@@ -309,20 +307,18 @@ public class BookScreen extends Screen {
   }
 
   private void renderUnderLayer(GuiGraphics graphics, Vector3f coverColor) {
-    graphics.setColor(coverColor.x(), coverColor.y(), coverColor.z(), 1f);
-    graphics.blit(this.book.appearance.getBookTexture(), this.width / 2 - PAGE_WIDTH_UNSCALED, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2, 0, 0, PAGE_WIDTH_UNSCALED * 2, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE);
-    graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+    int tint = ARGB.colorFromFloat(1f, coverColor.x(), coverColor.y(), coverColor.z());
+    graphics.blit(RenderType::guiTextured, this.book.appearance.getBookTexture(), this.width / 2 - PAGE_WIDTH_UNSCALED, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2, 0.0F, 0.0F, PAGE_WIDTH_UNSCALED * 2, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE, tint);
   }
 
   private void renderPageBackground(GuiGraphics graphics, boolean rightSide) {
     Vector3f pageTint = splitRGB(this.book.appearance.getPageTint());
-    graphics.setColor(pageTint.x(), pageTint.y(), pageTint.z(), 1f);
+    int tint = ARGB.colorFromFloat(1f, pageTint.x(), pageTint.y(), pageTint.z());
     if(!rightSide) {
-      graphics.blit(book.appearance.getBookTexture(), this.width / 2 - PAGE_WIDTH_UNSCALED, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2, 0, PAGE_HEIGHT_UNSCALED, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE);
+      graphics.blit(RenderType::guiTextured, book.appearance.getBookTexture(), this.width / 2 - PAGE_WIDTH_UNSCALED, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2, 0.0F, (float) PAGE_HEIGHT_UNSCALED, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE, tint);
     } else {
-      graphics.blit(book.appearance.getBookTexture(), this.width / 2, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE);
+      graphics.blit(RenderType::guiTextured, book.appearance.getBookTexture(), this.width / 2, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2, (float) PAGE_WIDTH_UNSCALED, (float) PAGE_HEIGHT_UNSCALED, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE, tint);
     }
-    graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
   }
 
   private void renderPageLayer(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, List<BookElement> elements, ILayerRenderFunction layerFunc) {

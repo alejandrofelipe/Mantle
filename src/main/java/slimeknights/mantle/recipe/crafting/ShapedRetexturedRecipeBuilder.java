@@ -3,8 +3,10 @@ package slimeknights.mantle.recipe.crafting;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.data.recipes.ShapedRecipeBuilder;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
@@ -61,7 +63,8 @@ public class ShapedRetexturedRecipeBuilder {
    */
   public void build(RecipeOutput output, ResourceLocation location) {
     this.validate();
-    parent.save(new RetexturedOutput(output, texture, matchAll), location);
+    // 1.21.4: vanilla RecipeBuilder#save takes a ResourceKey<Recipe<?>>
+    parent.save(new RetexturedOutput(output, texture, matchAll), ResourceKey.create(Registries.RECIPE, location));
   }
 
   /**
@@ -77,7 +80,12 @@ public class ShapedRetexturedRecipeBuilder {
   /** Recipe output that wraps the built shaped recipe into a {@link ShapedRetexturedRecipe} before forwarding */
   private record RetexturedOutput(RecipeOutput delegate, Ingredient texture, boolean matchAll) implements RecipeOutput {
     @Override
-    public void accept(ResourceLocation id, Recipe<?> recipe, @Nullable AdvancementHolder advancement, ICondition... conditions) {
+    public void accept(ResourceKey<Recipe<?>> id, Recipe<?> recipe, @Nullable AdvancementHolder advancement) {
+      accept(id, recipe, advancement, new ICondition[0]);
+    }
+
+    @Override
+    public void accept(ResourceKey<Recipe<?>> id, Recipe<?> recipe, @Nullable AdvancementHolder advancement, ICondition... conditions) {
       Recipe<?> wrapped = recipe instanceof ShapedRecipe shaped ? new ShapedRetexturedRecipe(shaped, texture, matchAll) : recipe;
       delegate.accept(id, wrapped, advancement, conditions);
     }
@@ -85,6 +93,11 @@ public class ShapedRetexturedRecipeBuilder {
     @Override
     public net.minecraft.advancements.Advancement.Builder advancement() {
       return delegate.advancement();
+    }
+
+    @Override
+    public void includeRootAdvancement() {
+      delegate.includeRootAdvancement();
     }
   }
 }

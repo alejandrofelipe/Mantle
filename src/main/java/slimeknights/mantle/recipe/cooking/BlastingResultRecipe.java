@@ -20,10 +20,10 @@ import slimeknights.mantle.recipe.helper.LoadableRecipeSerializer;
 /** Extension of {@link BlastingRecipe} to support {@link ItemOutput} */
 @Getter
 public class BlastingResultRecipe extends BlastingRecipe implements CookingResultRecipe {
-  public static LoadableField<Integer, AbstractCookingRecipe> COOKING_TIME_FIELD = IntLoadable.FROM_ONE.defaultField("cooking_time", 100, true, AbstractCookingRecipe::getCookingTime);
+  public static LoadableField<Integer, AbstractCookingRecipe> COOKING_TIME_FIELD = IntLoadable.FROM_ONE.defaultField("cooking_time", 100, true, AbstractCookingRecipe::cookingTime);
   public static final RecordLoadable<BlastingResultRecipe> LOADABLE = RecordLoadable.create(
     LoadableRecipeSerializer.RECIPE_GROUP, CookingResultRecipe.CATEGORY_FIELD,
-    IngredientLoadable.DISALLOW_EMPTY.requiredField("ingredient", r -> r.ingredient),
+    IngredientLoadable.DISALLOW_EMPTY.requiredField("ingredient", r -> r.input()),
     RESULT_FIELD, EXPERIENCE_FIELD, COOKING_TIME_FIELD,
     BlastingResultRecipe::new);
 
@@ -34,12 +34,14 @@ public class BlastingResultRecipe extends BlastingRecipe implements CookingResul
     this.result = result;
   }
 
+  @SuppressWarnings("unchecked")
   @Override
-  public RecipeSerializer<?> getSerializer() {
-    return MantleRecipes.BLASTING.get();
+  public RecipeSerializer<BlastingRecipe> getSerializer() {
+    // Mantle's own serializer deserializes into this subclass; cast to the type the vanilla parent declares (invariant RecipeSerializer)
+    return (RecipeSerializer<BlastingRecipe>) (RecipeSerializer<?>) MantleRecipes.BLASTING.get();
   }
 
-  @Override
+  /** Mantle's own result accessor; {@link net.minecraft.world.item.crafting.Recipe} dropped getResultItem in 1.21.4 */
   public ItemStack getResultItem(HolderLookup.Provider registries) {
     return result.get();
   }

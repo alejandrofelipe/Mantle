@@ -3,6 +3,8 @@ package slimeknights.mantle.recipe.helper;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -36,7 +38,8 @@ public class RecipeHelper {
    * @return  Optional of the recipe, or empty if the recipe is missing
    */
   public static <C extends Recipe<?>> Optional<C> getRecipe(RecipeManager manager, ResourceLocation name, Class<C> clazz) {
-    return manager.byKey(name).map(RecipeHolder::value).filter(clazz::isInstance).map(clazz::cast);
+    // 1.21.4: byKey takes a ResourceKey<Recipe<?>> rather than a ResourceLocation
+    return manager.byKey(ResourceKey.create(Registries.RECIPE, name)).map(RecipeHolder::value).filter(clazz::isInstance).map(clazz::cast);
   }
 
   /**
@@ -50,7 +53,9 @@ public class RecipeHelper {
    * @return  List of recipes from the manager
    */
   public static <I extends RecipeInput, T extends Recipe<I>, C extends T> List<C> getRecipes(RecipeManager manager, RecipeType<T> type, Class<C> clazz) {
-    return manager.getAllRecipesFor(type).stream()
+    // 1.21.4: getAllRecipesFor was removed; filter the full recipe list by type instead
+    return manager.getRecipes().stream()
+                  .filter(holder -> holder.value().getType() == type)
                   .map(RecipeHolder::value)
                   .filter(clazz::isInstance)
                   .map(clazz::cast)
@@ -69,9 +74,11 @@ public class RecipeHelper {
    * @return  Recipe list
    */
   public static <I extends RecipeInput, T extends Recipe<I>, C extends T> List<C> getUIRecipes(RecipeManager manager, RecipeType<T> type, Class<C> clazz, Predicate<? super C> filter) {
-    return manager.getAllRecipesFor(type).stream()
-                  // sort by holder ID to keep order consistent on both sides, then unwrap to the recipe value
-                  .sorted(Comparator.comparing(RecipeHolder::id))
+    // 1.21.4: getAllRecipesFor was removed; filter the full recipe list by type instead
+    return manager.getRecipes().stream()
+                  .filter(holder -> holder.value().getType() == type)
+                  // sort by holder ID to keep order consistent on both sides (ResourceKey is not Comparable, so compare its location), then unwrap to the recipe value
+                  .sorted(Comparator.comparing(holder -> holder.id().location()))
                   .map(RecipeHolder::value)
                   .filter(clazz::isInstance)
                   .map(clazz::cast)
@@ -95,8 +102,8 @@ public class RecipeHelper {
           boolean m2 = h2.value() instanceof IMultiRecipe<?>;
           if (m1 && !m2) return 1;
           if (!m1 && m2) return -1;
-          // fall back to recipe ID (recipes no longer carry their own ID in 1.21, the holder does)
-          return h1.id().compareTo(h2.id());
+          // fall back to recipe ID (recipes no longer carry their own ID in 1.21, the holder does; 1.21.4 id is a ResourceKey, compare its location)
+          return h1.id().location().compareTo(h2.id().location());
         })
         .flatMap((holder) -> {
           Recipe<?> recipe = holder.value();
@@ -121,6 +128,7 @@ public class RecipeHelper {
    * @return  List of flattened recipes from the manager
    */
   public static <I extends RecipeInput, T extends Recipe<I>, C> List<C> getJEIRecipes(RegistryAccess access, RecipeManager manager, RecipeType<T> type, Class<C> clazz) {
-    return getJEIRecipes(access, manager.getAllRecipesFor(type).stream(), clazz);
+    // 1.21.4: getAllRecipesFor was removed; filter the full recipe list by type instead
+    return getJEIRecipes(access, manager.getRecipes().stream().filter(holder -> holder.value().getType() == type), clazz);
   }
 }

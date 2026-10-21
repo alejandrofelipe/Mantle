@@ -3,13 +3,16 @@ package slimeknights.mantle.recipe.cooking;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.data.recipes.RecipeOutput;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.crafting.AbstractCookingRecipe;
 import net.minecraft.world.item.crafting.CookingBookCategory;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.level.ItemLike;
 import slimeknights.mantle.data.loadable.Loadables;
 import slimeknights.mantle.recipe.data.AbstractRecipeBuilder;
@@ -111,7 +114,8 @@ public class CookingRecipeBuilder<T extends CookingRecipeBuilder<T>> extends Abs
       throw new IllegalStateException("Ingredient must be set");
     }
     AdvancementHolder advancement = buildOptionalAdvancement(id, "cooking");
-    output.accept(id, constructor.create(group, category, ingredient, result, experience, cookingTime), advancement);
+    // 1.21.4: RecipeOutput#accept takes a ResourceKey<Recipe<?>>
+    output.accept(ResourceKey.create(Registries.RECIPE, id), constructor.create(group, category, ingredient, result, experience, cookingTime), advancement);
     return (T) this;
   }
 
@@ -137,16 +141,18 @@ public class CookingRecipeBuilder<T extends CookingRecipeBuilder<T>> extends Abs
 
   @Override
   public void save(RecipeOutput output) {
-    save(output, Loadables.ITEM.getKey(result.get().getItem()));
+    save(output, ResourceKey.create(Registries.RECIPE, Loadables.ITEM.getKey(result.get().getItem())));
   }
 
   @Override
-  public void save(RecipeOutput output, ResourceLocation id) {
+  public void save(RecipeOutput output, ResourceKey<Recipe<?>> id) {
+    // the convenience saveXxx helpers still take a ResourceLocation path
+    ResourceLocation location = id.location();
     switch (type) {
-      case SMELTING -> saveSmelting(output, id);
-      case BLASTING -> saveBlasting(output, id);
-      case SMOKING -> saveSmoking(output, id);
-      case CAMPFIRE -> saveCampfire(output, id);
+      case SMELTING -> saveSmelting(output, location);
+      case BLASTING -> saveBlasting(output, location);
+      case SMOKING -> saveSmoking(output, location);
+      case CAMPFIRE -> saveCampfire(output, location);
     }
   }
 

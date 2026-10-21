@@ -33,7 +33,7 @@ public class LoadableRecipeSerializer<T extends Recipe<?>> implements RecipeSeri
   /** Context key to use if you want the recipe type passed into your recipe, requires {@link #of(RecordLoadable, Supplier)} for your serializer. */
   public static final ContextKey<RecipeType<?>> TYPE = new ContextKey<>("type");
   /** Field for a group key in a recipe (common requirement) */
-  public static final LoadableField<String,Recipe<?>> RECIPE_GROUP = StringLoadable.DEFAULT.defaultField("group", "", Recipe::getGroup);
+  public static final LoadableField<String,Recipe<?>> RECIPE_GROUP = StringLoadable.DEFAULT.defaultField("group", "", Recipe::group);
 
 
   protected final RecordLoadable<T> loadable;

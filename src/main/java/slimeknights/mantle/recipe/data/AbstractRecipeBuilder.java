@@ -5,8 +5,11 @@ import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementRequirements;
 import net.minecraft.advancements.AdvancementRewards;
 import net.minecraft.advancements.Criterion;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.data.recipes.RecipeOutput;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.crafting.Recipe;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -74,9 +77,9 @@ public abstract class AbstractRecipeBuilder<T extends AbstractRecipeBuilder<T>> 
   /**
    * Builds the recipe
    * @param output  Recipe output
-   * @param id      Recipe ID
+   * @param id      Recipe key (1.21.4: {@link RecipeOutput#accept} now takes a {@link ResourceKey})
    */
-  public abstract void save(RecipeOutput output, ResourceLocation id);
+  public abstract void save(RecipeOutput output, ResourceKey<Recipe<?>> id);
 
   /**
    * Base logic for advancement building
@@ -87,7 +90,8 @@ public abstract class AbstractRecipeBuilder<T extends AbstractRecipeBuilder<T>> 
   private AdvancementHolder buildAdvancementInternal(ResourceLocation id, String folder) {
     Advancement.Builder builder = Advancement.Builder.recipeAdvancement()
       .parent(ResourceLocation.parse("recipes/root"))
-      .rewards(AdvancementRewards.Builder.recipe(id))
+      // 1.21.4: AdvancementRewards.Builder.recipe takes a ResourceKey<Recipe<?>>
+      .rewards(AdvancementRewards.Builder.recipe(ResourceKey.create(Registries.RECIPE, id)))
       .requirements(AdvancementRequirements.Strategy.OR);
     this.criteria.forEach(builder::addCriterion);
     return builder.build(ResourceLocation.fromNamespaceAndPath(id.getNamespace(), "recipes/" + folder + "/" + id.getPath()));

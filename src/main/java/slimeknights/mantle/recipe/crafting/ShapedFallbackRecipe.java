@@ -5,6 +5,8 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.CraftingRecipe;
@@ -13,6 +15,9 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapelessRecipe;
+import net.minecraft.world.item.crafting.display.RecipeDisplay;
+import net.minecraft.world.item.crafting.display.SlotDisplay;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import slimeknights.mantle.data.loadable.Loadables;
 import slimeknights.mantle.recipe.MantleRecipes;
@@ -36,9 +41,20 @@ public class ShapedFallbackRecipe extends ShapedRecipe {
    * @param alternatives  List of recipe names to fail this match if they match
    */
   public ShapedFallbackRecipe(ShapedRecipe base, List<ResourceLocation> alternatives) {
-    // ShapedRecipe.pattern is public final; result is package-private so read it via getResultItem (returns the stored result, ignoring registries)
-    super(base.getGroup(), base.category(), base.pattern, base.getResultItem(null), base.showNotification());
+    // ShapedRecipe.pattern is public final; the result field is package-private and Recipe#getResultItem was removed in
+    // 1.21.4, so read the stored result from the recipe's display (the only public accessor).
+    super(base.group(), base.category(), base.pattern, baseResult(base), base.showNotification());
     this.alternatives = alternatives;
+  }
+
+  /** Reads the stored result of a shaped recipe from its display, as {@link ShapedRecipe} no longer exposes it directly */
+  private static ItemStack baseResult(ShapedRecipe recipe) {
+    for (RecipeDisplay display : recipe.display()) {
+      if (display.result() instanceof SlotDisplay.ItemStackSlotDisplay stackDisplay) {
+        return stackDisplay.stack();
+      }
+    }
+    return ItemStack.EMPTY;
   }
 
   @Override
@@ -49,11 +65,10 @@ public class ShapedFallbackRecipe extends ShapedRecipe {
     }
 
     // fetch all alternatives, fail if any match
-    // cache to save effort down the line
-    if (alternativeCache == null) {
-      RecipeManager manager = world.getRecipeManager();
+    // cache to save effort down the line. 1.21.4: byKey takes a ResourceKey and the manager comes from Level#recipeAccess
+    if (alternativeCache == null && world.recipeAccess() instanceof RecipeManager manager) {
       alternativeCache = alternatives.stream()
-                                     .map(manager::byKey)
+                                     .map(location -> manager.byKey(ResourceKey.create(Registries.RECIPE, location)))
                                      .filter(java.util.Optional::isPresent)
                                      .map(java.util.Optional::get)
                                      .map(RecipeHolder::value)
@@ -65,12 +80,16 @@ public class ShapedFallbackRecipe extends ShapedRecipe {
                                      .map(recipe -> (CraftingRecipe) recipe)
                                      .toList();
     }
+    // if the manager was unavailable (e.g. client-side), behave as if no alternatives matched
+    if (alternativeCache == null) {
+      return true;
+    }
     // fail if any alternative matches
     return this.alternativeCache.stream().noneMatch(recipe -> recipe.matches(input, world));
   }
 
   @Override
-  public RecipeSerializer<?> getSerializer() {
+  public RecipeSerializer<? extends ShapedRecipe> getSerializer() {
     return MantleRecipes.CRAFTING_SHAPED_FALLBACK.get();
   }
 

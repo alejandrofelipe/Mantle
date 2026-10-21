@@ -15,7 +15,6 @@ import net.minecraft.commands.arguments.ResourceArgument;
 import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.commands.arguments.ResourceOrTagKeyArgument;
 import net.minecraft.core.Holder;
-import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.FileToIdConverter;
@@ -25,12 +24,16 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.tags.TagKey;
+import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.item.crafting.RecipeInput;
+import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.item.crafting.display.RecipeDisplay;
+import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.data.loadable.Loadable;
 import slimeknights.mantle.data.loadable.Loadables;
@@ -74,7 +77,8 @@ public class RemoveRecipesCommand {
 
   /** Suggestion builder for recipe IDs */
   private static final SuggestionProvider<CommandSourceStack> SUGGESTS_RECIPES = (context, builder)
-    -> SharedSuggestionProvider.suggestResource(context.getSource().getRecipeManager().getRecipeIds(), builder);
+    // 1.21.4: the recipe manager lives on the server and recipe ids come from the holders (getRecipeIds was removed)
+    -> SharedSuggestionProvider.suggestResource(context.getSource().getServer().getRecipeManager().getRecipes().stream().map(holder -> holder.id().location()), builder);
   /** Suggests presets for the command */
   private static final SuggestionProvider<CommandSourceStack> SUGGEST_PRESETS = SourcesCommand.suggestFolder(PRESETS);
 
@@ -169,27 +173,31 @@ public class RemoveRecipesCommand {
   }
 
   /** Runs the command */
-  @SuppressWarnings("unchecked")  // not like we are using the generics at all
-  private static <I extends RecipeInput, T extends Recipe<I>> int run(CommandContext<CommandSourceStack> context, List<RecipeType<?>> recipeTypes, @Nullable Predicate<Item> removeResult, @Nullable Predicate<Item> removeInput, long startTime) {
+  private static int run(CommandContext<CommandSourceStack> context, List<RecipeType<?>> recipeTypes, @Nullable Predicate<Item> removeResult, @Nullable Predicate<Item> removeInput, long startTime) {
     // iterate all recipes for the type storing recipes that craft the tag
     ServerLevel level = context.getSource().getLevel();
-    RegistryAccess access = level.registryAccess();
+    RecipeManager manager = level.recipeAccess();
+    // 1.21.4: Recipe#getResultItem was removed, so results are resolved through the recipe display's result slot
+    ContextMap slotContext = SlotDisplayContext.fromLevel(level);
     List<ResourceLocation> recipes = new ArrayList<>();
     for (RecipeType<?> recipeType : recipeTypes) {
-      // 1.21: getAllRecipesFor returns RecipeHolder<T>; recipe id moved to the holder and Recipe.getId() was removed
-      for (RecipeHolder<T> holder : level.getRecipeManager().getAllRecipesFor((RecipeType<T>) recipeType)) {
-        Recipe<I> recipe = holder.value();
+      // 1.21.4: getAllRecipesFor was removed; iterate the full recipe list filtering by type. The id moved to the holder (now a ResourceKey)
+      for (RecipeHolder<?> holder : manager.getRecipes()) {
+        Recipe<?> recipe = holder.value();
+        if (recipe.getType() != recipeType) {
+          continue;
+        }
         // result must match or not be requested
-        if (removeResult == null || removeResult.test(recipe.getResultItem(access).getItem())) {
+        if (removeResult == null || resultMatches(recipe, removeResult, slotContext)) {
           // no input predicate? we are done
           if (removeInput == null) {
-            recipes.add(holder.id());
+            recipes.add(holder.id().location());
           } else {
             // at least one ingredient must match the ingredient predicate
             ingredientLoop:
-            for (Ingredient ingredient : recipe.getIngredients()) {
+            for (Ingredient ingredient : recipe.placementInfo().ingredients()) {
               if (ingredient.items().anyMatch(item -> removeInput.test(item.value()))) {
-                recipes.add(holder.id());
+                recipes.add(holder.id().location());
                 break ingredientLoop;
               }
             }
@@ -228,6 +236,18 @@ public class RemoveRecipesCommand {
     float time = (System.nanoTime() - startTime) / 1000000f;
     context.getSource().sendSuccess(() -> Component.translatable(KEY_SUCCESS, successFinal, time, GeneratePackHelper.getOutputComponent(pack)), true);
     return successes;
+  }
+
+  /** Checks whether any of a recipe's displayed results matches the given item predicate */
+  private static boolean resultMatches(Recipe<?> recipe, Predicate<Item> removeResult, ContextMap slotContext) {
+    for (RecipeDisplay display : recipe.display()) {
+      for (ItemStack stack : display.result().resolveForStacks(slotContext)) {
+        if (removeResult.test(stack.getItem())) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /** Removes a recipe by ID */

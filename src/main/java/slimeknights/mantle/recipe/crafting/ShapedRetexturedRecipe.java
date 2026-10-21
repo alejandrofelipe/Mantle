@@ -15,6 +15,8 @@ import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapedRecipePattern;
+import net.minecraft.world.item.crafting.display.RecipeDisplay;
+import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import slimeknights.mantle.recipe.MantleRecipes;
@@ -43,8 +45,24 @@ public class ShapedRetexturedRecipe extends ShapedRecipe {
    * @param matchAll   If true, all inputs must match for the recipe to match
    */
   protected ShapedRetexturedRecipe(ShapedRecipe orig, Ingredient texture, boolean matchAll) {
-    // ShapedRecipe.pattern is public final; result is package-private so read it via getResultItem (which returns the stored result, ignoring registries)
-    this(orig.getGroup(), orig.category(), orig.pattern, orig.getResultItem(null), orig.showNotification(), texture, matchAll);
+    // ShapedRecipe.pattern is public final; the result field is package-private and Recipe#getResultItem was removed in
+    // 1.21.4, so read the stored result from the recipe's display (the only public accessor).
+    this(orig.group(), orig.category(), orig.pattern, baseResult(orig), orig.showNotification(), texture, matchAll);
+  }
+
+  /** Reads the stored result of a shaped recipe from its display, as {@link ShapedRecipe} no longer exposes it directly */
+  private static ItemStack baseResult(ShapedRecipe recipe) {
+    for (RecipeDisplay display : recipe.display()) {
+      if (display.result() instanceof SlotDisplay.ItemStackSlotDisplay stackDisplay) {
+        return stackDisplay.stack();
+      }
+    }
+    return ItemStack.EMPTY;
+  }
+
+  /** Mantle's own result accessor; {@link net.minecraft.world.item.crafting.Recipe} dropped getResultItem in 1.21.4 */
+  public ItemStack getResultItem(HolderLookup.Provider access) {
+    return baseResult(this);
   }
 
   /**
@@ -98,7 +116,7 @@ public class ShapedRetexturedRecipe extends ShapedRecipe {
   }
 
   @Override
-  public RecipeSerializer<?> getSerializer() {
+  public RecipeSerializer<? extends ShapedRecipe> getSerializer() {
     return MantleRecipes.CRAFTING_SHAPED_RETEXTURED.get();
   }
 

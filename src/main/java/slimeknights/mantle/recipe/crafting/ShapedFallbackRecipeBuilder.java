@@ -2,8 +2,10 @@ package slimeknights.mantle.recipe.crafting;
 
 import lombok.RequiredArgsConstructor;
 import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.data.recipes.ShapedRecipeBuilder;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.ShapedRecipe;
@@ -47,13 +49,19 @@ public class ShapedFallbackRecipeBuilder {
    * @param id      Recipe ID
    */
   public void build(RecipeOutput output, ResourceLocation id) {
-    base.save(new FallbackOutput(output, List.copyOf(alternatives)), id);
+    // 1.21.4: vanilla RecipeBuilder#save takes a ResourceKey<Recipe<?>>
+    base.save(new FallbackOutput(output, List.copyOf(alternatives)), ResourceKey.create(Registries.RECIPE, id));
   }
 
   /** Recipe output that wraps the built shaped recipe into a {@link ShapedFallbackRecipe} before forwarding */
   private record FallbackOutput(RecipeOutput delegate, List<ResourceLocation> alternatives) implements RecipeOutput {
     @Override
-    public void accept(ResourceLocation id, Recipe<?> recipe, @Nullable AdvancementHolder advancement, ICondition... conditions) {
+    public void accept(ResourceKey<Recipe<?>> id, Recipe<?> recipe, @Nullable AdvancementHolder advancement) {
+      accept(id, recipe, advancement, new ICondition[0]);
+    }
+
+    @Override
+    public void accept(ResourceKey<Recipe<?>> id, Recipe<?> recipe, @Nullable AdvancementHolder advancement, ICondition... conditions) {
       Recipe<?> wrapped = recipe instanceof ShapedRecipe shaped ? new ShapedFallbackRecipe(shaped, alternatives) : recipe;
       delegate.accept(id, wrapped, advancement, conditions);
     }
@@ -61,6 +69,11 @@ public class ShapedFallbackRecipeBuilder {
     @Override
     public net.minecraft.advancements.Advancement.Builder advancement() {
       return delegate.advancement();
+    }
+
+    @Override
+    public void includeRootAdvancement() {
+      delegate.includeRootAdvancement();
     }
   }
 }

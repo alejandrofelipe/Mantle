@@ -2,20 +2,28 @@ package slimeknights.mantle.client.model.builder;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import net.neoforged.neoforge.client.model.generators.ModelBuilder;
-import net.neoforged.neoforge.common.data.ExistingFileHelper;
+import net.neoforged.neoforge.client.model.generators.template.CustomLoaderBuilder;
 import slimeknights.mantle.Mantle;
 
-public class RetexturedModelBuilder<T extends ModelBuilder<T>> extends ColoredModelBuilder<T> {
+public class RetexturedModelBuilder extends ColoredModelBuilder {
   private final JsonArray retextured = new JsonArray();
-  public RetexturedModelBuilder(T parent, ExistingFileHelper existingFileHelper) {
-    super(Mantle.getResource("retextured"), parent, existingFileHelper);
+
+  public RetexturedModelBuilder() {
+    super(Mantle.getResource("retextured"));
   }
 
   /** Marks the given texture as retextured. Uses the texture name, not path. */
-  public RetexturedModelBuilder<T> retexture(String name) {
+  public RetexturedModelBuilder retexture(String name) {
     this.retextured.add(name);
     return this;
+  }
+
+  @Override
+  protected CustomLoaderBuilder copyInternal() {
+    RetexturedModelBuilder builder = new RetexturedModelBuilder();
+    builder.colors.addAll(this.colors);
+    this.retextured.forEach(builder.retextured::add);
+    return builder;
   }
 
   @Override

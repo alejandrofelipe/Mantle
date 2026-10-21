@@ -1,6 +1,5 @@
 package slimeknights.mantle.data.client;
 
-import com.google.common.hash.Hashing;
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.Util;
@@ -10,9 +9,8 @@ import net.minecraft.data.PackOutput;
 import net.minecraft.data.PackOutput.PathProvider;
 import net.minecraft.data.PackOutput.Target;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.Resource;
-import net.neoforged.neoforge.common.data.ExistingFileHelper;
+import net.minecraft.server.packs.resources.ResourceManager;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.data.GenericDataProvider;
 
@@ -26,27 +24,21 @@ import java.util.concurrent.CompletionException;
 
 /** Data generator to create png image files */
 public abstract class GenericTextureGenerator extends GenericDataProvider {
+  /**
+   * Resource source for reading existing textures. Was an {@code ExistingFileHelper} in 1.20/1.21.1; that class was
+   * removed in 1.21.4, so datagen now reads through the {@link ResourceManager} exposed by {@code GatherDataEvent#getResourceManager}.
+   */
   @Nullable
-  protected final ExistingFileHelper existingFileHelper;
-  @Nullable
-  private final ExistingFileHelper.ResourceType resourceType;
+  protected final ResourceManager resourceManager;
 
-  /** Constructor which marks files as existing */
-  public GenericTextureGenerator(PackOutput packOutput, @Nullable ExistingFileHelper existingFileHelper, String folder) {
+  /** Constructor which reads existing textures through the given resource manager */
+  public GenericTextureGenerator(PackOutput packOutput, @Nullable ResourceManager resourceManager, String folder) {
     super(packOutput, Target.RESOURCE_PACK, folder);
-    this.existingFileHelper = existingFileHelper;
-    if (existingFileHelper != null) {
-      this.resourceType = new ExistingFileHelper.ResourceType(PackType.CLIENT_RESOURCES, ".png", folder);
-    } else {
-      this.resourceType = null;
-    }
+    this.resourceManager = resourceManager;
   }
 
   /** Saves the given image to the given location */
   protected CompletableFuture<?> saveImage(CachedOutput cache, ResourceLocation location, NativeImage image) {
-    if (existingFileHelper != null && resourceType != null) {
-      existingFileHelper.trackGenerated(location, resourceType);
-    }
     return saveImage(cache, pathProvider, location, image);
   }
 
@@ -59,9 +51,10 @@ public abstract class GenericTextureGenerator extends GenericDataProvider {
   /* Helpers */
 
   /** Reads an image from disk. Note the caller is responsible for closing the resource */
-  public static NativeImage read(ExistingFileHelper existingFileHelper, String folder, ResourceLocation path) throws IOException {
+  public static NativeImage read(ResourceManager resourceManager, String folder, ResourceLocation path) throws IOException {
+    ResourceLocation full = ResourceLocation.fromNamespaceAndPath(path.getNamespace(), folder + '/' + path.getPath() + ".png");
     try {
-      Resource resource = existingFileHelper.getResource(path, PackType.CLIENT_RESOURCES, ".png", folder);
+      Resource resource = resourceManager.getResource(full).orElseThrow(() -> new NoSuchElementException("Missing texture resource " + full));
       try (InputStream stream = resource.open()) {
         return NativeImage.read(stream);
       }
@@ -76,8 +69,11 @@ public abstract class GenericTextureGenerator extends GenericDataProvider {
     return CompletableFuture.runAsync(() -> {
       try {
         Path path = pathProvider.file(location, "png");
-        byte[] bytes = image.asByteArray();
-        cache.writeIfNeeded(path, bytes, Hashing.sha1().hashBytes(bytes));
+        // PORT 1.21.4: NativeImage#asByteArray was removed with no public replacement, so we can no longer hand raw PNG
+        // bytes to CachedOutput#writeIfNeeded. Write straight to the target path instead; this produces an identical PNG
+        // but bypasses the cache's hash-based dedup and stale-file tracking. Only used by downstream texture datagen
+        // (e.g. Tinkers fluid cameras); Mantle's own data generation does not exercise this path.
+        image.writeToFile(path);
       } catch (IOException e) {
         Mantle.logger.error("Couldn't write image for {}", location, e);
         throw new CompletionException(e);

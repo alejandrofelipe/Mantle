@@ -4,7 +4,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.data.CachedOutput;
 import net.minecraft.data.PackOutput;
 import net.minecraft.resources.ResourceLocation;
-import net.neoforged.neoforge.common.data.ExistingFileHelper;
+import net.minecraft.server.packs.resources.ResourceManager;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -17,13 +17,13 @@ import java.util.concurrent.CompletableFuture;
 public class DeanimateTextureGenerator extends GenericTextureGenerator {
   private static final Map<ResourceLocation,ResourceLocation> deanimate = new HashMap<>();
   private final String folder;
-  public DeanimateTextureGenerator(PackOutput packOutput, ExistingFileHelper existingFileHelper, String folder) {
-    super(packOutput, existingFileHelper, folder);
+  public DeanimateTextureGenerator(PackOutput packOutput, ResourceManager resourceManager, String folder) {
+    super(packOutput, resourceManager, folder);
     this.folder = folder;
   }
 
-  public DeanimateTextureGenerator(PackOutput packOutput, ExistingFileHelper existingFileHelper) {
-    this(packOutput, existingFileHelper, "textures");
+  public DeanimateTextureGenerator(PackOutput packOutput, ResourceManager resourceManager) {
+    this(packOutput, resourceManager, "textures");
   }
 
   /** Requests the given texture to be deanimated */
@@ -41,9 +41,9 @@ public class DeanimateTextureGenerator extends GenericTextureGenerator {
   public final CompletableFuture<?> run(CachedOutput cached) {
     List<NativeImage> openedImages = new ArrayList<>();
     addTextures();
-    assert existingFileHelper != null;
+    assert resourceManager != null;
     return allOf(deanimate.entrySet().stream().map(entry -> {
-      try (NativeImage image = read(existingFileHelper, folder, entry.getValue())) {
+      try (NativeImage image = read(resourceManager, folder, entry.getValue())) {
         // use the width to guess the height
         NativeImage copy = new NativeImage(image.getWidth(), image.getWidth(), true);
         copy.copyFrom(image);

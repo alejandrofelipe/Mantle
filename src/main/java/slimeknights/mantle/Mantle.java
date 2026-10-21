@@ -5,7 +5,6 @@ import net.minecraft.commands.synchronization.ArgumentTypeInfos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.data.DataGenerator;
 import net.minecraft.data.PackOutput;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -16,7 +15,6 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
-import net.neoforged.neoforge.common.data.ExistingFileHelper;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -111,7 +109,9 @@ public class Mantle {
     // mod-bus lifecycle listeners
     bus.addListener(EventPriority.NORMAL, false, FMLCommonSetupEvent.class, this::commonSetup);
     bus.addListener(EventPriority.NORMAL, false, RegisterCapabilitiesEvent.class, this::registerCapabilities);
-    bus.addListener(EventPriority.NORMAL, false, GatherDataEvent.class, this::gatherData);
+    // 1.21.4: GatherDataEvent split into nested Server/Client events (one fired per side); register a listener for each
+    bus.addListener(EventPriority.NORMAL, false, GatherDataEvent.Server.class, this::gatherDataServer);
+    bus.addListener(EventPriority.NORMAL, false, GatherDataEvent.Client.class, this::gatherDataClient);
     bus.addListener(EventPriority.NORMAL, false, RegisterEvent.class, this::register);
 
     // network payloads (replaces the old commonSetup MantleNetwork.registerPackets())
@@ -244,18 +244,20 @@ public class Mantle {
     // global loot modifiers are now a DeferredRegister (MantleLoot.init), no longer registered here
   }
 
-  private void gatherData(final GatherDataEvent event) {
-    DataGenerator generator = event.getGenerator();
-    boolean server = event.includeServer();
-    boolean client = event.includeClient();
-    PackOutput packOutput = generator.getPackOutput();
+  /** Server-side data providers (tags, fluid-container transfers). ExistingFileHelper was removed in 1.21.4. */
+  private void gatherDataServer(final GatherDataEvent.Server event) {
+    PackOutput packOutput = event.getGenerator().getPackOutput();
     CompletableFuture<HolderLookup.Provider> lookupProvider = event.getLookupProvider();
-    ExistingFileHelper existingFileHelper = event.getExistingFileHelper();
-    generator.addProvider(server, new MantleBlockTagProvider(packOutput, lookupProvider, existingFileHelper));
-    generator.addProvider(server, new MantleFluidTagProvider(packOutput, lookupProvider, existingFileHelper));
-    generator.addProvider(server, new MantleMenuTagProvider(packOutput, lookupProvider, existingFileHelper));
-    generator.addProvider(server, new MantleFluidTransferProvider(packOutput));
-    generator.addProvider(client, new MantleFluidTooltipProvider(packOutput));
+    event.addProvider(new MantleBlockTagProvider(packOutput, lookupProvider));
+    event.addProvider(new MantleFluidTagProvider(packOutput, lookupProvider));
+    event.addProvider(new MantleMenuTagProvider(packOutput, lookupProvider));
+    event.addProvider(new MantleFluidTransferProvider(packOutput));
+  }
+
+  /** Client-side (asset) data providers (fluid tooltips). */
+  private void gatherDataClient(final GatherDataEvent.Client event) {
+    PackOutput packOutput = event.getGenerator().getPackOutput();
+    event.addProvider(new MantleFluidTooltipProvider(packOutput));
   }
 
   /**

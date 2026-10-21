@@ -9,12 +9,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
-import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.TooltipFlag;
@@ -68,7 +69,7 @@ public class EntityIngredientRenderer implements IIngredientRenderer<EntityIngre
           entity = Minecraft.getInstance().player;
         } else {
           // entity is created with the client world, but the entity map is thrown away when JEI restarts so they should be okay I think
-          entity = ENTITY_MAP.computeIfAbsent(type, t -> t.create(world));
+          entity = ENTITY_MAP.computeIfAbsent(type, t -> t.create(world, EntitySpawnReason.SPAWN_ITEM_USE));
         }
         // only can draw living entities, plus non-living ones don't get recipes anyways
         if (entity instanceof LivingEntity livingEntity) {
@@ -99,10 +100,11 @@ public class EntityIngredientRenderer implements IIngredientRenderer<EntityIngre
       }
 
       // fallback, draw a pink and black "spawn egg"
-      RenderSystem.setShader(GameRenderer::getPositionTexShader);
+      // 1.21.4: GuiGraphics.blit now takes a RenderType function (RenderType::guiTextured) and float u/v; the old
+      // RenderSystem.setShader(GameRenderer::getPositionTexShader) call was removed as the render type binds the shader.
       RenderSystem.setShaderColor(1, 1, 1, 1);
       int offset = (size - 16) / 2;
-      graphics.blit(MISSING, offset, offset, 0, 0, 16, 16, 16, 16);
+      graphics.blit(RenderType::guiTextured, MISSING, offset, offset, 0.0F, 0.0F, 16, 16, 16, 16);
     }
   }
 

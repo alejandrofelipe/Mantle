@@ -1,34 +1,30 @@
 package slimeknights.mantle.plugin.jei;
 
-import com.google.common.collect.Streams;
-import mezz.jei.api.constants.VanillaTypes;
-import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
-import mezz.jei.api.gui.builder.IRecipeSlotBuilder;
-import mezz.jei.api.gui.ingredient.ICraftingGridHelper;
+import mezz.jei.api.gui.ingredient.IRecipeSlotDrawable;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.category.extensions.vanilla.crafting.ICraftingCategoryExtension;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
-import slimeknights.mantle.Mantle;
+import net.minecraft.world.item.crafting.display.SlotDisplay;
 import slimeknights.mantle.client.SafeClientAccess;
 import slimeknights.mantle.recipe.crafting.ShapedRetexturedRecipe;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 /**
- * JEI crafting extension to properly show, animate, and focus {@link ShapedRetexturedRecipe} instances.
+ * JEI crafting extension to properly show {@link ShapedRetexturedRecipe} instances.
  * <p>
- * As of JEI 19.x (1.21.1) crafting category extensions are stateless: the recipe is provided per-call via a
- * {@link RecipeHolder}, so all derived display data is computed lazily from {@link RecipeHolder#value()}.
+ * JEI 20 (MC 1.21.4) replaced the JEI 19 {@code setRecipe(RecipeHolder, IRecipeLayoutBuilder, ICraftingGridHelper,
+ * IFocusGroup)} model with a {@link SlotDisplay}-based one: the extension supplies the grid inputs via
+ * {@link #getIngredients(RecipeHolder)} (laid out by {@link #getWidth}/{@link #getHeight}), while the output is derived
+ * by JEI from the recipe's own {@link net.minecraft.world.item.crafting.Recipe#display()}. The textured output variants
+ * are injected through {@link #onDisplayedIngredientsUpdate} using slot display overrides, since the layout builder (and
+ * therefore the old {@code builder.createFocusLink(...)}) is no longer handed to extensions. See the task report for the
+ * one behavior that could not be carried over: the output&harr;texture-input focus link.
  */
 public class RetexturableRecipeExtension implements ICraftingCategoryExtension<ShapedRetexturedRecipe> {
   /** Builds the list of textured display outputs for the recipe */
@@ -44,31 +40,10 @@ public class RetexturableRecipeExtension implements ICraftingCategoryExtension<S
     return displayOutputs.isEmpty() ? List.of(recipe.getResultItem(access)) : displayOutputs;
   }
 
-  /** Finds the ingredient indexes of all texture slots */
-  private static int[] textureSlots(ShapedRetexturedRecipe recipe) {
-    Ingredient texture = recipe.getTexture();
-    List<Ingredient> inputs = recipe.getIngredients();
-    return IntStream.range(0, inputs.size()).filter(i -> ingredientsMatch(texture, inputs.get(i))).toArray();
-  }
-
-  /** Checks if two ingredients match based on their display items */
-  private static boolean ingredientsMatch(Ingredient left, Ingredient right) {
-    ItemStack[] leftStacks = left.items().map(ItemStack::new).toArray(ItemStack[]::new);
-    ItemStack[] rightStacks = right.items().map(ItemStack::new).toArray(ItemStack[]::new);
-    if (leftStacks.length != rightStacks.length) {
-      return false;
-    }
-    for (int i = 0; i < leftStacks.length; i++) {
-      if (!ItemStack.isSameItemSameComponents(leftStacks[i], rightStacks[i])) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   @Override
-  public Optional<ResourceLocation> getRegistryName(RecipeHolder<ShapedRetexturedRecipe> recipeHolder) {
-    return Optional.of(recipeHolder.id());
+  public List<SlotDisplay> getIngredients(RecipeHolder<ShapedRetexturedRecipe> recipeHolder) {
+    // mirror vanilla ShapedRecipe#display(): one slot display per pattern cell, empty cells become SlotDisplay.Empty
+    return recipeHolder.value().getIngredients().stream().map(Ingredient::optionalIngredientToDisplay).toList();
   }
 
   @Override
@@ -82,25 +57,15 @@ public class RetexturableRecipeExtension implements ICraftingCategoryExtension<S
   }
 
   @Override
-  public void setRecipe(RecipeHolder<ShapedRetexturedRecipe> recipeHolder, IRecipeLayoutBuilder builder, ICraftingGridHelper craftingGridHelper, IFocusGroup focuses) {
-    ShapedRetexturedRecipe recipe = recipeHolder.value();
-    RegistryAccess access = Objects.requireNonNull(SafeClientAccess.getRegistryAccess());
-
-    // we need the blank version for the sake of recipe lookup due to the subtype interpreter making it not the same
-    builder.addInvisibleIngredients(RecipeIngredientRole.OUTPUT).addItemStack(recipe.getResultItem(access));
-
-    // add the itemstacks to the grid
-    List<List<ItemStack>> inputStacks = recipe.getIngredients().stream().map(ingredient -> ingredient.items().map(ItemStack::new).toList()).toList();
-    int width = recipe.getWidth();
-    int height = recipe.getHeight();
-    List<IRecipeSlotBuilder> inputs = craftingGridHelper.createAndSetInputs(builder, VanillaTypes.ITEM_STACK, inputStacks, width, height);
-    IRecipeSlotBuilder output = craftingGridHelper.createAndSetOutputs(builder, displayOutputs(recipe));
-    if (inputs.size() != 9) {
-      Mantle.logger.error("Failed to create focus link for {} as the layout {} is not 3x3", recipeHolder.id(), builder.getClass().getName());
-    } else {
-      // link the output to all inputs that match the texture
-      int[] textureSlots = textureSlots(recipe);
-      builder.createFocusLink(Streams.concat(Stream.of(output), Arrays.stream(textureSlots).mapToObj(i -> inputs.get(MantleJEIConstants.getCraftingIndex(i, width, height)))).toArray(IRecipeSlotBuilder[]::new));
+  public void onDisplayedIngredientsUpdate(RecipeHolder<ShapedRetexturedRecipe> recipeHolder, List<IRecipeSlotDrawable> recipeSlots, IFocusGroup focuses) {
+    // the recipe's own display only carries the blank output, so override the output slot to cycle every textured variant
+    List<ItemStack> outputs = displayOutputs(recipeHolder.value());
+    for (IRecipeSlotDrawable slot : recipeSlots) {
+      if (slot.getRole() == RecipeIngredientRole.OUTPUT) {
+        slot.clearDisplayOverrides();
+        slot.createDisplayOverrides().addItemStacks(outputs);
+        break;
+      }
     }
   }
 }

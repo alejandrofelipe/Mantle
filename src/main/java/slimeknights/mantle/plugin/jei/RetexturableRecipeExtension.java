@@ -37,8 +37,8 @@ public class RetexturableRecipeExtension implements ICraftingCategoryExtension<S
     Ingredient texture = recipe.getTexture();
     // fetch all stacks from the ingredient, note any variants that are not blocks will get a blank look
     RegistryAccess access = Objects.requireNonNull(SafeClientAccess.getRegistryAccess());
-    List<ItemStack> displayOutputs = Arrays.stream(texture.getItems())
-                                           .map(stack -> recipe.getResultItem(stack.getItem(), access))
+    List<ItemStack> displayOutputs = texture.items()
+                                           .map(holder -> recipe.getResultItem(holder.value(), access))
                                            .toList();
     // empty display means the tag found nothing, so just use the original output
     return displayOutputs.isEmpty() ? List.of(recipe.getResultItem(access)) : displayOutputs;
@@ -53,8 +53,8 @@ public class RetexturableRecipeExtension implements ICraftingCategoryExtension<S
 
   /** Checks if two ingredients match based on their display items */
   private static boolean ingredientsMatch(Ingredient left, Ingredient right) {
-    ItemStack[] leftStacks = left.getItems();
-    ItemStack[] rightStacks = right.getItems();
+    ItemStack[] leftStacks = left.items().map(ItemStack::new).toArray(ItemStack[]::new);
+    ItemStack[] rightStacks = right.items().map(ItemStack::new).toArray(ItemStack[]::new);
     if (leftStacks.length != rightStacks.length) {
       return false;
     }
@@ -90,7 +90,7 @@ public class RetexturableRecipeExtension implements ICraftingCategoryExtension<S
     builder.addInvisibleIngredients(RecipeIngredientRole.OUTPUT).addItemStack(recipe.getResultItem(access));
 
     // add the itemstacks to the grid
-    List<List<ItemStack>> inputStacks = recipe.getIngredients().stream().map(ingredient -> List.of(ingredient.getItems())).toList();
+    List<List<ItemStack>> inputStacks = recipe.getIngredients().stream().map(ingredient -> ingredient.items().map(ItemStack::new).toList()).toList();
     int width = recipe.getWidth();
     int height = recipe.getHeight();
     List<IRecipeSlotBuilder> inputs = craftingGridHelper.createAndSetInputs(builder, VanillaTypes.ITEM_STACK, inputStacks, width, height);

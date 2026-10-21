@@ -1,6 +1,7 @@
 package slimeknights.mantle.datagen;
 
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.PackOutput;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
@@ -72,7 +73,7 @@ public class MantleFluidTransferProvider extends AbstractFluidContainerTransferP
     ICondition[] potionConditions;
     ICondition[] waterConditions;
     if (bottleTag != null) {
-      container = Ingredient.of(bottleTag);
+      container = Ingredient.of(BuiltInRegistries.ITEM.getOrThrow(bottleTag));
       ICondition containerCondition = tagFilled(bottleTag);
       waterConditions = new ICondition[]{containerCondition};
       potionConditions = new ICondition[]{potionCondition, containerCondition};

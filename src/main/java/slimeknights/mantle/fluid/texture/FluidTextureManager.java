@@ -55,7 +55,7 @@ public class FluidTextureManager implements IEarlySafeManagerReloadListener {
     for (Map.Entry<ResourceLocation,JsonElement> entry : jsons.entrySet()) {
       ResourceLocation id = entry.getKey();
       // first step is to find the matching fluid type, if there is none ignore the file
-      FluidType type = fluidTypeRegistry.get(id);
+      FluidType type = fluidTypeRegistry.getValue(id);
       if (type == null || !id.equals(fluidTypeRegistry.getKey(type))) {
         Mantle.logger.debug("Ignoring fluid texture {} as no fluid type exists with that name", id);
       } else {

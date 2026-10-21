@@ -63,7 +63,7 @@ public class NBTNameIngredient implements ICustomIngredient {
     if (!BuiltInRegistries.ITEM.containsKey(name)) {
       return ItemStack.EMPTY;
     }
-    ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.get(name));
+    ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.getValue(name));
     if (!components.isEmpty()) {
       stack.applyComponents(components);
     }

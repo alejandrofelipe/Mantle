@@ -30,7 +30,7 @@ public abstract class TagCondition<T> implements ICondition {
   protected Registry<T> registry(LootContext context) {
     // registry is not going to disappear within the lifetime of this object
     if (registry == null) {
-      registry = context.getLevel().registryAccess().registry(tag.registry());
+      registry = context.getLevel().registryAccess().lookup(tag.registry());
       if (registry.isEmpty()) {
         Mantle.logger.error("Failed to find registry for tag " + tag + " in " + getClass().getSimpleName() + ", this indicates a broken resource or datapack.");
       }

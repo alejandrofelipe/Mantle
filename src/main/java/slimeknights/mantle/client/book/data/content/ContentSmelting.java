@@ -104,7 +104,7 @@ public class ContentSmelting extends PageContent {
       Recipe<?> recipe = level.getRecipeManager().byKey(ResourceLocation.parse(this.recipe)).map(net.minecraft.world.item.crafting.RecipeHolder::value).orElse(null);
 
       if (recipe instanceof AbstractCookingRecipe) {
-        this.input = IngredientData.getItemStackData(NonNullList.of(ItemStack.EMPTY, recipe.getIngredients().get(0).getItems()));
+        this.input = IngredientData.getItemStackData(NonNullList.of(ItemStack.EMPTY, recipe.getIngredients().get(0).items().map(ItemStack::new).toArray(ItemStack[]::new)));
         this.cookTime = ((AbstractCookingRecipe) recipe).getCookingTime();
         this.result = IngredientData.getItemStackData(recipe.getResultItem(level.registryAccess()));
       }

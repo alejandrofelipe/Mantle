@@ -212,7 +212,7 @@ public class TagsForCommand {
     // and the enchantment registry is now dynamic so we resolve it from the command source.
     ItemEnchantments enchantments = EnchantmentHelper.getEnchantmentsForCrafting(stack);
     if (!enchantments.isEmpty()) {
-      Registry<Enchantment> registry = source.registryAccess().registryOrThrow(Registries.ENCHANTMENT);
+      Registry<Enchantment> registry = source.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
       int totalTags = 0;
       // print tags for each contained enchantment
       for (Holder<Enchantment> enchantment : enchantments.keySet()) {

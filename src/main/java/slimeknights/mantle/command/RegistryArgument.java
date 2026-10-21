@@ -70,7 +70,7 @@ public class RegistryArgument {
   public static Registry<?> getResult(CommandContext<? extends SharedSuggestionProvider> context, String name) throws CommandSyntaxException {
     ResourceLocation id = context.getArgument(name, ResourceLocation.class);
     return context.getSource().registryAccess()
-                   .registry(ResourceKey.createRegistryKey(id))
+                   .lookup(ResourceKey.createRegistryKey(id))
                    .orElseThrow(() -> NOT_FOUND.create(id));
   }
 

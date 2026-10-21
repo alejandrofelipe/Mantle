@@ -107,7 +107,7 @@ public class CombatHelper {
 
   /** Makes a damage source from the given key */
   public static Holder<DamageType> damageType(RegistryAccess access, ResourceKey<DamageType> key) {
-    return access.registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(key);
+    return access.lookupOrThrow(Registries.DAMAGE_TYPE).getOrThrow(key);
   }
 
   /** Makes a damage source from the given key */

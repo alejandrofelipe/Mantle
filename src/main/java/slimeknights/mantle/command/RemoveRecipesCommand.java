@@ -26,7 +26,6 @@ import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -189,11 +188,9 @@ public class RemoveRecipesCommand {
             // at least one ingredient must match the ingredient predicate
             ingredientLoop:
             for (Ingredient ingredient : recipe.getIngredients()) {
-              for (ItemStack stack : ingredient.getItems()) {
-                if (removeInput.test(stack.getItem())) {
-                  recipes.add(holder.id());
-                  break ingredientLoop;
-                }
+              if (ingredient.items().anyMatch(item -> removeInput.test(item.value()))) {
+                recipes.add(holder.id());
+                break ingredientLoop;
               }
             }
           }

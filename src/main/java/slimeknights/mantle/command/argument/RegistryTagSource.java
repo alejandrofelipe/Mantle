@@ -69,7 +69,7 @@ public record RegistryTagSource<T>(Registry<T> registry) implements TagSource<T>
   public T getValue(ResourceLocation key) {
     // prevent defaulting registries from returning their default
     if (registry.containsKey(key)) {
-      return registry.get(key);
+      return registry.getValue(key);
     }
     return null;
   }
@@ -77,7 +77,7 @@ public record RegistryTagSource<T>(Registry<T> registry) implements TagSource<T>
   @Override
   public Stream<TagKey<T>> tagsFor(T value) {
     // 1.21: Holder.getTagKeys() was renamed to Holder.tags()
-    return registry.getHolder(registry.getId(value)).stream().flatMap(Holder::tags);
+    return registry.get(registry.getId(value)).stream().flatMap(Holder::tags);
   }
 
   @Override

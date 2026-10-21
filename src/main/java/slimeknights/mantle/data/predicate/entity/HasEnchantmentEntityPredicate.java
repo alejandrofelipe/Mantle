@@ -20,7 +20,7 @@ public record HasEnchantmentEntityPredicate(ResourceKey<Enchantment> enchantment
 
   @Override
   public boolean matches(LivingEntity entity) {
-    Holder<Enchantment> holder = entity.level().registryAccess().registryOrThrow(Registries.ENCHANTMENT).getHolderOrThrow(enchantment);
+    Holder<Enchantment> holder = entity.level().registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(enchantment);
     return EnchantmentHelper.getEnchantmentLevel(holder, entity) > 0;
   }
 

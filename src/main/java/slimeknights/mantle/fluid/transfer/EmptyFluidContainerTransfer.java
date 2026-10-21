@@ -43,9 +43,7 @@ public class EmptyFluidContainerTransfer implements IFluidContainerTransfer.With
 
   @Override
   public void addRepresentativeItems(Consumer<Item> consumer) {
-    for (ItemStack stack : input.getItems()) {
-      consumer.accept(stack.getItem());
-    }
+    input.items().forEach(holder -> consumer.accept(holder.value()));
   }
 
   @Override

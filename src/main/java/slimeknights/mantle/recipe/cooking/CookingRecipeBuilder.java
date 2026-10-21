@@ -2,6 +2,7 @@ package slimeknights.mantle.recipe.cooking;
 
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
@@ -77,7 +78,7 @@ public class CookingRecipeBuilder<T extends CookingRecipeBuilder<T>> extends Abs
 
   /** Sets the input ingredient */
   public T requires(TagKey<Item> tag) {
-    return requires(Ingredient.of(tag));
+    return requires(Ingredient.of(BuiltInRegistries.ITEM.getOrThrow(tag)));
   }
 
   /** Sets the XP gain from this recipe */

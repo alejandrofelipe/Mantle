@@ -145,7 +145,7 @@ public class ContentCrafting extends PageContent {
 
           for (int y = 0; y < grid.length; y++) {
             for (int x = 0; x < grid[y].length; x++) {
-              grid[y][x] = IngredientData.getItemStackData(NonNullList.of(ItemStack.EMPTY, ingredients.get(x + y * grid[y].length).getItems()));
+              grid[y][x] = IngredientData.getItemStackData(NonNullList.of(ItemStack.EMPTY, ingredients.get(x + y * grid[y].length).items().map(ItemStack::new).toArray(ItemStack[]::new)));
             }
           }
 
@@ -154,7 +154,7 @@ public class ContentCrafting extends PageContent {
 
         grid = new IngredientData[h][w];
         for (int i = 0; i < ingredients.size(); i++) {
-          grid[i / h][i % w] = IngredientData.getItemStackData(NonNullList.of(ItemStack.EMPTY, ingredients.get(i).getItems()));
+          grid[i / h][i % w] = IngredientData.getItemStackData(NonNullList.of(ItemStack.EMPTY, ingredients.get(i).items().map(ItemStack::new).toArray(ItemStack[]::new)));
         }
       }
     }

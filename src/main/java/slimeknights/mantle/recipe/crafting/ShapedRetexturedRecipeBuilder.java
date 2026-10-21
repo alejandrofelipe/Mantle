@@ -2,6 +2,7 @@ package slimeknights.mantle.recipe.crafting;
 
 import lombok.RequiredArgsConstructor;
 import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.data.recipes.ShapedRecipeBuilder;
 import net.minecraft.resources.ResourceLocation;
@@ -40,7 +41,7 @@ public class ShapedRetexturedRecipeBuilder {
    * @return Builder instance
    */
   public ShapedRetexturedRecipeBuilder setSource(TagKey<Item> tag) {
-    return setSource(Ingredient.of(tag));
+    return setSource(Ingredient.of(BuiltInRegistries.ITEM.getOrThrow(tag)));
   }
 
   /**

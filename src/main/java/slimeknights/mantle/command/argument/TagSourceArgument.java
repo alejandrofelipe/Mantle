@@ -135,7 +135,7 @@ public class TagSourceArgument {
       return custom;
     }
     return new RegistryTagSource<>(context.getSource().registryAccess()
-      .registry(key)
+      .lookup(key)
       .orElseThrow(() -> NOT_FOUND.create(id)));
   }
 }

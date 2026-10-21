@@ -24,7 +24,7 @@ public interface BaseRegistryLoadable<T> extends ResourceLocationLoadable<T> {
   default T fromKey(ResourceLocation name, String key, TypedMap context) {
     Registry<T> registry = registry();
     if (registry != null && registry.containsKey(name)) {
-      T value = registry.get(name);
+      T value = registry.getValue(name);
       if (value != null) {
         return value;
       }

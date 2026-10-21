@@ -23,7 +23,7 @@ public class RegistryHelper {
   @Nullable
   @SuppressWarnings({"unchecked"})
   public static <T> Registry<T> getRegistry(ResourceKey<? extends Registry<T>> key) {
-    return (Registry<T>) BuiltInRegistries.REGISTRY.get(key.location());
+    return (Registry<T>) BuiltInRegistries.REGISTRY.getValue(key.location());
   }
 
   /** Gets a stream of tag holders for the given registry */
@@ -56,7 +56,7 @@ public class RegistryHelper {
     if (index == Registry.DEFAULT) {
       return false;
     }
-    return registry.getHolder(index).filter(holder -> holder.is(tag)).isPresent();
+    return registry.get(index).filter(holder -> holder.is(tag)).isPresent();
   }
 
   /** Checks if the given tag contains the given registry object */
@@ -100,7 +100,7 @@ public class RegistryHelper {
    * @return  Supplier for the given registry
    */
   public static <T> Supplier<T> getHolder(DefaultedRegistry<T> registry, T entry) {
-    Holder.Reference<T> holder = registry.getHolder(registry.getId(entry)).orElseThrow();
+    Holder.Reference<T> holder = registry.get(registry.getId(entry)).orElseThrow();
     return holder::value;
   }
 }

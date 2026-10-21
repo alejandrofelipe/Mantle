@@ -3,6 +3,7 @@ package slimeknights.mantle.recipe.ingredient;
 import com.google.gson.JsonObject;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
@@ -79,7 +80,7 @@ public class SizedIngredient implements Predicate<ItemStack> {
    * @return  Sized ingredient matching any size
    */
   public static SizedIngredient fromTag(TagKey<Item> tag, int amountNeeded) {
-    return of(Ingredient.of(tag), amountNeeded);
+    return of(Ingredient.of(BuiltInRegistries.ITEM.getOrThrow(tag)), amountNeeded);
   }
 
   /**
@@ -109,7 +110,8 @@ public class SizedIngredient implements Predicate<ItemStack> {
    * @return  List of matching stacks
    */
   public List<ItemStack> getMatchingStacks() {
-    ItemStack[] ingredientMatch = ingredient.getItems();
+    // 1.21.2: Ingredient.getItems() was replaced by items(), which returns item holders instead of stacks
+    ItemStack[] ingredientMatch = ingredient.items().map(ItemStack::new).toArray(ItemStack[]::new);
     // if we never cached, or the array instance changed since we last cached, recache
     if (matchingStacks == null || lastIngredientMatch.get() != ingredientMatch) {
       matchingStacks = Arrays.stream(ingredientMatch).map(stack -> {

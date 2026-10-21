@@ -9,14 +9,14 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.CoreShaders;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -35,7 +35,7 @@ public class FluidRenderer {
    * @return  Sprite location
    */
   public static TextureAtlasSprite getBlockSprite(ResourceLocation sprite) {
-    return Minecraft.getInstance().getModelManager().getAtlas(InventoryMenu.BLOCK_ATLAS).getSprite(sprite);
+    return Minecraft.getInstance().getModelManager().getAtlas(TextureAtlas.LOCATION_BLOCKS).getSprite(sprite);
   }
 
   /**
@@ -350,7 +350,7 @@ public class FluidRenderer {
   /** Same as {@link net.minecraft.client.renderer.ScreenEffectRenderer#renderFluid(Minecraft, PoseStack, ResourceLocation)} but with opacity and color control */
   public static void renderCamera(Minecraft minecraft, PoseStack poseStack, ResourceLocation texture, float opacity, int color) {
     assert minecraft.player != null;
-    RenderSystem.setShader(GameRenderer::getPositionTexShader);
+    RenderSystem.setShader(CoreShaders.POSITION_TEX);
     RenderSystem.setShaderTexture(0, texture);
     BlockPos pos = BlockPos.containing(minecraft.player.getX(), minecraft.player.getEyeY(), minecraft.player.getZ());
     Level level = minecraft.player.level();

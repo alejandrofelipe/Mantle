@@ -17,12 +17,18 @@ public class MantleRenderTypes extends RenderType {
     super(name, format, mode, bufferSize, useDelegate, needsSorting, setupTaskIn, clearTaskIn);
   }
 
-  /** Extension of {@link RenderType#POSITION_COLOR_TEX_LIGHTMAP_SHADER} with fog information based on {@link RenderType#ENTITY_TRANSLUCENT_CULL} */
-  public static final RenderStateShard.ShaderStateShard FLUID_SHADER = new RenderStateShard.ShaderStateShard(MantleShaders::getConfiguredFluidShader);
+  /**
+   * Extension of {@code POSITION_COLOR_TEX_LIGHTMAP} with fog information. 1.21.4: {@link RenderStateShard.ShaderStateShard}
+   * now takes a fixed {@link net.minecraft.client.renderer.ShaderProgram}, so the config-driven shader choice is resolved
+   * once when this class initializes rather than per draw.
+   */
+  public static final RenderStateShard.ShaderStateShard FLUID_SHADER = new RenderStateShard.ShaderStateShard(MantleShaders.getConfiguredFluidShader());
 
   /**
    * Render type used for the fluid renderer.
-   * TODO 1.21: can we replace this with {@link RenderType#ENTITY_TRANSLUCENT_CULL}? Would require including normals in our vertex format.
+   * 1.21.4: {@code entityTranslucentCull} was removed; the surviving equivalent is the {@code entity_translucent} family
+   * ({@link net.minecraft.client.renderer.CoreShaders#RENDERTYPE_ENTITY_TRANSLUCENT}), which requires the normal-bearing
+   * {@code NEW_ENTITY} vertex format. We keep this custom type as our format has no normals.
    */
   public static final RenderType FLUID = create(
     Mantle.modId + ":block_render_type",
@@ -51,7 +57,7 @@ public class MantleRenderTypes extends RenderType {
     Mantle.modId + ":translucent_fullbright",
     BLOCK_WITH_OVERLAY, Mode.QUADS, 256, false, false,
     RenderType.CompositeState.builder()
-      .setShaderState(new RenderStateShard.ShaderStateShard(MantleShaders::getBlockFullBrightShader))
+      .setShaderState(new RenderStateShard.ShaderStateShard(MantleShaders.getBlockFullBrightShader()))
       .setLightmapState(new RenderStateShard.LightmapStateShard(false))
       .setOverlayState(OVERLAY)
       .setTextureState(BLOCK_SHEET_MIPPED)

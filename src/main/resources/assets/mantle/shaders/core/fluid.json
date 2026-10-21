@@ -1,17 +1,6 @@
 {
-    "blend": {
-        "func": "add",
-        "srcrgb": "srcalpha",
-        "dstrgb": "1-srcalpha"
-    },
-    "vertex": "mantle:fluid",
-    "fragment": "mantle:fluid",
-    "attributes": [
-        "Position",
-        "UV0",
-        "UV2",
-        "Color"
-    ],
+    "vertex": "mantle:core/fluid",
+    "fragment": "mantle:core/fluid",
     "samplers": [
         { "name": "Sampler0" }
     ],

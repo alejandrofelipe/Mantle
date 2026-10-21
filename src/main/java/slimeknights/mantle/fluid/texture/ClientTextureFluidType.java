@@ -1,18 +1,20 @@
 package slimeknights.mantle.fluid.texture;
 
 import com.mojang.blaze3d.shaders.FogShape;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.FogParameters;
 import net.minecraft.client.renderer.FogRenderer.FogMode;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FastColor;
+import net.minecraft.util.ARGB;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.fluids.FluidType;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 import slimeknights.mantle.client.render.FluidRenderer;
 
 import javax.annotation.Nullable;
@@ -51,7 +53,7 @@ public class ClientTextureFluidType implements IClientFluidTypeExtensions {
   }
 
   @Override
-  public void renderOverlay(Minecraft mc, PoseStack poseStack) {
+  public void renderOverlay(Minecraft mc, PoseStack poseStack, MultiBufferSource buffer) {
     FluidTexture data = FluidTextureManager.getData(type);
     ResourceLocation camera = data.camera();
     if (camera != null) {
@@ -60,13 +62,13 @@ public class ClientTextureFluidType implements IClientFluidTypeExtensions {
   }
 
   @Override
-  public Vector3f modifyFogColor(Camera camera, float partialTick, ClientLevel level, int renderDistance, float darkenWorldAmount, Vector3f fluidFogColor) {
+  public Vector4f modifyFogColor(Camera camera, float partialTick, ClientLevel level, int renderDistance, float darkenWorldAmount, Vector4f fluidFogColor) {
     // nothing to do if fog color is white
     int fluidColor = FluidTextureManager.getData(type).fogColor();
     if (fluidColor != -1) {
       // cache the vector for fog color to reduce computation time
       if (fogColor == null) {
-        fogColor = new Vector3f(FastColor.ARGB32.red(fluidColor) / 255f, FastColor.ARGB32.green(fluidColor) / 255f, FastColor.ARGB32.blue(fluidColor) / 255f);
+        fogColor = new Vector3f(ARGB.red(fluidColor) / 255f, ARGB.green(fluidColor) / 255f, ARGB.blue(fluidColor) / 255f);
       }
       fluidFogColor.x *= fogColor.x;
       fluidFogColor.y *= fogColor.y;
@@ -76,21 +78,18 @@ public class ClientTextureFluidType implements IClientFluidTypeExtensions {
   }
 
   @Override
-  public void modifyFogRender(Camera camera, FogMode mode, float renderDistance, float partialTick, float nearDistance, float farDistance, FogShape shape) {
+  public FogParameters modifyFogRender(Camera camera, FogMode mode, float renderDistance, float partialTick, FogParameters fogParameters) {
+    // 1.21.4: fog is now an immutable FogParameters record (the RenderSystem.setShaderFog* setters were removed), so
+    // return a copy with our overrides applied. Only override start/end when they would tighten the existing fog.
     FluidTexture data = FluidTextureManager.getData(type);
     FogShape overrideShape = data.fogShape();
-    if (overrideShape != null) {
-      if (overrideShape != shape) {
-        RenderSystem.setShaderFogShape(overrideShape);
-      }
-      float start = data.fogStart();
-      if (start < nearDistance) {
-        RenderSystem.setShaderFogStart(start);
-      }
-      float end = data.fogEnd();
-      if (end < farDistance) {
-        RenderSystem.setShaderFogEnd(end);
-      }
+    if (overrideShape == null) {
+      return fogParameters;
     }
+    return new FogParameters(
+      Math.min(data.fogStart(), fogParameters.start()),
+      Math.min(data.fogEnd(), fogParameters.end()),
+      overrideShape,
+      fogParameters.red(), fogParameters.green(), fogParameters.blue(), fogParameters.alpha());
   }
 }

@@ -13,7 +13,9 @@ import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.fluids.BaseFlowingFluid;
 import net.neoforged.neoforge.fluids.BaseFlowingFluid.Properties;
@@ -57,6 +59,11 @@ public class FluidDeferredRegister extends DeferredRegisterWrapper<Fluid> {
     fluidTypeRegister.register(bus);
     blockRegister.register(bus);
     itemRegister.register(bus);
+    // 1.21.4: fluid client extensions moved from FluidType.initializeClient to RegisterClientExtensionsEvent; register them
+    // here where the fluid types were registered. Guarded so the client-only class never loads on a dedicated server.
+    if (FMLEnvironment.dist == Dist.CLIENT) {
+      slimeknights.mantle.fluid.texture.MantleClientFluidTypes.registerClientExtensions(bus, fluidTypeRegister);
+    }
   }
 
   /**

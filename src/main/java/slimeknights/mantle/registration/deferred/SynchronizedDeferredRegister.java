@@ -6,6 +6,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
+import java.util.Collection;
 import java.util.function.Supplier;
 
 /** Deferred register instance that synchronizes register calls */
@@ -44,5 +45,10 @@ public class SynchronizedDeferredRegister<T> {
    */
   public void register(IEventBus bus) {
     internal.register(bus);
+  }
+
+  /** Gets all entries registered to this register */
+  public Collection<DeferredHolder<T, ? extends T>> getEntries() {
+    return internal.getEntries();
   }
 }

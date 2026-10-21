@@ -10,7 +10,7 @@ plugins {
     id 'eclipse'
     id 'idea'
     id 'maven-publish'
-    id 'net.neoforged.gradle.userdev' version '7.1.38'
+    id 'net.neoforged.gradle.userdev' version '7.1.39'
     id 'io.freefair.lombok' version '8.6'
 }
 
@@ -89,6 +89,11 @@ runs {
         argument '--nogui'
     }
     data {
+        // 1.21.4: NeoForge replaced the vanilla `data` run type with `clientData`/`serverData`
+        // (the GatherDataEvent -> .Client/.Server split). Keep the block named `data` so the Gradle
+        // task stays `runData`; point it at the `clientData` run type. `--all` still drives every
+        // registered provider. (Phase 3 revisits whether a separate serverData run is also needed.)
+        runType 'clientData'
         arguments.addAll '--mod', 'mantle', '--all',
             '--output', file('src/generated/resources/').getAbsolutePath(),
             '--existing', file('src/main/resources/').getAbsolutePath()

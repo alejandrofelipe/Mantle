@@ -3,12 +3,18 @@ package slimeknights.mantle.client.book.data.content;
 import lombok.Getter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.world.item.crafting.display.RecipeDisplay;
+import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import net.minecraft.world.level.Level;
 import org.apache.commons.lang3.StringUtils;
 import slimeknights.mantle.Mantle;
@@ -28,6 +34,8 @@ import slimeknights.mantle.util.html.HtmlSerializable;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 import static slimeknights.mantle.client.screen.book.Textures.TEX_CRAFTING;
 
@@ -117,10 +125,14 @@ public class ContentCrafting extends PageContent {
 
       Level level = Minecraft.getInstance().level;
       assert level != null;
-      Recipe<?> recipe = level.getRecipeManager().byKey(ResourceLocation.parse(this.recipe)).map(net.minecraft.world.item.crafting.RecipeHolder::value).orElse(null);
-      if (recipe instanceof CraftingRecipe) {
+      // 1.21.4: recipes are no longer synced through a full RecipeManager; Level#recipeAccess is the RecipeManager on the client, and byKey takes a ResourceKey
+      Recipe<?> recipe = null;
+      if (level.recipeAccess() instanceof RecipeManager manager) {
+        recipe = manager.byKey(ResourceKey.create(Registries.RECIPE, ResourceLocation.parse(this.recipe))).map(RecipeHolder::value).orElse(null);
+      }
+      if (recipe instanceof CraftingRecipe craftingRecipe) {
         if(grid_size.equalsIgnoreCase("auto")) {
-          if(recipe.canCraftInDimensions(2, 2)) {
+          if(canCraftInDimensions(craftingRecipe, 2, 2)) {
             grid_size = "small";
           } else {
             grid_size = "large";
@@ -132,32 +144,59 @@ public class ContentCrafting extends PageContent {
           case "small" -> w = h = 2;
         }
 
-        if (!recipe.canCraftInDimensions(w, h)) {
+        if (!canCraftInDimensions(craftingRecipe, w, h)) {
           throw new BookLoadException("Recipe " + this.recipe + " cannot fit in a " + w + "x" + h + " crafting grid");
         }
 
-        result = IngredientData.getItemStackData(recipe.getResultItem(level.registryAccess()));
+        result = IngredientData.getItemStackData(getResult(craftingRecipe, level));
 
-        NonNullList<Ingredient> ingredients = recipe.getIngredients();
-
-        if (recipe instanceof ShapedRecipe shaped) {
+        if (craftingRecipe instanceof ShapedRecipe shaped) {
+          // 1.21.4: ShapedRecipe#getIngredients returns List<Optional<Ingredient>> in grid order, empty for blank cells
+          List<Optional<Ingredient>> ingredients = shaped.getIngredients();
           grid = new IngredientData[shaped.getHeight()][shaped.getWidth()];
 
           for (int y = 0; y < grid.length; y++) {
             for (int x = 0; x < grid[y].length; x++) {
-              grid[y][x] = IngredientData.getItemStackData(NonNullList.of(ItemStack.EMPTY, ingredients.get(x + y * grid[y].length).items().map(ItemStack::new).toArray(ItemStack[]::new)));
+              grid[y][x] = ingredients.get(x + y * grid[y].length).map(ContentCrafting::toIngredientData).orElse(null);
             }
           }
 
           return;
         }
 
+        // 1.21.4: Recipe#getIngredients is gone; shapeless ingredients come from the placement info
+        List<Ingredient> ingredients = craftingRecipe.placementInfo().ingredients();
         grid = new IngredientData[h][w];
         for (int i = 0; i < ingredients.size(); i++) {
-          grid[i / h][i % w] = IngredientData.getItemStackData(NonNullList.of(ItemStack.EMPTY, ingredients.get(i).items().map(ItemStack::new).toArray(ItemStack[]::new)));
+          grid[i / h][i % w] = toIngredientData(ingredients.get(i));
         }
       }
     }
+  }
+
+  /** Builds the book ingredient data for a single ingredient, listing all of its matching item stacks */
+  private static IngredientData toIngredientData(Ingredient ingredient) {
+    return IngredientData.getItemStackData(NonNullList.of(ItemStack.EMPTY, ingredient.items().map(ItemStack::new).toArray(ItemStack[]::new)));
+  }
+
+  /**
+   * Replacement for the removed {@code Recipe#canCraftInDimensions}: shaped recipes fit when their pattern is no larger
+   * than the grid, shapeless recipes fit when their ingredient count does.
+   */
+  private static boolean canCraftInDimensions(CraftingRecipe recipe, int width, int height) {
+    if (recipe instanceof ShapedRecipe shaped) {
+      return shaped.getWidth() <= width && shaped.getHeight() <= height;
+    }
+    return recipe.placementInfo().ingredients().size() <= width * height;
+  }
+
+  /** Reads the recipe result for display via the 1.21.4 recipe display API (Recipe#getResultItem was removed) */
+  private static ItemStack getResult(Recipe<?> recipe, Level level) {
+    List<RecipeDisplay> displays = recipe.display();
+    if (displays.isEmpty()) {
+      return ItemStack.EMPTY;
+    }
+    return displays.get(0).result().resolveForFirstStack(SlotDisplayContext.fromLevel(level));
   }
 
   @Override

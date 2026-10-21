@@ -8,9 +8,9 @@ import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -92,10 +92,9 @@ public abstract class InvertedFluid extends BaseFlowingFluid {
   }
 
   @Override
-  protected void spread(Level level, BlockPos pos, FluidState fluid) {
+  protected void spread(ServerLevel level, BlockPos pos, BlockState block, FluidState fluid) {
     // recreation that swaps downs for ups
     if (!fluid.isEmpty()) {
-      BlockState block = level.getBlockState(pos);
       BlockPos above = pos.above();
       BlockState aboveBlock = level.getBlockState(above);
       FluidState aboveFluid = this.getNewLiquid(level, above, aboveBlock);
@@ -111,7 +110,7 @@ public abstract class InvertedFluid extends BaseFlowingFluid {
   }
 
   @Override
-  protected FluidState getNewLiquid(Level level, BlockPos pos, BlockState block) {
+  protected FluidState getNewLiquid(ServerLevel level, BlockPos pos, BlockState block) {
     int maxSide = 0;
     int sourceSides = 0;
 
@@ -146,8 +145,12 @@ public abstract class InvertedFluid extends BaseFlowingFluid {
   }
 
 
-  @Override
-  protected int getSlopeDistance(LevelReader level, BlockPos spreadPos, int distance, Direction direction, BlockState spreadBlock, BlockPos sourcePos, Short2ObjectMap<Pair<BlockState, FluidState>> stateCache, Short2BooleanMap waterHoleCache) {
+  /**
+   * Recreation of {@link net.minecraft.world.level.material.FlowingFluid}'s {@code getSlopeDistance}. 1.21.4 reworked the
+   * supertype method to take the package-private {@code FlowingFluid$SpreadContext}; since {@link #getSpread} is fully
+   * overridden here this private copy keeps the prior caches and is never called through the supertype.
+   */
+  private int getSlopeDistance(LevelReader level, BlockPos spreadPos, int distance, Direction direction, BlockState spreadBlock, BlockPos sourcePos, Short2ObjectMap<Pair<BlockState, FluidState>> stateCache, Short2BooleanMap waterHoleCache) {
     int minSlope = 1000;
 
     for (Direction horizontal : Direction.Plane.HORIZONTAL) {
@@ -193,7 +196,7 @@ public abstract class InvertedFluid extends BaseFlowingFluid {
   }
 
   @Override
-  protected Map<Direction, FluidState> getSpread(Level level, BlockPos pos, BlockState block) {
+  protected Map<Direction, FluidState> getSpread(ServerLevel level, BlockPos pos, BlockState block) {
     int minDistance = 1000;
     Map<Direction, FluidState> spread = Maps.newEnumMap(Direction.class);
     Short2ObjectMap<Pair<BlockState, FluidState>> stateCache = new Short2ObjectOpenHashMap<>();
@@ -238,7 +241,7 @@ public abstract class InvertedFluid extends BaseFlowingFluid {
   }
 
   /** @see net.minecraft.world.level.material.FlowingFluid */
-  private void spreadToSides(Level level, BlockPos pos, FluidState fluidState, BlockState blockState) {
+  private void spreadToSides(ServerLevel level, BlockPos pos, FluidState fluidState, BlockState blockState) {
     int amount = fluidState.getAmount() - this.getDropOff(level);
     if (fluidState.getValue(FALLING)) {
       amount = 7;
@@ -273,6 +276,16 @@ public abstract class InvertedFluid extends BaseFlowingFluid {
   /** @see net.minecraft.world.level.material.FlowingFluid */
   private boolean isSourceBlockOfThisType(FluidState state) {
     return state.getType().isSame(this) && state.isSource();
+  }
+
+  /**
+   * Recreation of {@link net.minecraft.world.level.material.FlowingFluid}'s {@code canSpreadTo}, which was removed in 1.21.4.
+   * Keeps the prior semantics: the target can be replaced, the wall can be passed and the target can hold the fluid.
+   */
+  private boolean canSpreadTo(BlockGetter level, BlockPos fromPos, BlockState fromBlockState, Direction direction, BlockPos toPos, BlockState toBlockState, FluidState toFluidState, Fluid fluid) {
+    return toFluidState.canBeReplacedWith(level, toPos, fluid, direction)
+      && this.canPassThroughWall(direction, level, fromPos, fromBlockState, toPos, toBlockState)
+      && this.canHoldFluid(level, toPos, toBlockState, fluid);
   }
 
   /** @see net.minecraft.world.level.material.FlowingFluid */

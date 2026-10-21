@@ -56,7 +56,8 @@ public class ContentStructure extends PageContent {
 
     try {
       CompoundTag compoundnbt = NbtIo.readCompressed(resource.open(), NbtAccounter.unlimitedHeap());
-      this.template.load(BuiltInRegistries.BLOCK.asLookup(), compoundnbt);
+      // 1.21.4: Registry is itself a HolderGetter, so the removed asLookup() is no longer needed
+      this.template.load(BuiltInRegistries.BLOCK, compoundnbt);
     } catch (IOException e) {
       e.printStackTrace();
       return;

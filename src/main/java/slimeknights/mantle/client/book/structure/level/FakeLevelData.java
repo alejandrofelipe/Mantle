@@ -4,12 +4,9 @@ package slimeknights.mantle.client.book.structure.level;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.Difficulty;
-import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.storage.WritableLevelData;
 
 public class FakeLevelData implements WritableLevelData {
-
-  private static final GameRules RULES = new GameRules();
 
   private BlockPos spawnPos = BlockPos.ZERO;
   private float spawnAngle;
@@ -58,11 +55,6 @@ public class FakeLevelData implements WritableLevelData {
   @Override
   public boolean isHardcore() {
     return false;
-  }
-
-  @Override
-  public GameRules getGameRules() {
-    return RULES;
   }
 
   @Override

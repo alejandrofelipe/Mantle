@@ -6,18 +6,21 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.profiling.InactiveProfiler;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.flag.FeatureFlagSet;
-import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.world.item.crafting.RecipeAccess;
+import net.minecraft.world.level.ExplosionDamageCalculator;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.FuelValues;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkSource;
 import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
@@ -26,6 +29,7 @@ import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.gameevent.GameEvent.Context;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 import net.minecraft.world.level.material.Fluid;
+import net.neoforged.neoforge.entity.PartEntity;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.minecraft.world.phys.Vec3;
@@ -35,6 +39,7 @@ import net.minecraft.world.ticks.LevelTickAccess;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,15 +53,15 @@ public class TemplateLevel extends Level {
 
   private final Map<MapId, MapItemSavedData> maps = new HashMap<>();
   private final Scoreboard scoreboard = new Scoreboard();
-  private final RecipeManager recipeManager = new RecipeManager(Objects.requireNonNull(Minecraft.getInstance().level).registryAccess());
   private final net.minecraft.world.TickRateManager tickRateManager = new net.minecraft.world.TickRateManager();
   private final TemplateChunkSource chunkSource;
 
   public TemplateLevel(List<StructureBlockInfo> blocks, Predicate<BlockPos> shouldShow) {
+    // 1.21.4: the Level constructor dropped the profiler supplier argument
     super(
       new FakeLevelData(), Level.OVERWORLD, Objects.requireNonNull(Minecraft.getInstance().level).registryAccess(),
       Objects.requireNonNull(Minecraft.getInstance().level).registryAccess().lookupOrThrow(Registries.DIMENSION_TYPE).getOrThrow(BuiltinDimensionTypes.OVERWORLD),
-      () -> InactiveProfiler.INSTANCE, true, false, 0, 0
+      true, false, 0, 0
     );
 
     this.chunkSource = new TemplateChunkSource(blocks, this, shouldShow);
@@ -109,8 +114,25 @@ public class TemplateLevel extends Level {
 
   @Nonnull
   @Override
-  public RecipeManager getRecipeManager() {
-    return this.recipeManager;
+  public RecipeAccess recipeAccess() {
+    // 1.21.4: Level#getRecipeManager became Level#recipeAccess; delegate to the real client level
+    return Objects.requireNonNull(Minecraft.getInstance().level).recipeAccess();
+  }
+
+  @Nonnull
+  @Override
+  public FuelValues fuelValues() {
+    // 1.21.4: new abstract Level method; delegate to the real client level
+    return Objects.requireNonNull(Minecraft.getInstance().level).fuelValues();
+  }
+
+  @Override
+  public void explode(@Nullable Entity entity, @Nullable DamageSource damageSource, @Nullable ExplosionDamageCalculator calculator, double x, double y, double z, float radius, boolean fire, Level.ExplosionInteraction interaction, ParticleOptions smallParticle, ParticleOptions largeParticle, Holder<SoundEvent> sound) {}
+
+  @Nonnull
+  @Override
+  public Collection<PartEntity<?>> dragonParts() {
+    return List.of();
   }
 
   @Override
@@ -176,6 +198,12 @@ public class TemplateLevel extends Level {
   @Override
   public float getShade(@Nonnull Direction p_230487_1_, boolean p_230487_2_) {
     return 1;
+  }
+
+  @Override
+  public int getSeaLevel() {
+    // 1.21.4: LevelReader#getSeaLevel became abstract; the fake world mimics the overworld
+    return 63;
   }
 
   @Nonnull

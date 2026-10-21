@@ -5,13 +5,12 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.client.renderer.texture.SpriteContents;
+import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
-import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.block.Block;
 import net.neoforged.neoforge.client.model.data.ModelData;
@@ -79,7 +78,7 @@ public class TextureColorHelper {
   /** Getter mapping a block sprite texture to a single average color */
   private static final ToIntFunction<ResourceLocation> COMPUTE_SPRITE_COLOR = key -> {
     Minecraft mc = Minecraft.getInstance();
-    TextureAtlasSprite sprite = mc.getModelManager().getAtlas(InventoryMenu.BLOCK_ATLAS).getSprite(key);
+    TextureAtlasSprite sprite = mc.getModelManager().getAtlas(TextureAtlas.LOCATION_BLOCKS).getSprite(key);
     //noinspection ConstantValue  eh, its better to be safe
     if (sprite == null || sprite.contents().name() == MissingTextureAtlasSprite.getLocation()) {
       return -1;
@@ -106,15 +105,15 @@ public class TextureColorHelper {
 
   /* Particle textures */
 
-  /** Computes the color for an item based on the particle icon */
-  private static final ToIntFunction<Item> COMPUTE_ITEM_COLOR = item -> {
-    Minecraft mc = Minecraft.getInstance();
-    BakedModel model = mc.getItemRenderer().getModel(new ItemStack(item), null, null, 0);
-    if (model == mc.getModelManager().getMissingModel()) {
-      return -1;
-    }
-    return getAverageColor(model.getParticleIcon(ModelData.EMPTY));
-  };
+  /**
+   * Computes the color for an item based on the particle icon.
+   * <p>
+   * PORT 1.21.4: {@code ItemRenderer#getModel} was removed when item rendering moved to the
+   * {@code net.minecraft.client.renderer.item.ItemModelResolver}/{@code ItemStackRenderState} system. Resolving an
+   * item's particle icon now requires that system, so this is stubbed to no color until the dedicated item-model task
+   * reimplements it (it also covers Tinkers' item models).
+   */
+  private static final ToIntFunction<Item> COMPUTE_ITEM_COLOR = item -> -1;
 
   /** Gets the average color of an item's default particle icon */
   public static int getItemColor(ItemLike item) {

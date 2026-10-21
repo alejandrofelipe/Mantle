@@ -4,47 +4,43 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
-import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.math.Transformation;
-import lombok.RequiredArgsConstructor;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.block.model.ItemOverrides;
+import net.minecraft.client.renderer.block.model.ItemTransforms;
+import net.minecraft.client.renderer.block.model.TextureSlots;
+import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
+import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.Material;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ModelState;
-import net.minecraft.client.resources.model.UnbakedModel;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.GsonHelper;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.inventory.InventoryMenu;
-import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.client.model.CompositeModel;
-import net.neoforged.neoforge.client.model.geometry.BlockGeometryBakingContext;
-import net.neoforged.neoforge.client.model.geometry.IGeometryBakingContext;
-import net.neoforged.neoforge.client.model.geometry.IGeometryLoader;
-import net.neoforged.neoforge.client.model.geometry.IUnbakedGeometry;
+import net.minecraft.util.context.ContextMap;
+import net.neoforged.neoforge.client.RenderTypeGroup;
+import net.neoforged.neoforge.client.model.AbstractUnbakedModel;
+import net.neoforged.neoforge.client.model.NeoForgeModelProperties;
+import net.neoforged.neoforge.client.model.StandardModelParameters;
+import net.neoforged.neoforge.client.model.UnbakedCompositeModel;
+import net.neoforged.neoforge.client.model.UnbakedModelLoader;
 import slimeknights.mantle.client.model.util.MantleItemLayerModel;
-import slimeknights.mantle.client.model.util.ModelTextureIteratable;
 import slimeknights.mantle.util.JsonHelper;
 
 import javax.annotation.Nullable;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.function.Function;
 
-/** Model which uses a key in NBT to select which texture variant to load. */
-@RequiredArgsConstructor
-public class NBTKeyModel implements IUnbakedGeometry<NBTKeyModel> {
+/**
+ * Model which uses a key in NBT to select which texture variant to load.
+ * <p>
+ * PORT 1.21.4: reimplement item-variant selection via net.minecraft.client.renderer.item.ItemModel.Unbaked +
+ * assets/&lt;ns&gt;/items/*.json. The 1.21.1 {@code ItemOverrides.resolve} mechanism this relied on was removed in 1.21.4
+ * (there is no {@code ItemOverrides}/{@code BakedOverrides} on {@code BakedModel} anymore). For now this bakes only the
+ * {@code default} texture variant with no NBT-driven switching; the registered extra-texture metadata is preserved as a
+ * foundation for the dedicated cross-repo item-model task (which also covers Tinkers' ToolModel/MaterialModel).
+ */
+public class NBTKeyModel extends AbstractUnbakedModel {
   /** Model loader instance */
-  public static final IGeometryLoader<NBTKeyModel> LOADER = NBTKeyModel::deserialize;
+  public static final UnbakedModelLoader<NBTKeyModel> LOADER = NBTKeyModel::deserialize;
 
   /** Map of statically registered extra textures, used for addon mods */
   private static final Multimap<ResourceLocation,Pair<String,ResourceLocation>> EXTRA_TEXTURES = HashMultimap.create();
@@ -66,91 +62,42 @@ public class NBTKeyModel implements IUnbakedGeometry<NBTKeyModel> {
   @Nullable
   private final ResourceLocation extraTexturesKey;
 
-  /** Map of textures for the model */
-  private Map<String,Material> textures = Collections.emptyMap();
-
-  @Override
-  public void resolveParents(Function<ResourceLocation,UnbakedModel> modelGetter, IGeometryBakingContext owner) {
-    textures = new HashMap<>();
-    // must have a default
-    Material defaultTexture = owner.getMaterial("default");
-    textures.put("default", defaultTexture);
-    // fetch others, not sure if there is a better way to get all defined textures
-    if (owner instanceof BlockGeometryBakingContext blockContext) {
-      ModelTextureIteratable iterable = new ModelTextureIteratable(null, blockContext.owner);
-      for (Map<String,Either<Material,String>> map : iterable) {
-        for (String key : map.keySet()) {
-          if (!textures.containsKey(key) && owner.hasMaterial(key)) {
-            textures.put(key, owner.getMaterial(key));
-          }
-        }
-      }
-    }
-    // fetch extra textures
-    if (extraTexturesKey != null) {
-      for (Pair<String,ResourceLocation> extra : EXTRA_TEXTURES.get(extraTexturesKey)) {
-        String key = extra.getFirst();
-        if (!textures.containsKey(key)) {
-          textures.put(key, new Material(InventoryMenu.BLOCK_ATLAS, extra.getSecond()));
-        }
-      }
-    }
+  public NBTKeyModel(StandardModelParameters parameters, String nbtKey, @Nullable ResourceLocation extraTexturesKey) {
+    super(parameters);
+    this.nbtKey = nbtKey;
+    this.extraTexturesKey = extraTexturesKey;
   }
 
-  /** Bakes a model for the given texture */
-  private static BakedModel bakeModel(IGeometryBakingContext owner, Material texture, Function<Material,TextureAtlasSprite> spriteGetter, Transformation rotation, ItemOverrides overrides) {
-    TextureAtlasSprite sprite = spriteGetter.apply(texture);
-    CompositeModel.Baked.Builder builder = CompositeModel.Baked.builder(owner, sprite, overrides, owner.getTransforms());
-    builder.addQuads(MantleItemLayerModel.getDefaultRenderType(owner), MantleItemLayerModel.getQuadsForSprite(-1, -1, sprite, rotation, 0));
+  /** Gets the extra textures registered for this model's key, for use by the future item-model reimplementation */
+  @SuppressWarnings("unused")  // API foundation for the item-model task
+  public java.util.Collection<Pair<String,ResourceLocation>> getExtraTextures() {
+    return extraTexturesKey != null ? EXTRA_TEXTURES.get(extraTexturesKey) : java.util.List.of();
+  }
+
+  @Override
+  public BakedModel bake(TextureSlots textures, ModelBaker baker, ModelState modelTransform, boolean useAmbientOcclusion, boolean useBlockLight, ItemTransforms itemTransforms, ContextMap additionalProperties) {
+    // PORT 1.21.4: only bakes the default texture; NBT variant switching must move to ItemModel.Unbaked
+    Material defaultTexture = textures.getMaterial("default");
+    if (defaultTexture == null) {
+      defaultTexture = new Material(TextureAtlas.LOCATION_BLOCKS, MissingTextureAtlasSprite.getLocation());
+    }
+    Transformation rootTransform = additionalProperties.getOrDefault(NeoForgeModelProperties.TRANSFORM, Transformation.identity());
+    Transformation transform = MantleItemLayerModel.applyTransform(modelTransform, rootTransform).getRotation();
+    TextureAtlasSprite sprite = baker.sprites().get(defaultTexture);
+    RenderTypeGroup renderType = MantleItemLayerModel.getDefaultRenderType(additionalProperties.getOrDefault(NeoForgeModelProperties.RENDER_TYPE, RenderTypeGroup.EMPTY));
+    UnbakedCompositeModel.Baked.Builder builder = UnbakedCompositeModel.Baked.builder(useAmbientOcclusion, false, useBlockLight, sprite, itemTransforms);
+    builder.addQuads(renderType, MantleItemLayerModel.getQuadsForSprite(-1, -1, sprite, transform, 0));
     return builder.build();
-  }
-
-  @Override
-  public BakedModel bake(IGeometryBakingContext owner, ModelBaker baker, Function<Material,TextureAtlasSprite> spriteGetter, ModelState modelTransform, ItemOverrides overrides) {
-    // setup transforms
-    Transformation transform = MantleItemLayerModel.applyTransform(modelTransform, owner.getRootTransform()).getRotation();
-    // build variants map
-    Map<String, BakedModel> variants = new HashMap<>(textures.size());
-    for (Entry<String,Material> entry : textures.entrySet()) {
-      String key = entry.getKey();
-      if (!key.equals("default")) {
-        variants.put(key, bakeModel(owner, entry.getValue(), spriteGetter, transform, ItemOverrides.EMPTY));
-      }
-    }
-    return bakeModel(owner, textures.get("default"), spriteGetter, transform, new Overrides(nbtKey, textures, Map.copyOf(variants)));
-  }
-
-  /** Overrides list for a tool slot item model */
-  @RequiredArgsConstructor
-  public static class Overrides extends ItemOverrides {
-    private final String nbtKey;
-    private final Map<String,Material> textures;
-    private final Map<String,BakedModel> variants;
-
-    @Override
-    public BakedModel resolve(BakedModel model, ItemStack stack, @Nullable ClientLevel world, @Nullable LivingEntity livingEntity, int pSeed) {
-      CompoundTag nbt = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-      if (nbt.contains(nbtKey)) {
-        return variants.getOrDefault(nbt.getString(nbtKey), model);
-      }
-      return model;
-    }
-
-    /** Gets the given texture from the model */
-    @SuppressWarnings("unused")  // API usage
-    public Material getTexture(String name) {
-      Material texture = textures.get(name);
-      return texture != null ? texture : textures.get("default");
-    }
   }
 
   /** Deserializes this model from JSON */
   public static NBTKeyModel deserialize(JsonObject json, JsonDeserializationContext context) {
+    StandardModelParameters parameters = StandardModelParameters.parse(json, context);
     String key = GsonHelper.getAsString(json, "nbt_key");
     ResourceLocation extraTexturesKey = null;
     if (json.has("extra_textures_key")) {
       extraTexturesKey = JsonHelper.getResourceLocation(json, "extra_textures_key");
     }
-    return new NBTKeyModel(key, extraTexturesKey);
+    return new NBTKeyModel(parameters, key, extraTexturesKey);
   }
 }

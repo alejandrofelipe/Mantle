@@ -4,28 +4,29 @@ import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Transformation;
-import lombok.RequiredArgsConstructor;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.renderer.block.model.ItemOverrides;
+import net.minecraft.client.renderer.block.model.ItemTransforms;
+import net.minecraft.client.renderer.block.model.TextureSlots;
 import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.Material;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ModelState;
-import net.minecraft.client.resources.model.UnbakedModel;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.context.ContextMap;
+import net.neoforged.neoforge.client.NamedRenderTypeManager;
 import net.neoforged.neoforge.client.NeoForgeRenderTypes;
 import net.neoforged.neoforge.client.RenderTypeGroup;
-import net.neoforged.neoforge.client.model.CompositeModel;
-import net.neoforged.neoforge.client.model.ItemLayerModel;
-import net.neoforged.neoforge.client.model.geometry.IGeometryBakingContext;
-import net.neoforged.neoforge.client.model.geometry.IGeometryLoader;
-import net.neoforged.neoforge.client.model.geometry.IUnbakedGeometry;
-import net.neoforged.neoforge.client.model.geometry.UnbakedGeometryHelper;
+import net.neoforged.neoforge.client.model.AbstractUnbakedModel;
+import net.neoforged.neoforge.client.model.NeoForgeModelProperties;
+import net.neoforged.neoforge.client.model.StandardModelParameters;
+import net.neoforged.neoforge.client.model.UnbakedCompositeModel;
+import net.neoforged.neoforge.client.model.UnbakedElementsHelper;
+import net.neoforged.neoforge.client.model.UnbakedModelLoader;
 import net.neoforged.neoforge.client.model.pipeline.QuadBakingVertexConsumer;
 import net.neoforged.neoforge.client.model.pipeline.TransformingVertexPipeline;
 import slimeknights.mantle.data.loadable.Loadable;
@@ -50,41 +51,36 @@ import java.util.PrimitiveIterator;
 import java.util.function.Function;
 
 /**
- * Clone of {@link ItemLayerModel} to propagate a hardcoded color in, allows reducing rendering time by bypassing item colors for a static color.
- * Also supports luminosity, and when used as a model loader supports telling a layer to not use a tint index
+ * Clone of NeoForge's old {@code ItemLayerModel} to propagate a hardcoded color in, allows reducing rendering time by bypassing item colors for a static color.
+ * Also supports luminosity, and when used as a model loader supports telling a layer to not use a tint index.
+ * <p>
+ * In 1.21.4 this is an {@link UnbakedModel}: textures come from the resolved {@link TextureSlots} passed to bake, and the
+ * multi-render-type output is built via {@link UnbakedCompositeModel.Baked.Builder}.
  */
-@RequiredArgsConstructor
-public class MantleItemLayerModel implements IUnbakedGeometry<MantleItemLayerModel> {
+public class MantleItemLayerModel extends AbstractUnbakedModel {
   /** Model loader instance */
-  public static final IGeometryLoader<MantleItemLayerModel> LOADER = MantleItemLayerModel::deserialize;
+  public static final UnbakedModelLoader<MantleItemLayerModel> LOADER = MantleItemLayerModel::deserialize;
 
   private static final Direction[] HORIZONTALS = {Direction.UP, Direction.DOWN};
   private static final Direction[] VERTICALS = {Direction.WEST, Direction.EAST};
 
   /** Layers in the model */
   private final List<LayerData> layers;
-  /** Textures fetched during baking */
-  private List<Material> textures = Collections.emptyList();
+
+  public MantleItemLayerModel(StandardModelParameters parameters, List<LayerData> layers) {
+    super(parameters);
+    this.layers = layers;
+  }
 
   /** Gets the layer at the given index */
   private LayerData getLayer(int index) {
     return LogicHelper.getOrDefault(layers, index, LayerData.DEFAULT);
   }
 
-  @Override
-  public void resolveParents(Function<ResourceLocation,UnbakedModel> modelGetter, IGeometryBakingContext owner) {
-    List<Material> builder = new ArrayList<>();
-    for (int i = 0; owner.hasMaterial("layer" + i); i++) {
-      builder.add(owner.getMaterial("layer" + i));
-    }
-    textures = List.copyOf(builder);
-  }
-
-  /** Gets the default render type for an item layer */
-  public static RenderTypeGroup getDefaultRenderType(IGeometryBakingContext context) {
-    ResourceLocation renderTypeHint = context.getRenderTypeHint();
-    if (renderTypeHint != null) {
-      return context.getRenderType(renderTypeHint);
+  /** Gets the default render type for an item layer, using the model's render type hint if present */
+  public static RenderTypeGroup getDefaultRenderType(RenderTypeGroup renderTypeHint) {
+    if (!renderTypeHint.isEmpty()) {
+      return renderTypeHint;
     } else {
       return new RenderTypeGroup(RenderType.translucent(), NeoForgeRenderTypes.ITEM_UNSORTED_TRANSLUCENT.get());
     }
@@ -97,37 +93,49 @@ public class MantleItemLayerModel implements IUnbakedGeometry<MantleItemLayerMod
     if (transformation.isIdentity()) {
       return modelState;
     } else {
-      return UnbakedGeometryHelper.composeRootTransformIntoModelState(modelState, transformation);
+      return UnbakedElementsHelper.composeRootTransformIntoModelState(modelState, transformation);
     }
   }
 
   @Override
-  public BakedModel bake(IGeometryBakingContext owner, ModelBaker baker, Function<Material,TextureAtlasSprite> spriteGetter, ModelState modelTransform, ItemOverrides overrides) {
+  public BakedModel bake(TextureSlots textureSlots, ModelBaker baker, ModelState modelTransform, boolean useAmbientOcclusion, boolean useBlockLight, ItemTransforms itemTransforms, ContextMap additionalProperties) {
+    // gather the layer materials from the resolved texture slots
+    List<Material> textures = new ArrayList<>();
+    for (int i = 0; ; i++) {
+      Material material = textureSlots.getMaterial("layer" + i);
+      if (material == null) {
+        break;
+      }
+      textures.add(material);
+    }
     if (textures.isEmpty()) {
       throw new IllegalStateException("Empty textures list");
     }
+    Function<Material,TextureAtlasSprite> spriteGetter = baker.sprites()::get;
     // determine particle texture
-    TextureAtlasSprite particle = spriteGetter.apply(owner.hasMaterial("particle") ? owner.getMaterial("particle") : textures.get(0));
+    Material particleMaterial = textureSlots.getMaterial("particle");
+    TextureAtlasSprite particle = spriteGetter.apply(particleMaterial != null ? particleMaterial : textures.get(0));
 
     // setup quad building
     record QuadGroup(RenderTypeGroup renderType, Collection<BakedQuad> quads) {}
     ReversedListBuilder<QuadGroup> quadBuilder = new ReversedListBuilder<>();
     ItemLayerPixels pixels = textures.size() == 1 ? null : new ItemLayerPixels();
-    modelTransform = applyTransform(modelTransform, owner.getRootTransform());
+    Transformation rootTransform = additionalProperties.getOrDefault(NeoForgeModelProperties.TRANSFORM, Transformation.identity());
+    modelTransform = applyTransform(modelTransform, rootTransform);
 
     // setup render types
-    RenderTypeGroup normalRenderTypes = getDefaultRenderType(owner);
+    RenderTypeGroup normalRenderTypes = getDefaultRenderType(additionalProperties.getOrDefault(NeoForgeModelProperties.RENDER_TYPE, RenderTypeGroup.EMPTY));
 
     // skip the pixel tracking if using a single texture only
     Transformation transform = modelTransform.getRotation();
     for (int i = textures.size() - 1; i >= 0; i--) {
       TextureAtlasSprite sprite = spriteGetter.apply(textures.get(i));
       LayerData data = getLayer(i);
-      quadBuilder.add(new QuadGroup(data.getRenderType(owner, normalRenderTypes), getQuadsForSprite(data.color(), data.noTint() ? -1 : i, sprite, transform, data.luminosity(), pixels)));
+      quadBuilder.add(new QuadGroup(data.getRenderType(normalRenderTypes), getQuadsForSprite(data.color(), data.noTint() ? -1 : i, sprite, transform, data.luminosity(), pixels)));
     }
 
-    // build final model
-    CompositeModel.Baked.Builder modelBuilder = CompositeModel.Baked.builder(owner, particle, overrides, owner.getTransforms());
+    // build final model (item layers are flat, so gui3d is false)
+    UnbakedCompositeModel.Baked.Builder modelBuilder = UnbakedCompositeModel.Baked.builder(useAmbientOcclusion, false, useBlockLight, particle, itemTransforms);
     quadBuilder.build(quadGroup -> modelBuilder.addQuads(quadGroup.renderType, quadGroup.quads));
     return modelBuilder.build();
   }
@@ -412,8 +420,8 @@ public class MantleItemLayerModel implements IUnbakedGeometry<MantleItemLayerMod
     }
 
     // for the side, Y axis's use of getOpposite is related to the swapping of V direction
-    float dx = side.getNormal().getX() * eps / width;
-    float dy = side.getNormal().getY() * eps / height;
+    float dx = side.getStepX() * eps / width;
+    float dy = side.getStepY() * eps / height;
     // 1.21: TextureAtlasSprite.getU/getV take a normalized [0,1] coordinate (1.20 took [0,16]) — no *16
     float u0 = x0 - dx;
     float u1 = x1 - dx;
@@ -512,12 +520,12 @@ public class MantleItemLayerModel implements IUnbakedGeometry<MantleItemLayerMod
       LayerData::new);
     public static final Loadable<List<LayerData>> LIST_LOADABLE = LOADABLE.list(1);
 
-    /** Gets the render type for this layer from the context, falling back to the passed type if not requested */
-    public RenderTypeGroup getRenderType(IGeometryBakingContext context, RenderTypeGroup defaultType) {
+    /** Gets the render type for this layer, falling back to the passed type if not requested */
+    public RenderTypeGroup getRenderType(RenderTypeGroup defaultType) {
       if (renderType == null) {
         return defaultType;
       }
-      return context.getRenderType(renderType);
+      return NamedRenderTypeManager.get(renderType);
     }
 
     /** @deprecated use {@link #LOADABLE} */
@@ -537,6 +545,6 @@ public class MantleItemLayerModel implements IUnbakedGeometry<MantleItemLayerMod
 
   /** Deserializes this model from JSON */
   public static MantleItemLayerModel deserialize(JsonObject json, JsonDeserializationContext context) {
-    return new MantleItemLayerModel(LayerData.LIST_LOADABLE.getOrDefault(json, "layers", List.of()));
+    return new MantleItemLayerModel(StandardModelParameters.parse(json, context), LayerData.LIST_LOADABLE.getOrDefault(json, "layers", List.of()));
   }
 }

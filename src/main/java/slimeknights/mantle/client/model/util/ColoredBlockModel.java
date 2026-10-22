@@ -154,6 +154,29 @@ public class ColoredBlockModel extends SimpleBlockModel {
     return bakeModel(textures, elements, colorData, Material::sprite, transform, useAmbientOcclusion, useBlockLight, itemTransforms, rootTransform, renderType);
   }
 
+  @Override
+  public BakedModel bakeReplaced(TextureSlots textures, Map<String,Material> replacements, ModelState modelState,
+                                 boolean useAmbientOcclusion, boolean useBlockLight, ItemTransforms itemTransforms, Transformation rootTransform, RenderTypeGroup renderType) {
+    // same as bakeModel, but resolves face textures through the dynamic replacement map and preserves per-element color data
+    if (!rootTransform.isIdentity()) {
+      modelState = UnbakedElementsHelper.composeRootTransformIntoModelState(modelState, rootTransform);
+    }
+    Function<Material,TextureAtlasSprite> spriteGetter = Material::sprite;
+    TextureAtlasSprite particle = findSprite(spriteGetter, textures, replacements, "particle");
+    Builder builder = bakedBuilder(useAmbientOcclusion, useBlockLight, itemTransforms).particle(particle);
+    List<BlockElement> elements = getElements();
+    int size = elements.size();
+    Transformation transformation = modelState.getRotation();
+    boolean uvlock = modelState.isUvLocked();
+    for (int i = 0; i < size; i++) {
+      BlockElement part = elements.get(i);
+      ColorData colors = LogicHelper.getOrDefault(colorData, i, ColorData.DEFAULT);
+      IQuadTransformer partTransformer = colors.color() == -1 ? QuadTransformers.empty() : applyColorQuadTransformer(colors.color());
+      bakePart(builder, textures, replacements, part, colors.luminosity(), spriteGetter, transformation, partTransformer, colors.isUvLock(uvlock));
+    }
+    return builder.build(renderType);
+  }
+
   /**
    * Data class for setting properties when baking colored elements
    */

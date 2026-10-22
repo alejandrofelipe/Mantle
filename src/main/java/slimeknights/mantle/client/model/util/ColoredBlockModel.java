@@ -83,10 +83,19 @@ public class ColoredBlockModel extends SimpleBlockModel {
    * @param uvlock           UV lock for the face, separated to allow overriding the model state
    */
   public static void bakePart(Builder builder, TextureSlots textures, BlockElement part, int emissivity, Function<Material,TextureAtlasSprite> spriteGetter, Transformation transform, IQuadTransformer quadTransformer, boolean uvlock) {
+    bakePart(builder, textures, Map.of(), part, emissivity, spriteGetter, transform, quadTransformer, uvlock);
+  }
+
+  /**
+   * Variant of {@link #bakePart(Builder, TextureSlots, BlockElement, int, Function, Transformation, IQuadTransformer, boolean)}
+   * that resolves face textures through a dynamic replacement map, for runtime retexturing.
+   * See {@link SimpleBlockModel#findSprite(Function, TextureSlots, Map, String)}.
+   */
+  public static void bakePart(Builder builder, TextureSlots textures, Map<String,Material> replacements, BlockElement part, int emissivity, Function<Material,TextureAtlasSprite> spriteGetter, Transformation transform, IQuadTransformer quadTransformer, boolean uvlock) {
     for (Entry<Direction, BlockElementFace> entry : part.faces.entrySet()) {
       BlockElementFace face = entry.getValue();
       // bake the face with the extra colors; TextureSlots#getMaterial strips the leading '#' itself
-      TextureAtlasSprite sprite = findSprite(spriteGetter, textures, face.texture());
+      TextureAtlasSprite sprite = findSprite(spriteGetter, textures, replacements, face.texture());
       BakedQuad quad = bakeFace(part, face, sprite, entry.getKey(), transform, uvlock, emissivity);
       quadTransformer.processInPlace(quad);
       // apply cull face

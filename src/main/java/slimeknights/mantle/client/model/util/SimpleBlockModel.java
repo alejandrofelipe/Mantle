@@ -120,6 +120,27 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
   }
 
   /**
+   * Resolves a sprite for the given texture name, checking the replacement map first. This is the primitive used for
+   * dynamic retexturing on 1.21.4: since {@link TextureSlots} is immutable and non-enumerable, callers pass a map of
+   * texture name (without the leading {@code '#'}) to a replacement {@link Material}; any name present there wins over
+   * the baked-in slots.
+   * @param spriteGetter  Sprite getter, typically {@link Material#sprite()} when rebaking outside the baking phase
+   * @param textures      Original resolved texture slots, used for names not in the replacement map
+   * @param replacements  Map of texture name (no {@code '#'}) to replacement material; may be empty
+   * @param name          Texture name to resolve, with or without a leading {@code '#'}
+   */
+  public static TextureAtlasSprite findSprite(Function<Material,TextureAtlasSprite> spriteGetter, TextureSlots textures, Map<String,Material> replacements, String name) {
+    if (!replacements.isEmpty()) {
+      String key = (!name.isEmpty() && name.charAt(0) == '#') ? name.substring(1) : name;
+      Material replacement = replacements.get(key);
+      if (replacement != null) {
+        return spriteGetter.apply(replacement);
+      }
+    }
+    return findSprite(spriteGetter, textures, name);
+  }
+
+  /**
    * Bakes a single part of the model into the builder
    * @param builder          Baked model builder
    * @param textures         Resolved texture slots
@@ -129,10 +150,18 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
    * @param quadTransformer  Additional quad transforms
    */
   public static void bakePart(Builder builder, TextureSlots textures, BlockElement part, Function<Material,TextureAtlasSprite> spriteGetter, ModelState transform, IQuadTransformer quadTransformer) {
+    bakePart(builder, textures, Map.of(), part, spriteGetter, transform, quadTransformer);
+  }
+
+  /**
+   * Bakes a single part of the model into the builder, resolving face textures through a dynamic replacement map.
+   * See {@link #findSprite(Function, TextureSlots, Map, String)} for the replacement semantics.
+   */
+  public static void bakePart(Builder builder, TextureSlots textures, Map<String,Material> replacements, BlockElement part, Function<Material,TextureAtlasSprite> spriteGetter, ModelState transform, IQuadTransformer quadTransformer) {
     for (Direction direction : part.faces.keySet()) {
       BlockElementFace face = part.faces.get(direction);
       // TextureSlots#getMaterial strips the leading '#' reference marker itself
-      TextureAtlasSprite sprite = findSprite(spriteGetter, textures, face.texture());
+      TextureAtlasSprite sprite = findSprite(spriteGetter, textures, replacements, face.texture());
       BakedQuad bakedQuad = SimpleBakedModel.bakeFace(part, face, sprite, direction, transform);
       quadTransformer.processInPlace(bakedQuad);
       // apply cull face
@@ -189,6 +218,27 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
   public BakedModel bakeWithElements(TextureSlots textures, List<BlockElement> elements, ModelState transform,
                                      boolean useAmbientOcclusion, boolean useBlockLight, ItemTransforms itemTransforms, Transformation rootTransform, RenderTypeGroup renderType) {
     return bakeModel(textures, elements, Material::sprite, transform, useAmbientOcclusion, useBlockLight, itemTransforms, rootTransform, renderType);
+  }
+
+  /**
+   * Dynamically rebakes this model's elements with a set of replacement textures, for runtime retexturing (e.g. material
+   * or contained-block textures that are only known per item stack / block entity). Uses {@link Material#sprite()} so it
+   * can run outside the baking phase. See {@link #findSprite(Function, TextureSlots, Map, String)}.
+   * @param textures      Original resolved texture slots captured at bake time
+   * @param replacements  Map of texture name (no {@code '#'}) to replacement material
+   */
+  public BakedModel bakeReplaced(TextureSlots textures, Map<String,Material> replacements, ModelState transform,
+                                 boolean useAmbientOcclusion, boolean useBlockLight, ItemTransforms itemTransforms, Transformation rootTransform, RenderTypeGroup renderType) {
+    Function<Material,TextureAtlasSprite> spriteGetter = Material::sprite;
+    TextureAtlasSprite particle = findSprite(spriteGetter, textures, replacements, "particle");
+    Builder builder = bakedBuilder(useAmbientOcclusion, useBlockLight, itemTransforms).particle(particle);
+    if (!rootTransform.isIdentity()) {
+      transform = UnbakedElementsHelper.composeRootTransformIntoModelState(transform, rootTransform);
+    }
+    for (BlockElement part : getElements()) {
+      bakePart(builder, textures, replacements, part, spriteGetter, transform, QuadTransformers.empty());
+    }
+    return builder.build(renderType);
   }
 
 

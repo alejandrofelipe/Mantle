@@ -165,15 +165,35 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
    * @see #getQuadForGui(int, int, TextureAtlasSprite, Transformation, int)
    */
   public static List<BakedQuad> getQuadsForSprite(int color, int tint, TextureAtlasSprite sprite, Transformation transform, int emissivity, @Nullable ItemLayerPixels pixels) {
+    return getMaskedQuadsForSprite(color, tint, sprite, sprite, transform, emissivity, pixels);
+  }
+
+  /**
+   * Like {@link #getQuadsForSprite(int, int, TextureAtlasSprite, Transformation, int, ItemLayerPixels)}, but takes the
+   * item-layer shape (opaque pixel outline + side quads) from {@code maskSprite} while mapping {@code textureSprite} onto
+   * it. This reproduces the removed {@code UnbakedGeometryHelper.createUnbakedItemMaskElements}/{@code bakeElements}
+   * mask-then-bake flow, used to clip a fluid texture to a container/template shape.
+   * <p>
+   * Both sprites are expected to share the same pixel dimensions (both are 16x16 for Tinkers' templates and fluids); the
+   * geometry grid is taken from the mask, so a differently sized texture sprite is simply UV-mapped across that grid.
+   * @param color         Color for the sprite in AARRGGBB format.
+   * @param tint          Tint index. Generally unused (colors are baked in)
+   * @param maskSprite    Sprite whose opaque pixels define the item-layer shape
+   * @param textureSprite Sprite mapped onto the shape
+   * @param transform     Transforms to apply
+   * @param emissivity    Extra light to add to the quad from 0-15
+   * @param pixels        Pixel tracker to reduce z-fighting between layers, or null
+   */
+  public static List<BakedQuad> getMaskedQuadsForSprite(int color, int tint, TextureAtlasSprite maskSprite, TextureAtlasSprite textureSprite, Transformation transform, int emissivity, @Nullable ItemLayerPixels pixels) {
     List<BakedQuad> builder = new ArrayList<>();
 
-    SpriteContents contents = sprite.contents();
+    SpriteContents contents = maskSprite.contents();
     int uMax = contents.width();
     int vMax = contents.height();
     FaceData faceData = new FaceData(uMax, vMax);
     boolean translucent = false;
 
-    PrimitiveIterator.OfInt iterator = sprite.contents().getUniqueFrames().iterator();
+    PrimitiveIterator.OfInt iterator = maskSprite.contents().getUniqueFrames().iterator();
     boolean hasFrames = iterator.hasNext();
     while (iterator.hasNext()) {
       int f = iterator.nextInt();
@@ -183,7 +203,7 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
       for(int v = 0; v < vMax; v++) {
         ptu = true;
         for(int u = 0; u < uMax; u++) {
-          int alpha = sprite.getPixelRGBA(f, u, vMax - v - 1) >> 24 & 0xFF;
+          int alpha = maskSprite.getPixelRGBA(f, u, vMax - v - 1) >> 24 & 0xFF;
           boolean t = alpha / 255f <= 0.1f;
 
           if (!t && alpha < 255) {
@@ -228,7 +248,7 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
       }
     };
     // common settings
-    quadBuilder.setSprite(sprite);
+    quadBuilder.setSprite(textureSprite);
     quadBuilder.setTintIndex(tint);
     // TODO: should we customize these?
     quadBuilder.setShade(false);
@@ -261,7 +281,7 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
             // finish current quad if translucent (minimize overdraw) or we are forbidden from touching this pixel (previous layer drew here)
             if (!canDraw || translucent) {
               int off = facing == Direction.DOWN ? 1 : 0;
-              buildSideQuad(quadBuilder, quadConsumer, facing, color, sprite, uStart, v + off, uEnd - uStart, emissivity);
+              buildSideQuad(quadBuilder, quadConsumer, facing, color, textureSprite,uStart, v + off, uEnd - uStart, emissivity);
               building = false;
             }
           }
@@ -269,7 +289,7 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
         if (building) { // build remaining quad
           // make quad [uStart, uEnd]
           int off = facing == Direction.DOWN ? 1 : 0;
-          buildSideQuad(quadBuilder, quadConsumer, facing, color, sprite, uStart, v+off, uEnd-uStart, emissivity);
+          buildSideQuad(quadBuilder, quadConsumer, facing, color, textureSprite,uStart, v+off, uEnd-uStart, emissivity);
         }
       }
     }
@@ -296,7 +316,7 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
             // finish current quad if translucent (minimize overdraw) or we are forbidden from touching this pixel (future layer drew here)
             if (!canDraw || translucent) {
               int off = facing == Direction.EAST ? 1 : 0;
-              buildSideQuad(quadBuilder, quadConsumer, facing, color, sprite, u + off, vStart, vEnd - vStart, emissivity);
+              buildSideQuad(quadBuilder, quadConsumer, facing, color, textureSprite,u + off, vStart, vEnd - vStart, emissivity);
               building = false;
             }
           }
@@ -304,23 +324,23 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
         if (building) { // build remaining quad
           // make quad [vStart, vEnd]
           int off = facing == Direction.EAST ? 1 : 0;
-          buildSideQuad(quadBuilder, quadConsumer, facing, color, sprite, u+off, vStart, vEnd-vStart, emissivity);
+          buildSideQuad(quadBuilder, quadConsumer, facing, color, textureSprite,u+off, vStart, vEnd-vStart, emissivity);
         }
       }
     }
 
     // back
     buildQuad(quadBuilder, quadConsumer, Direction.NORTH, color, emissivity,
-              0, 0, 7.5f / 16f, sprite.getU0(), sprite.getV1(),
-              0, 1, 7.5f / 16f, sprite.getU0(), sprite.getV0(),
-              1, 1, 7.5f / 16f, sprite.getU1(), sprite.getV0(),
-              1, 0, 7.5f / 16f, sprite.getU1(), sprite.getV1());
+              0, 0, 7.5f / 16f, textureSprite.getU0(), textureSprite.getV1(),
+              0, 1, 7.5f / 16f, textureSprite.getU0(), textureSprite.getV0(),
+              1, 1, 7.5f / 16f, textureSprite.getU1(), textureSprite.getV0(),
+              1, 0, 7.5f / 16f, textureSprite.getU1(), textureSprite.getV1());
     // front
     buildQuad(quadBuilder, quadConsumer, Direction.SOUTH, color, emissivity,
-              0, 0, 8.5f / 16f, sprite.getU0(), sprite.getV1(),
-              1, 0, 8.5f / 16f, sprite.getU1(), sprite.getV1(),
-              1, 1, 8.5f / 16f, sprite.getU1(), sprite.getV0(),
-              0, 1, 8.5f / 16f, sprite.getU0(), sprite.getV0());
+              0, 0, 8.5f / 16f, textureSprite.getU0(), textureSprite.getV1(),
+              1, 0, 8.5f / 16f, textureSprite.getU1(), textureSprite.getV1(),
+              1, 1, 8.5f / 16f, textureSprite.getU1(), textureSprite.getV0(),
+              0, 1, 8.5f / 16f, textureSprite.getU0(), textureSprite.getV0());
 
     // fill in the pixel map with new pixels from the sprite
     if (pixels != null) {
@@ -333,7 +353,7 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
       if (hasFrames) {
         for(int v = 0; v < vMax; v++) {
           for(int u = 0; u < uMax; u++) {
-            int alpha = sprite.getPixelRGBA(0, u, vMax - v - 1) >> 24 & 0xFF;
+            int alpha = maskSprite.getPixelRGBA(0, u, vMax - v - 1) >> 24 & 0xFF;
             if (alpha / 255f > 0.1f) {
               pixels.set(u, v, uMax, vMax);
             }

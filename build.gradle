@@ -88,12 +88,18 @@ runs {
     server {
         argument '--nogui'
     }
+    // 1.21.4: NeoForge split the old `data` run into `clientData` (assets: models/blockstates/
+    // sprites/lang) and `serverData` (data: recipes/tags/loot/advancements/fluid_transfer), matching
+    // the GatherDataEvent.Client/.Server split. Both write to the same output; each run owns only its
+    // own providers' files (separate HashCache). Run BOTH (`runData` + `runServerData`) to regenerate.
     data {
-        // 1.21.4: NeoForge replaced the vanilla `data` run type with `clientData`/`serverData`
-        // (the GatherDataEvent -> .Client/.Server split). Keep the block named `data` so the Gradle
-        // task stays `runData`; point it at the `clientData` run type. `--all` still drives every
-        // registered provider. (Phase 3 revisits whether a separate serverData run is also needed.)
         runType 'clientData'
+        arguments.addAll '--mod', 'mantle', '--all',
+            '--output', file('src/generated/resources/').getAbsolutePath(),
+            '--existing', file('src/main/resources/').getAbsolutePath()
+    }
+    serverData {
+        runType 'serverData'
         arguments.addAll '--mod', 'mantle', '--all',
             '--output', file('src/generated/resources/').getAbsolutePath(),
             '--existing', file('src/main/resources/').getAbsolutePath()

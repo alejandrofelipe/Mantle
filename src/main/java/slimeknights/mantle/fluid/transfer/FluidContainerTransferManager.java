@@ -5,6 +5,8 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
+import com.mojang.serialization.DynamicOps;
+import com.mojang.serialization.JsonOps;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 import net.minecraft.resources.FileToIdConverter;
@@ -43,6 +45,13 @@ public class FluidContainerTransferManager extends SimpleJsonResourceReloadListe
   public static final GenericRegisteredSerializer<IFluidContainerTransfer> TRANSFER_LOADERS = new GenericRegisteredSerializer<>();
   /** Folder for saving the logic */
   public static final String FOLDER = "mantle/fluid_transfer";
+  /**
+   * DynamicOps used by transfer {@code serialize()} during datagen. A registry-aware ops lets tag-backed HolderSet
+   * ingredients serialize as "#tag" references without the (possibly optional/unbound) tag being populated; plain
+   * {@link JsonOps#INSTANCE} streams the holder set's contents and throws on such a tag. Runtime only deserializes, so
+   * this stays {@code JsonOps.INSTANCE} there; {@link AbstractFluidContainerTransferProvider#run} swaps it around its run.
+   */
+  public static DynamicOps<JsonElement> SERIALIZE_OPS = JsonOps.INSTANCE;
   /** GSON instance */
   public static final Gson GSON = (new GsonBuilder())
     .registerTypeAdapter(ResourceLocation.class, new ResourceLocation.Serializer())

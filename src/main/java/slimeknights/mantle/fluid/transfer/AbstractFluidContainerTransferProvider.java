@@ -2,15 +2,22 @@ package slimeknights.mantle.fluid.transfer;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.mojang.serialization.DynamicOps;
+import com.mojang.serialization.JsonOps;
+import net.minecraft.core.HolderGetter;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.data.CachedOutput;
 import net.minecraft.data.PackOutput;
 import net.minecraft.data.PackOutput.Target;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.common.conditions.ICondition;
+import org.jetbrains.annotations.Nullable;
 import slimeknights.mantle.data.GenericDataProvider;
 import slimeknights.mantle.recipe.helper.FluidOutput;
 import slimeknights.mantle.recipe.helper.ItemOutput;
@@ -26,10 +33,21 @@ import java.util.concurrent.CompletableFuture;
 public abstract class AbstractFluidContainerTransferProvider extends GenericDataProvider {
   private final Map<ResourceLocation,TransferJson> allTransfers = new HashMap<>();
   private final String modId;
+  /** Datagen item lookup for building tag-backed ingredients (see {@link #run}). */
+  private final CompletableFuture<HolderLookup.Provider> lookupProvider;
+  /**
+   * Lazy item lookup, available once {@link #run} has resolved the datagen provider. Subclasses build tag-backed
+   * ingredients with {@code Ingredient.of(itemLookup.getOrThrow(tag))}: in 1.21.4 the static registry's
+   * {@code getOrThrow(TagKey)} is eager and throws for an optional tag no provider populated, while the datagen
+   * lookup returns a lazy {@link net.minecraft.core.HolderSet.Named} that tolerates an unbound tag.
+   */
+  @Nullable
+  protected HolderGetter<Item> itemLookup;
 
-  public AbstractFluidContainerTransferProvider(PackOutput packOutput, String modId) {
+  public AbstractFluidContainerTransferProvider(PackOutput packOutput, String modId, CompletableFuture<HolderLookup.Provider> lookupProvider) {
     super(packOutput, Target.DATA_PACK, FluidContainerTransferManager.FOLDER, FluidContainerTransferManager.GSON);
     this.modId = modId;
+    this.lookupProvider = lookupProvider;
   }
 
   /** Function to add all relevant transfers */
@@ -90,8 +108,20 @@ public abstract class AbstractFluidContainerTransferProvider extends GenericData
 
   @Override
   public CompletableFuture<?> run(CachedOutput cache) {
-    addTransfers();
-    return allOf(allTransfers.entrySet().stream().map(entry -> saveJson(cache, entry.getKey(), entry.getValue().toJson())));
+    return lookupProvider.thenCompose(provider -> {
+      this.itemLookup = provider.lookupOrThrow(Registries.ITEM);
+      // serialize ingredients with a registry-aware ops so tag-backed HolderSets encode as "#tag" references
+      // (JsonOps.INSTANCE would stream their contents and throw on an unbound optional tag). Runtime never calls
+      // serialize(), so SERIALIZE_OPS only matters here; allOf() forces toJson() synchronously before the finally runs.
+      DynamicOps<JsonElement> previous = FluidContainerTransferManager.SERIALIZE_OPS;
+      FluidContainerTransferManager.SERIALIZE_OPS = provider.createSerializationContext(JsonOps.INSTANCE);
+      try {
+        addTransfers();
+        return allOf(allTransfers.entrySet().stream().map(entry -> saveJson(cache, entry.getKey(), entry.getValue().toJson())));
+      } finally {
+        FluidContainerTransferManager.SERIALIZE_OPS = previous;
+      }
+    });
   }
 
   /** Json with transfer and condition */

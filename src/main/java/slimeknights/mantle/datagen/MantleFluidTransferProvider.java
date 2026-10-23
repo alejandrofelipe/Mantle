@@ -1,7 +1,7 @@
 package slimeknights.mantle.datagen;
 
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.PackOutput;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
@@ -24,12 +24,13 @@ import slimeknights.mantle.recipe.helper.ItemOutput;
 import slimeknights.mantle.recipe.ingredient.FluidIngredient;
 
 import javax.annotation.Nullable;
+import java.util.concurrent.CompletableFuture;
 
 /** Adds fluid transfer for base fluid. Use {@link AbstractFluidContainerTransferProvider} for mods. */
 @Internal
 public class MantleFluidTransferProvider extends AbstractFluidContainerTransferProvider {
-  public MantleFluidTransferProvider(PackOutput packOutput) {
-    super(packOutput, Mantle.modId);
+  public MantleFluidTransferProvider(PackOutput packOutput, CompletableFuture<HolderLookup.Provider> lookupProvider) {
+    super(packOutput, Mantle.modId, lookupProvider);
   }
 
   @Override
@@ -73,7 +74,8 @@ public class MantleFluidTransferProvider extends AbstractFluidContainerTransferP
     ICondition[] potionConditions;
     ICondition[] waterConditions;
     if (bottleTag != null) {
-      container = Ingredient.of(BuiltInRegistries.ITEM.getOrThrow(bottleTag));
+      // lazy tag-backed ingredient: the optional splash/lingering bottle tag may be unbound at datagen time
+      container = Ingredient.of(java.util.Objects.requireNonNull(itemLookup, "itemLookup not initialized").getOrThrow(bottleTag));
       ICondition containerCondition = tagFilled(bottleTag);
       waterConditions = new ICondition[]{containerCondition};
       potionConditions = new ICondition[]{potionCondition, containerCondition};

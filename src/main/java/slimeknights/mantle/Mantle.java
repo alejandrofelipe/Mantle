@@ -251,7 +251,7 @@ public class Mantle {
     event.addProvider(new MantleBlockTagProvider(packOutput, lookupProvider));
     event.addProvider(new MantleFluidTagProvider(packOutput, lookupProvider));
     event.addProvider(new MantleMenuTagProvider(packOutput, lookupProvider));
-    event.addProvider(new MantleFluidTransferProvider(packOutput));
+    event.addProvider(new MantleFluidTransferProvider(packOutput, lookupProvider));
   }
 
   /** Client-side (asset) data providers (fluid tooltips). */

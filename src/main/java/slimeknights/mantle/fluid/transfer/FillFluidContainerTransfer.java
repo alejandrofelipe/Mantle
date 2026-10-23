@@ -73,7 +73,7 @@ public class FillFluidContainerTransfer implements IFluidContainerTransfer.WithD
   public JsonObject serialize(JsonSerializationContext context) {
     JsonObject json = new JsonObject();
     json.addProperty("type", ID.toString());
-    json.add("input", Ingredient.CODEC.encodeStart(JsonOps.INSTANCE, input).getOrThrow(JsonParseException::new));
+    json.add("input", Ingredient.CODEC.encodeStart(FluidContainerTransferManager.SERIALIZE_OPS, input).getOrThrow(JsonParseException::new));
     if (!result.isEmpty()) {
       json.add("result", result.serialize(false));
     }

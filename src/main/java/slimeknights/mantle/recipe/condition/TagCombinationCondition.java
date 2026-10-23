@@ -2,7 +2,6 @@ package slimeknights.mantle.recipe.condition;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -10,7 +9,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.neoforged.neoforge.common.conditions.ICondition;
 import slimeknights.mantle.Mantle;
-import slimeknights.mantle.util.RegistryHelper;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -70,37 +68,17 @@ public record TagCombinationCondition<T>(List<TagKey<T>> match, @Nullable TagKey
 
   @Override
   public boolean test(IContext context) {
-    // if there is just one tag with no ignore, it only needs to be filled (1.21.4 IContext no longer exposes tag contents)
-    if (match.size() == 1 && ignore == null) {
-      return context.isTagLoaded(match.get(0));
-    }
-    // otherwise we must inspect tag contents to compute the intersection; read them straight from the registries
-    List<List<Holder<T>>> tags = match.stream().map(t -> RegistryHelper.getTagStream(t).toList()).toList();
-    List<Holder<T>> ignored = ignore == null ? List.of() : RegistryHelper.getTagStream(ignore).toList();
-    // if any tag is empty, give up
-    for (List<Holder<T>> entries : tags) {
-      if (entries.isEmpty()) {
+    // 1.21.4: IContext exposes only isTagLoaded, not tag contents. Reading contents from the registries (as this did
+    // during the port) is unreliable: this condition is evaluated while datapacks reload, before the static item tags
+    // are bound, so a tag like minecraft:planks reads empty and the (sole) plank material recipe is silently dropped,
+    // leaving planks unusable at the part builder. Gate purely on whether every match tag is loaded (non-empty), which
+    // is the reliable reload-time signal; the exact intersection/difference is still enforced by the recipe's own
+    // ingredient, so loading a recipe whose ingredient happens to resolve empty is harmless.
+    for (TagKey<T> tag : match) {
+      if (!context.isTagLoaded(tag)) {
         return false;
       }
     }
-
-    // all tags have something, so find the first item that is in all tags
-    int count = tags.size();
-    itemLoop:
-    for (Holder<T> entry : tags.get(0)) {
-      if (ignored.contains(entry)) {
-        continue;
-      }
-      // find the first item contained in all other intersection tags
-      for (int i = 1; i < count; i++) {
-        if (!tags.get(i).contains(entry)) {
-          continue itemLoop;
-        }
-      }
-      // all tags contain the item? success
-      return true;
-    }
-    // no item in all tags
-    return false;
+    return true;
   }
 }

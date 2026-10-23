@@ -403,6 +403,48 @@ public class BlockDeferredRegister extends DeferredRegisterWrapper<Block> {
     return registerEnum(values, name, (fullName, value) -> registerNoItem(fullName, () -> mapper.apply(value)));
   }
 
+  /* Enum variants that set the block id (1.21.4 requires Properties.setId before construction) */
+
+  /**
+   * Registers a block with multiple variants, prefixing the name with the value name. The mapper receives the block's
+   * resource key so it can call {@link BlockBehaviour.Properties#setId(ResourceKey)} before constructing the block.
+   * @param values    Enum values to use for this block
+   * @param name      Name of the block
+   * @param mapper    Function to get a block for the given key and enum value
+   * @param item      Function to get an item from the block
+   * @return  EnumObject mapping between different block types
+   */
+  public <T extends Enum<T>, B extends Block> EnumObject<T,B> registerEnum(
+      T[] values, String name, BiFunction<ResourceKey<Block>,T,? extends B> mapper, Function<? super B, ? extends BlockItem> item) {
+    return registerEnum(values, name, (fullName, value) -> register(fullName, () -> mapper.apply(blockKey(fullName), value), item));
+  }
+
+  /**
+   * Registers a block with multiple variants, suffixing the name with the value name. The mapper receives the block's
+   * resource key so it can call {@link BlockBehaviour.Properties#setId(ResourceKey)} before constructing the block.
+   * @param name      Name of the block
+   * @param values    Enum values to use for this block
+   * @param mapper    Function to get a block for the given key and enum value
+   * @param item      Function to get an item from the block
+   * @return  EnumObject mapping between different block types
+   */
+  public <T extends Enum<T>, B extends Block> EnumObject<T,B> registerEnum(
+      String name, T[] values, BiFunction<ResourceKey<Block>,T,? extends B> mapper, Function<? super B, ? extends BlockItem> item) {
+    return registerEnum(name, values, (fullName, value) -> register(fullName, () -> mapper.apply(blockKey(fullName), value), item));
+  }
+
+  /**
+   * Registers a block with enum variants and no item form. The mapper receives the block's resource key so it can call
+   * {@link BlockBehaviour.Properties#setId(ResourceKey)} before constructing the block.
+   * @param values  Enum value list
+   * @param name    Suffix after value name
+   * @param mapper  Function to map a key and type to a block
+   * @return  Enum object
+   */
+  public <T extends Enum<T>, B extends Block> EnumObject<T,B> registerEnumNoItem(T[] values, String name, BiFunction<ResourceKey<Block>,T,? extends B> mapper) {
+    return registerEnum(values, name, (fullName, value) -> registerNoItem(fullName, () -> mapper.apply(blockKey(fullName), value)));
+  }
+
   /** Registers a potted form of the given block using the vanilla pot */
   public <T extends Enum<T> & StringRepresentable, B extends Block> EnumObject<T, FlowerPotBlock> registerPottedEnum(T[] values, String name, EnumObject<T, B> block) {
     EnumObject.Builder<T, FlowerPotBlock> builder = new Builder<>(values[0].getDeclaringClass());
@@ -480,5 +522,32 @@ public class BlockDeferredRegister extends DeferredRegisterWrapper<Block> {
    */
   public MetalItemObject registerMetal(String name, BlockBehaviour.Properties blockProps, Function<Block,? extends BlockItem> blockItem, Item.Properties itemProps) {
     return registerMetal(name, name, blockProps, blockItem, itemProps);
+  }
+
+  /**
+   * Creates a new metal item object using a custom block class, setting the block id (1.21.4 requirement)
+   * @param name          Metal name
+   * @param tagName       Name to use for tags for this block
+   * @param blockFactory  Function to create the block from the properties
+   * @param blockProps    Properties for the block
+   * @param blockItem     Block item
+   * @param itemProps     Properties for the item
+   * @return  Metal item object
+   */
+  public MetalItemObject registerMetal(String name, String tagName, Function<BlockBehaviour.Properties,? extends Block> blockFactory, BlockBehaviour.Properties blockProps, Function<Block,? extends BlockItem> blockItem, Item.Properties itemProps) {
+    return registerMetal(name, tagName, () -> blockFactory.apply(blockProps.setId(blockKey(name + "_block"))), blockItem, itemProps);
+  }
+
+  /**
+   * Creates a new metal item object using a custom block class, setting the block id (1.21.4 requirement)
+   * @param name          Metal name
+   * @param blockFactory  Function to create the block from the properties
+   * @param blockProps    Properties for the block
+   * @param blockItem     Block item
+   * @param itemProps     Properties for the item
+   * @return  Metal item object
+   */
+  public MetalItemObject registerMetal(String name, Function<BlockBehaviour.Properties,? extends Block> blockFactory, BlockBehaviour.Properties blockProps, Function<Block,? extends BlockItem> blockItem, Item.Properties itemProps) {
+    return registerMetal(name, name, blockFactory, blockProps, blockItem, itemProps);
   }
 }

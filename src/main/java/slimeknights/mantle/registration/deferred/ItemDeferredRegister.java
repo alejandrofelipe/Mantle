@@ -71,7 +71,7 @@ public class ItemDeferredRegister extends DeferredRegisterWrapper<Item> {
    * @return  EnumObject mapping between different item types
    */
   public <T extends Enum<T>, I extends Item> EnumObject<T,I> registerEnum(T[] values, String name, Function<T,? extends I> mapper) {
-    return registerEnum(values, name, (fullName, type) -> register(fullName, () -> mapper.apply(type)));
+    return registerEnum(values, name, (String fullName, T type) -> register(fullName, () -> mapper.apply(type)));
   }
 
   /**
@@ -82,6 +82,47 @@ public class ItemDeferredRegister extends DeferredRegisterWrapper<Item> {
    * @return  EnumObject mapping between different item types
    */
   public <T extends Enum<T>, I extends Item> EnumObject<T,I> registerEnum(String name, T[] values, Function<T,? extends I> mapper) {
-    return registerEnum(name, values, (fullName, type) -> register(fullName, () -> mapper.apply(type)));
+    return registerEnum(name, values, (String fullName, T type) -> register(fullName, () -> mapper.apply(type)));
+  }
+
+  /* Enum variants that set the item id (1.21.4 requires Properties.setId before construction) */
+
+  /** Creates an item resource key for the given name */
+  private ResourceKey<Item> itemKey(String name) {
+    return ResourceKey.create(Registries.ITEM, resource(name));
+  }
+
+  /**
+   * Factory for an enum item variant that receives the item's resource key, so it can call
+   * {@link Item.Properties#setId(ResourceKey)} before constructing the item. A dedicated interface (rather than
+   * {@code BiFunction}) avoids an erasure clash with the base enum-register helper.
+   */
+  @FunctionalInterface
+  public interface KeyedItemFactory<T, I extends Item> {
+    I create(ResourceKey<Item> id, T value);
+  }
+
+  /**
+   * Registers an item with multiple variants, prefixing the name with the value name. The factory receives the item's
+   * resource key so it can call {@link Item.Properties#setId(ResourceKey)} before constructing the item.
+   * @param values   Enum values to use for this item
+   * @param name     Name of the item
+   * @param factory  Factory to get an item for the given key and enum value
+   * @return  EnumObject mapping between different item types
+   */
+  public <T extends Enum<T>, I extends Item> EnumObject<T,I> registerEnum(T[] values, String name, KeyedItemFactory<T,? extends I> factory) {
+    return registerEnum(values, name, (String fullName, T type) -> register(fullName, () -> factory.create(itemKey(fullName), type)));
+  }
+
+  /**
+   * Registers an item with multiple variants, suffixing the name with the value name. The factory receives the item's
+   * resource key so it can call {@link Item.Properties#setId(ResourceKey)} before constructing the item.
+   * @param name     Name of the item
+   * @param values   Enum values to use for this item
+   * @param factory  Factory to get an item for the given key and enum value
+   * @return  EnumObject mapping between different item types
+   */
+  public <T extends Enum<T>, I extends Item> EnumObject<T,I> registerEnum(String name, T[] values, KeyedItemFactory<T,? extends I> factory) {
+    return registerEnum(name, values, (String fullName, T type) -> register(fullName, () -> factory.create(itemKey(fullName), type)));
   }
 }

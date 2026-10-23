@@ -64,7 +64,9 @@ public class LoadableRecipeSerializer<T extends Recipe<?>> implements RecipeSeri
     return MapCodec.assumeMapUnsafe(new JsonCodec<T>() {
       @Override
       public T deserialize(JsonElement element, DynamicOps<?> ops) {
-        return loadable.convert(element, "codec", context);
+        // thread the registry-aware ops NeoForge passes here into the loadable context so holder/tag/item loadables
+        // (notably IngredientLoadable) can resolve against the real registries instead of a registry-less JsonOps
+        return loadable.convert(element, "codec", jsonContext(context, ops));
       }
 
       @Override
@@ -72,6 +74,12 @@ public class LoadableRecipeSerializer<T extends Recipe<?>> implements RecipeSeri
         return loadable.serialize(object);
       }
     });
+  }
+
+  /** Builds a context including the caller's registry-aware JSON ops, used so loadables can resolve registry entries. */
+  @SuppressWarnings("unchecked")
+  private static TypedMap jsonContext(TypedMap base, DynamicOps<?> ops) {
+    return TypedMapBuilder.builder().putAll(base).put(ContextKey.OPS, (DynamicOps<JsonElement>) ops).build();
   }
 
   @Override

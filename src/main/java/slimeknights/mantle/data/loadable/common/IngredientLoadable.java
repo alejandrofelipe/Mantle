@@ -3,7 +3,6 @@ package slimeknights.mantle.data.loadable.common;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.JsonOps;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.tags.TagKey;
@@ -11,6 +10,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.crafting.Ingredient;
 import slimeknights.mantle.data.loadable.ErrorFactory;
 import slimeknights.mantle.data.loadable.Loadable;
+import slimeknights.mantle.data.loadable.RegistryJsonOps;
 import slimeknights.mantle.util.typed.TypedMap;
 
 import java.util.Optional;
@@ -30,7 +30,9 @@ public enum IngredientLoadable implements Loadable<Ingredient> {
 
   @Override
   public Ingredient convert(JsonElement element, String key, TypedMap context) {
-    return codec.parse(JsonOps.INSTANCE, element).getOrThrow(ErrorFactory.JSON_SYNTAX_ERROR::create);
+    // registry-aware ops: in 1.21.4 an Ingredient is a HolderSet<Item>, so a string/tag ingredient fails to parse
+    // ("can't be dereferenced"/"without registry") on a registry-less JsonOps
+    return codec.parse(RegistryJsonOps.get(context), element).getOrThrow(ErrorFactory.JSON_SYNTAX_ERROR::create);
   }
 
   @Override
@@ -43,11 +45,15 @@ public enum IngredientLoadable implements Loadable<Ingredient> {
       if (tag.isPresent()) {
         return new JsonPrimitive("#" + tag.get().location());
       }
+      // empty check only for non-custom ingredients: Ingredient#isEmpty streams a custom ingredient's values, which
+      // resolves its (possibly unbound-at-datagen) tags and throws "Missing tag". A custom ingredient is never the
+      // vanilla empty ingredient anyway, and its own codec serializes tag keys without resolving them.
+      if (object.isEmpty() && this == DISALLOW_EMPTY) {
+        throw new IllegalArgumentException("Ingredient cannot be empty");
+      }
     }
-    if (object.isEmpty() && this == DISALLOW_EMPTY) {
-      throw new IllegalArgumentException("Ingredient cannot be empty");
-    }
-    return codec.encodeStart(JsonOps.INSTANCE, object).getOrThrow(ErrorFactory.RUNTIME::create);
+    // registry-aware ops so a non-tag (item or custom) ingredient encodes its HolderSet against the real registries
+    return codec.encodeStart(RegistryJsonOps.serialize(), object).getOrThrow(ErrorFactory.RUNTIME::create);
   }
 
   @Override

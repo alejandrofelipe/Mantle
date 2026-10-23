@@ -1,5 +1,7 @@
 package slimeknights.mantle.data.loadable.field;
 
+import com.google.gson.JsonElement;
+import com.mojang.serialization.DynamicOps;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.resources.ResourceLocation;
@@ -23,6 +25,11 @@ public class ContextKey<T> implements Key<T> {
   public static final ContextKey<String> DEBUG = new ContextKey<>("debug info");
   /** Key for adding condition context, used in {@link slimeknights.mantle.data.loadable.mapping.ConditionalLoadable} */
   public static final ContextKey<IContext> CONDITION_CONTEXT = new ContextKey<>("condition context");
+  /**
+   * Key carrying the registry-aware JSON {@link DynamicOps} supplied by the caller during deserialization, so loadables
+   * that touch items/tags/holders can resolve against the real registries. See {@link slimeknights.mantle.data.loadable.RegistryJsonOps}.
+   */
+  public static final ContextKey<DynamicOps<JsonElement>> OPS = new ContextKey<>("ops");
 
   /** Name of the field, used primarily for debug */
   @Getter

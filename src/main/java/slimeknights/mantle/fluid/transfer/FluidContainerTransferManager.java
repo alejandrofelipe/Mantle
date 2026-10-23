@@ -9,6 +9,8 @@ import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -26,6 +28,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.fluids.FluidStack;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.data.gson.GenericRegisteredSerializer;
+import slimeknights.mantle.data.loadable.RegistryJsonOps;
 import slimeknights.mantle.network.MantleNetwork;
 import slimeknights.mantle.util.JsonHelper;
 
@@ -52,6 +55,15 @@ public class FluidContainerTransferManager extends SimpleJsonResourceReloadListe
    * this stays {@code JsonOps.INSTANCE} there; {@link AbstractFluidContainerTransferProvider#run} swaps it around its run.
    */
   public static DynamicOps<JsonElement> SERIALIZE_OPS = JsonOps.INSTANCE;
+  /**
+   * DynamicOps used by transfer {@code DESERIALIZER}s at runtime reload. In 1.21.4 an {@link Ingredient} is a
+   * {@code HolderSet<Item>}, so parsing a string/tag ingredient needs a registry-aware ops; a {@link JsonOps#INSTANCE}
+   * throws "without registry" and a {@link BuiltInRegistries}-backed fallback throws "Missing tag" because datapack tags
+   * are not bound there during the first server reload. {@link #apply} sets this to the reload's
+   * {@link AddServerReloadListenersEvent#getRegistryAccess() registry access} (tags bound by then), falling back to
+   * {@link RegistryJsonOps#serialize()} only when no reload access was captured (e.g. direct test calls).
+   */
+  public static DynamicOps<JsonElement> DESERIALIZE_OPS = RegistryJsonOps.serialize();
   /** GSON instance */
   public static final Gson GSON = (new GsonBuilder())
     .registerTypeAdapter(ResourceLocation.class, new ResourceLocation.Serializer())
@@ -117,6 +129,12 @@ public class FluidContainerTransferManager extends SimpleJsonResourceReloadListe
   @Override
   protected void apply(Map<ResourceLocation,JsonElement> splashList, ResourceManager manager, ProfilerFiller profiler) {
     long time = System.nanoTime();
+    // NeoForge injects the reload's registry lookup (its lookupWithUpdatedTags, with the staged datapack item tags) into
+    // every ContextAwareReloadListener; SimpleJsonResourceReloadListener is one. Build the deserialize ops from it so a
+    // tag-backed HolderSet ingredient resolves exactly like vanilla recipe loading does. Fall back to the
+    // BuiltInRegistries-backed ops only when no lookup was injected (e.g. a direct unit-test call to apply).
+    HolderLookup.Provider lookup = getRegistryLookup();
+    DESERIALIZE_OPS = lookup != RegistryAccess.EMPTY ? lookup.createSerializationContext(JsonOps.INSTANCE) : RegistryJsonOps.serialize();
     this.transfers = splashList.entrySet().stream()
                                .map(entry -> loadFluidTransfer(entry.getKey(), entry.getValue().getAsJsonObject()))
                                .filter(Objects::nonNull)

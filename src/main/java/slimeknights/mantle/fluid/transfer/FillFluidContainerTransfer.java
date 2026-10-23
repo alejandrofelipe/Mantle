@@ -6,7 +6,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
-import com.mojang.serialization.JsonOps;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -90,7 +89,9 @@ public class FillFluidContainerTransfer implements IFluidContainerTransfer.WithD
     @Override
     public T deserialize(JsonElement element, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
       JsonObject json = element.getAsJsonObject();
-      Ingredient input = Ingredient.CODEC.parse(JsonOps.INSTANCE, JsonHelper.getElement(json, "input")).getOrThrow(JsonParseException::new);
+      // registry-aware ops: in 1.21.4 an Ingredient is a HolderSet<Item>, so a string/tag ingredient fails to parse
+      // ("without registry"/"Missing tag") unless parsed with the reload's registry access (datapack tags bound)
+      Ingredient input = Ingredient.CODEC.parse(FluidContainerTransferManager.DESERIALIZE_OPS, JsonHelper.getElement(json, "input")).getOrThrow(JsonParseException::new);
       ItemOutput result = EmptyFluidContainerTransfer.getResult(json);
       FluidIngredient fluid = FluidIngredient.LOADABLE.getIfPresent(json, "fluid");
       return factory.apply(input, result, fluid);

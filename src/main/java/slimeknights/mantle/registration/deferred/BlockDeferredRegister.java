@@ -249,6 +249,29 @@ public class BlockDeferredRegister extends DeferredRegisterWrapper<Block> {
     return new FenceBuildingBlockObject(obj, this.register(name + "_fence", () -> new FenceBlock(BlockBehaviour.Properties.ofFullCopy(obj.get()).setId(blockKey(name + "_fence"))), item));
   }
 
+  /* Building variants using a custom block class, setting the main block id (1.21.4 requirement) */
+
+  /** Registers a building block (slab, stairs) from a custom block factory, setting the block id */
+  public BuildingBlockObject registerBuilding(String name, Function<BlockBehaviour.Properties,? extends Block> factory, BlockBehaviour.Properties props, Function<? super Block, ? extends BlockItem> item) {
+    ItemObject<Block> blockObj = register(name, factory, props, item);
+    return new BuildingBlockObject(
+        blockObj,
+        this.register(name + "_slab", () -> new SlabBlock(BlockBehaviour.Properties.ofFullCopy(blockObj.get()).setId(blockKey(name + "_slab"))), item),
+        this.register(name + "_stairs", () -> new StairBlock(blockObj.get().defaultBlockState(), BlockBehaviour.Properties.ofFullCopy(blockObj.get()).setId(blockKey(name + "_stairs"))), item));
+  }
+
+  /** Registers a building block with a wall from a custom block factory, setting the block id */
+  public WallBuildingBlockObject registerWallBuilding(String name, Function<BlockBehaviour.Properties,? extends Block> factory, BlockBehaviour.Properties props, Function<? super Block, ? extends BlockItem> item) {
+    BuildingBlockObject obj = this.registerBuilding(name, factory, props, item);
+    return new WallBuildingBlockObject(obj, this.register(name + "_wall", () -> new WallBlock(BlockBehaviour.Properties.ofFullCopy(obj.get()).setId(blockKey(name + "_wall"))), item));
+  }
+
+  /** Registers a building block with a fence from a custom block factory, setting the block id */
+  public FenceBuildingBlockObject registerFenceBuilding(String name, Function<BlockBehaviour.Properties,? extends Block> factory, BlockBehaviour.Properties props, Function<? super Block, ? extends BlockItem> item) {
+    BuildingBlockObject obj = this.registerBuilding(name, factory, props, item);
+    return new FenceBuildingBlockObject(obj, this.register(name + "_fence", () -> new FenceBlock(BlockBehaviour.Properties.ofFullCopy(obj.get()).setId(blockKey(name + "_fence"))), item));
+  }
+
   /**
    * Registers a block with slab, stairs, and fence
    * @param name      Name of the block

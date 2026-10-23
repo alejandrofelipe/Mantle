@@ -50,14 +50,13 @@ public class ShapedRetexturedRecipe extends ShapedRecipe {
     this(orig.group(), orig.category(), orig.pattern, baseResult(orig), orig.showNotification(), texture, matchAll);
   }
 
-  /** Reads the stored result of a shaped recipe from its display, as {@link ShapedRecipe} no longer exposes it directly */
+  /**
+   * Reads the stored result of a shaped recipe. {@link ShapedRecipe#result} is {@code public final}, so read it directly
+   * rather than via {@link ShapedRecipe#display()} — building the display streams the recipe's ingredients, which fails at
+   * datagen for tag/custom ingredients whose contents are not bound yet.
+   */
   private static ItemStack baseResult(ShapedRecipe recipe) {
-    for (RecipeDisplay display : recipe.display()) {
-      if (display.result() instanceof SlotDisplay.ItemStackSlotDisplay stackDisplay) {
-        return stackDisplay.stack();
-      }
-    }
-    return ItemStack.EMPTY;
+    return recipe.result;
   }
 
   /** Mantle's own result accessor; {@link net.minecraft.world.item.crafting.Recipe} dropped getResultItem in 1.21.4 */

@@ -34,6 +34,7 @@ import slimeknights.mantle.registration.object.FlowingFluidObject;
 import slimeknights.mantle.registration.object.FluidObject;
 
 import javax.annotation.Nullable;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -174,6 +175,19 @@ public class FluidDeferredRegister extends DeferredRegisterWrapper<Fluid> {
       return block(blockRegister.register(name + "_fluid", () -> constructor.apply((Supplier<FlowingFluid>)(Supplier)stillDelayed)));
     }
 
+    /**
+     * Creates the block form using the given supplier, passing the block's resource key so the constructor can call
+     * {@link BlockBehaviour.Properties#setId(ResourceKey)} before construction (1.21.4 requirement for custom blocks).
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Builder block(BiFunction<ResourceKey<Block>, Supplier<? extends FlowingFluid>, LiquidBlock> constructor) {
+      if (this.block != null) {
+        throw new IllegalStateException("Block already created for " + name);
+      }
+      ResourceKey<Block> key = ResourceKey.create(Registries.BLOCK, resource(name + "_fluid"));
+      return block(blockRegister.register(name + "_fluid", () -> constructor.apply(key, (Supplier<FlowingFluid>)(Supplier)stillDelayed)));
+    }
+
     /** Creates the default block from the given material and light level */
     public Builder block(MapColor color, int lightLevel) {
       return block(sup -> new LiquidBlock(sup.get(), createProperties(color, lightLevel).setId(ResourceKey.create(Registries.BLOCK, resource(name + "_fluid")))));
@@ -181,12 +195,12 @@ public class FluidDeferredRegister extends DeferredRegisterWrapper<Fluid> {
 
     /** Creates a block that lights entities on fire and damages them over time */
     public Builder burningBlock(MapColor color, int lightLevel, int burnTime, float damage) {
-      return block(BurningLiquidBlock.createBurning(color, lightLevel, burnTime, damage));
+      return block((key, fluid) -> new BurningLiquidBlock(fluid, createProperties(color, lightLevel).setId(key), burnTime, damage));
     }
 
     /** Creates a block that applies an effect to the target entity */
     public Builder mobEffectBlock(MapColor color, int lightLevel, Supplier<MobEffectInstance> effect) {
-      return block(MobEffectLiquidBlock.createEffect(color, lightLevel, effect));
+      return block((key, fluid) -> new MobEffectLiquidBlock(fluid, createProperties(color, lightLevel).setId(key), effect));
     }
 
 

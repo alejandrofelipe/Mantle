@@ -22,6 +22,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import org.jetbrains.annotations.Contract;
 import slimeknights.mantle.Mantle;
+import slimeknights.mantle.data.gson.ResourceLocationSerializer;
 import slimeknights.mantle.data.loadable.Loadable;
 import slimeknights.mantle.data.loadable.common.BlockStateLoadable;
 import slimeknights.mantle.network.NetworkWrapper;
@@ -46,7 +47,7 @@ public class JsonHelper {
 
   /** Default GSON instance, use instead of creating a new instance unless you need additional type adapaters */
   public static final Gson DEFAULT_GSON = (new GsonBuilder())
-    .registerTypeAdapter(ResourceLocation.class, new ResourceLocation.Serializer())
+    .registerTypeAdapter(ResourceLocation.class, ResourceLocationSerializer.resourceLocation(ResourceLocation.DEFAULT_NAMESPACE))
     .setPrettyPrinting()
     .disableHtmlEscaping()
     .create();

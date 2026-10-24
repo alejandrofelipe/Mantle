@@ -6,7 +6,6 @@ import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.SharedConstants;
 import net.minecraft.network.chat.ClickEvent;
-import net.minecraft.network.chat.ClickEvent.Action;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
@@ -152,6 +151,6 @@ public class GeneratePackHelper {
    * @return  Clickable text component
    */
   public static MutableComponent getPathComponent(MutableComponent text, String path) {
-    return text.withStyle(style -> style.withUnderlined(true).withClickEvent(new ClickEvent(Action.OPEN_FILE, path)));
+    return text.withStyle(style -> style.withUnderlined(true).withClickEvent(new ClickEvent.OpenFile(path)));
   }
 }

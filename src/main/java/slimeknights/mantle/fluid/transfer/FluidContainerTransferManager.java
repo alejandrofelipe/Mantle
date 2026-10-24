@@ -28,6 +28,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.fluids.FluidStack;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.data.gson.GenericRegisteredSerializer;
+import slimeknights.mantle.data.gson.ResourceLocationSerializer;
 import slimeknights.mantle.data.loadable.RegistryJsonOps;
 import slimeknights.mantle.network.MantleNetwork;
 import slimeknights.mantle.util.JsonHelper;
@@ -66,7 +67,7 @@ public class FluidContainerTransferManager extends SimpleJsonResourceReloadListe
   public static DynamicOps<JsonElement> DESERIALIZE_OPS = RegistryJsonOps.serialize();
   /** GSON instance */
   public static final Gson GSON = (new GsonBuilder())
-    .registerTypeAdapter(ResourceLocation.class, new ResourceLocation.Serializer())
+    .registerTypeAdapter(ResourceLocation.class, ResourceLocationSerializer.resourceLocation(ResourceLocation.DEFAULT_NAMESPACE))
     .registerTypeHierarchyAdapter(IFluidContainerTransfer.class, TRANSFER_LOADERS)
     .setPrettyPrinting()
     .disableHtmlEscaping()

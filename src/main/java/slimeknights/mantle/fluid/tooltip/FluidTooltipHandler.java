@@ -28,6 +28,7 @@ import net.neoforged.fml.ModList;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.SafeClientAccess;
 import slimeknights.mantle.client.TooltipKey;
+import slimeknights.mantle.data.gson.ResourceLocationSerializer;
 import slimeknights.mantle.data.gson.TagKeySerializer;
 import slimeknights.mantle.recipe.ingredient.FluidIngredient;
 import slimeknights.mantle.util.JsonHelper;
@@ -53,7 +54,7 @@ public class FluidTooltipHandler extends SimpleJsonResourceReloadListener<JsonEl
   /** GSON instance */
   // TODO: do we even need GSON here? I feel a classical serializer is sufficient as this class is pretty simple
   public static final Gson GSON = (new GsonBuilder())
-    .registerTypeAdapter(ResourceLocation.class, new ResourceLocation.Serializer())
+    .registerTypeAdapter(ResourceLocation.class, ResourceLocationSerializer.resourceLocation(ResourceLocation.DEFAULT_NAMESPACE))
     .registerTypeAdapter(FluidIngredient.class, FluidIngredient.LOADABLE)
     .registerTypeAdapter(TagKey.class, new TagKeySerializer<>(Registries.FLUID))
     .setPrettyPrinting()

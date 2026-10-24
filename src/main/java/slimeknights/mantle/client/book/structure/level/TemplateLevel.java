@@ -20,6 +20,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.FuelValues;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkSource;
@@ -30,6 +31,7 @@ import net.minecraft.world.level.gameevent.GameEvent.Context;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.entity.PartEntity;
+import net.neoforged.neoforge.model.data.ModelData;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.minecraft.world.phys.Vec3;
@@ -70,11 +72,12 @@ public class TemplateLevel extends Level {
   @Override
   public void sendBlockUpdated(@Nonnull BlockPos pos, @Nonnull BlockState oldState, @Nonnull BlockState newState, int flags) {}
 
+  // 1.21.5: the sound and level event sources widened from Player to Entity
   @Override
-  public void playSeededSound(@Nullable Player pPlayer, double pX, double pY, double pZ, Holder<SoundEvent> pSound, SoundSource pSource, float pVolume, float pPitch, long pSeed) {}
+  public void playSeededSound(@Nullable Entity pEntity, double pX, double pY, double pZ, Holder<SoundEvent> pSound, SoundSource pSource, float pVolume, float pPitch, long pSeed) {}
 
   @Override
-  public void playSeededSound(@Nullable Player pPlayer, Entity pEntity, Holder<SoundEvent> pSound, SoundSource pCategory, float pVolume, float pPitch, long pSeed) {}
+  public void playSeededSound(@Nullable Entity pEntity, Entity pSourceEntity, Holder<SoundEvent> pSound, SoundSource pCategory, float pVolume, float pPitch, long pSeed) {}
 
   @Override
   public String gatherChunkSourceStats() {
@@ -93,15 +96,7 @@ public class TemplateLevel extends Level {
     return this.maps.get(mapId);
   }
 
-  @Override
-  public void setMapData(MapId mapId, MapItemSavedData mapDataIn) {
-    this.maps.put(mapId, mapDataIn);
-  }
-
-  @Override
-  public MapId getFreeMapId() {
-    return new MapId(this.maps.size());
-  }
+  // 1.21.5: setMapData/getFreeMapId moved off Level (server-side map storage), nothing to override
 
   @Override
   public void destroyBlockProgress(int breakerId, @Nonnull BlockPos pos, int progress) {}
@@ -158,8 +153,15 @@ public class TemplateLevel extends Level {
     return this.chunkSource;
   }
 
+  /** 1.21.5: block state models read block entity data through the level, so serve it straight from the template's block entities */
   @Override
-  public void levelEvent(@Nullable Player player, int type, @Nonnull BlockPos pos, int data) {}
+  public ModelData getModelData(BlockPos pos) {
+    BlockEntity blockEntity = getBlockEntity(pos);
+    return blockEntity != null ? blockEntity.getModelData() : ModelData.EMPTY;
+  }
+
+  @Override
+  public void levelEvent(@Nullable Entity entity, int type, @Nonnull BlockPos pos, int data) {}
 
   @Override
   public void gameEvent(Holder<GameEvent> pEvent, Vec3 pPosition, Context pContext) {}

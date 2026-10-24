@@ -7,15 +7,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import net.neoforged.neoforge.client.model.data.ModelData;
 import org.joml.AxisAngle4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -115,21 +112,13 @@ public class StructureElement extends SizedBookElement {
               else
                 overlay = OverlayTexture.NO_OVERLAY;
 
-              ModelData modelData = ModelData.EMPTY;
-              BlockEntity te = structureWorld.getBlockEntity(pos);
-
-              if (te != null) {
-                modelData = te.getModelData();
-              }
-
-              // TODO: verify that we should be using all types here
-              BakedModel model = blockRender.getBlockModel(state);
-              for (RenderType renderType : model.getRenderTypes(state, structureWorld.random, modelData)) {
-                blockRender.getModelRenderer().tesselateBlock(
-                  structureWorld, blockRender.getBlockModel(state), state, pos, transform,
-                  buffer.getBuffer(MantleRenderTypes.TRANSLUCENT_FULLBRIGHT), false, structureWorld.random, state.getSeed(pos),
-                  overlay, modelData, renderType);
-              }
+              // 1.21.5: block models collect parts against the level (block entity data is read through
+              // TemplateLevel#getModelData); every part goes into the single fullbright translucent buffer
+              structureWorld.random.setSeed(state.getSeed(pos));
+              List<BlockModelPart> parts = blockRender.getBlockModel(state).collectParts(structureWorld, pos, state, structureWorld.random);
+              blockRender.getModelRenderer().tesselateBlock(
+                structureWorld, parts, state, pos, transform,
+                buffer.getBuffer(MantleRenderTypes.TRANSLUCENT_FULLBRIGHT), false, overlay);
 
               transform.popPose();
             }

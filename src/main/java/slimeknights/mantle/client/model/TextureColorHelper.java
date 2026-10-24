@@ -3,17 +3,20 @@ package slimeknights.mantle.client.model;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.block.model.BlockStateModel;
+import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.block.Block;
-import net.neoforged.neoforge.client.model.data.ModelData;
 import org.apache.commons.lang3.math.NumberUtils;
 import slimeknights.mantle.Mantle;
 
@@ -108,12 +111,19 @@ public class TextureColorHelper {
   /**
    * Computes the color for an item based on the particle icon.
    * <p>
-   * PORT 1.21.4: {@code ItemRenderer#getModel} was removed when item rendering moved to the
-   * {@code net.minecraft.client.renderer.item.ItemModelResolver}/{@code ItemStackRenderState} system. Resolving an
-   * item's particle icon now requires that system, so this is stubbed to no color until the dedicated item-model task
-   * reimplements it (it also covers Tinkers' item models).
+   * 1.21.5: resolved through the item model system ({@code ItemModelResolver} into an {@link ItemStackRenderState}),
+   * replacing the removed {@code ItemRenderer#getModel}. A fixed seed keeps the picked layer stable.
    */
-  private static final ToIntFunction<Item> COMPUTE_ITEM_COLOR = item -> -1;
+  private static final ToIntFunction<Item> COMPUTE_ITEM_COLOR = item -> {
+    Minecraft mc = Minecraft.getInstance();
+    ItemStackRenderState renderState = new ItemStackRenderState();
+    mc.getItemModelResolver().updateForTopItem(renderState, new ItemStack(item), ItemDisplayContext.GUI, null, null, 0);
+    TextureAtlasSprite particle = renderState.pickParticleIcon(RandomSource.create(0));
+    if (particle == null || particle.contents().name().equals(MissingTextureAtlasSprite.getLocation())) {
+      return -1;
+    }
+    return getAverageColor(particle);
+  };
 
   /** Gets the average color of an item's default particle icon */
   public static int getItemColor(ItemLike item) {
@@ -123,11 +133,12 @@ public class TextureColorHelper {
   /** Computes the color for an item based on the particle icon */
   private static final ToIntFunction<Block> COMPUTE_BLOCK_COLOR = block -> {
     Minecraft mc = Minecraft.getInstance();
-    BakedModel model = mc.getBlockRenderer().getBlockModel(block.defaultBlockState());
-    if (model == mc.getModelManager().getMissingModel()) {
+    // 1.21.5: block models are BlockStateModels; the context-free particle icon is enough for an average color
+    BlockStateModel model = mc.getBlockRenderer().getBlockModel(block.defaultBlockState());
+    if (model == mc.getModelManager().getMissingBlockStateModel()) {
       return -1;
     }
-    return getAverageColor(model.getParticleIcon(ModelData.EMPTY));
+    return getAverageColor(model.particleIcon());
   };
 
   /** Gets the average color of an blocks default particle icon */

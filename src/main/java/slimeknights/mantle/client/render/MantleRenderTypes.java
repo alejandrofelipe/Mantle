@@ -1,66 +1,45 @@
 package slimeknights.mantle.client.render;
 
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormat.Mode;
-import com.mojang.blaze3d.vertex.VertexFormatElement;
 import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import slimeknights.mantle.Mantle;
 
 /**
- * Class for render types defined by Mantle
+ * Class for render types defined by Mantle.
+ * 1.21.5: no longer extends {@link RenderType}; the shard constants it needed are public on {@link RenderStateShard} now, and
+ * shader, transparency, cull, depth and write mask state moved into the {@link com.mojang.blaze3d.pipeline.RenderPipeline}s in {@link MantleShaders}.
  */
-public class MantleRenderTypes extends RenderType {
-
-  private MantleRenderTypes(String name, VertexFormat format, Mode mode, int bufferSize, boolean useDelegate, boolean needsSorting, Runnable setupTaskIn, Runnable clearTaskIn) {
-    super(name, format, mode, bufferSize, useDelegate, needsSorting, setupTaskIn, clearTaskIn);
-  }
-
-  /**
-   * Extension of {@code POSITION_COLOR_TEX_LIGHTMAP} with fog information. 1.21.4: {@link RenderStateShard.ShaderStateShard}
-   * now takes a fixed {@link net.minecraft.client.renderer.ShaderProgram}, so the config-driven shader choice is resolved
-   * once when this class initializes rather than per draw.
-   */
-  public static final RenderStateShard.ShaderStateShard FLUID_SHADER = new RenderStateShard.ShaderStateShard(MantleShaders.getConfiguredFluidShader());
+public class MantleRenderTypes {
+  private MantleRenderTypes() {}
 
   /**
    * Render type used for the fluid renderer.
-   * 1.21.4: {@code entityTranslucentCull} was removed; the surviving equivalent is the {@code entity_translucent} family
-   * ({@link net.minecraft.client.renderer.CoreShaders#RENDERTYPE_ENTITY_TRANSLUCENT}), which requires the normal-bearing
-   * {@code NEW_ENTITY} vertex format. We keep this custom type as our format has no normals.
+   * 1.21.4: {@code entityTranslucentCull} was removed; the surviving equivalent is the {@code entity_translucent} family, which
+   * requires the normal-bearing {@code NEW_ENTITY} vertex format. We keep this custom type as our format has no normals.
+   * 1.21.5: the config-driven shader choice is still resolved once when this class initializes, now as a pipeline.
    */
-  public static final RenderType FLUID = create(
-    Mantle.modId + ":block_render_type",
-    DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP, VertexFormat.Mode.QUADS, 256, false, true,
+  public static final RenderType FLUID = RenderType.create(
+    Mantle.modId + ":block_render_type", 256, false, true,
+    MantleShaders.getConfiguredFluidPipeline(),
     RenderType.CompositeState.builder()
-      .setLightmapState(LIGHTMAP)
-      .setShaderState(FLUID_SHADER)
-      .setTextureState(BLOCK_SHEET_MIPPED)
-      .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+      .setLightmapState(RenderStateShard.LIGHTMAP)
+      .setTextureState(RenderStateShard.BLOCK_SHEET_MIPPED)
       .createCompositeState(false));
 
   /**
-   * Render type used for the structure renderer
+   * Vertex format used for the structure renderer
+   * @see MantleShaders#BLOCK_WITH_OVERLAY
    */
-  public static final VertexFormat BLOCK_WITH_OVERLAY = VertexFormat.builder()
-    .add("Position", VertexFormatElement.POSITION)
-    .add("Color", VertexFormatElement.COLOR)
-    .add("UV0", VertexFormatElement.UV0)
-    .add("UV1", VertexFormatElement.UV1)
-    .add("UV2", VertexFormatElement.UV2)
-    .add("Normal", VertexFormatElement.NORMAL)
-    .padding(1)
-    .build();
+  public static final VertexFormat BLOCK_WITH_OVERLAY = MantleShaders.BLOCK_WITH_OVERLAY;
 
-  public static final RenderType TRANSLUCENT_FULLBRIGHT = create(
-    Mantle.modId + ":translucent_fullbright",
-    BLOCK_WITH_OVERLAY, Mode.QUADS, 256, false, false,
+  /** Render type used for the structure renderer */
+  public static final RenderType TRANSLUCENT_FULLBRIGHT = RenderType.create(
+    Mantle.modId + ":translucent_fullbright", 256, false, false,
+    MantleShaders.TRANSLUCENT_FULLBRIGHT,
     RenderType.CompositeState.builder()
-      .setShaderState(new RenderStateShard.ShaderStateShard(MantleShaders.getBlockFullBrightShader()))
-      .setLightmapState(new RenderStateShard.LightmapStateShard(false))
-      .setOverlayState(OVERLAY)
-      .setTextureState(BLOCK_SHEET_MIPPED)
-      .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+      .setLightmapState(RenderStateShard.NO_LIGHTMAP)
+      .setOverlayState(RenderStateShard.OVERLAY)
+      .setTextureState(RenderStateShard.BLOCK_SHEET_MIPPED)
       .createCompositeState(false));
 }

@@ -9,7 +9,6 @@ in vec4 Color;
 
 uniform mat4 ModelViewMat;
 uniform mat4 ProjMat;
-uniform mat3 IViewRotMat;
 uniform int FogShape;
 
 out float vertexDistance;
@@ -20,7 +19,8 @@ out vec4 vertexColor;
 void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
 
-    vertexDistance = fog_distance(IViewRotMat * Position, FogShape);
+    // 1.21.5: IViewRotMat is gone (mat3 uniforms are unsupported, it would read as zero); it was always identity since 1.20.5
+    vertexDistance = fog_distance(Position, FogShape);
     texCoord0 = UV0;
     texCoord2 = UV2;
     vertexColor = Color;

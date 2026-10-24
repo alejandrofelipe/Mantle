@@ -9,7 +9,6 @@ in vec3 Normal;
 
 uniform mat4 ModelViewMat;
 uniform mat4 ProjMat;
-uniform vec3 ChunkOffset;
 uniform sampler2D Sampler1;
 
 out float vertexDistance;
@@ -19,9 +18,10 @@ out vec4 normal;
 out vec4 overlayColor;
 
 void main() {
-    gl_Position = ProjMat * ModelViewMat * vec4(Position + ChunkOffset, 1.0);
+    // 1.21.5: dropped ChunkOffset, nothing sets it since vanilla renamed it to ModelOffset so it was always zero
+    gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
 
-    vertexDistance = length((ModelViewMat * vec4(Position + ChunkOffset, 1.0)).xyz);
+    vertexDistance = length((ModelViewMat * vec4(Position, 1.0)).xyz);
     vertexColor = Color;
     texCoord0 = UV0;
     normal = ProjMat * ModelViewMat * vec4(Normal, 0.0);

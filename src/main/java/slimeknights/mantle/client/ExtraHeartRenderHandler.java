@@ -1,7 +1,6 @@
 package slimeknights.mantle.client;
 
 import com.mojang.blaze3d.platform.Window;
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -26,8 +25,6 @@ import java.util.Random;
 
 public class ExtraHeartRenderHandler {
   private static final ResourceLocation ICON_HEARTS = ResourceLocation.fromNamespaceAndPath(Mantle.modId, "textures/gui/extra_hearts.png");
-  // 1.21.1: Gui.GUI_ICONS_LOCATION was removed (HUD now uses the sprite atlas); the legacy icons texture still ships and is used only to reset the shader texture
-  private static final ResourceLocation ICON_VANILLA = ResourceLocation.withDefaultNamespace("textures/gui/icons.png");
   /** Number of heart color variants */
   private static final int HEART_VARIANTS = 12;
   /** Number of heart color variants */
@@ -229,9 +226,7 @@ public class ExtraHeartRenderHandler {
     if (renderer != HeartRenderer.NO_MAX && maxHealth > 20) rowsDrawn++; // the max-health container overflow row
     this.mc.gui.leftHeight += rowsDrawn * ROW_HEIGHT;
 
-    // prepare the GUI for the event
-    RenderSystem.setShaderTexture(0, ICON_VANILLA);
-    RenderSystem.disableBlend();
+    // 1.21.5: no global shader texture/blend state to reset anymore, GUI draws carry their state in the render type pipeline
     Profiler.get().pop();
   }
 

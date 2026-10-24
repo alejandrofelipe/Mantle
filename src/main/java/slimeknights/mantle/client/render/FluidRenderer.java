@@ -1,22 +1,17 @@
 package slimeknights.mantle.client.render;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.CoreShaders;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.ARGB;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -347,35 +342,34 @@ public class FluidRenderer {
     renderCuboid(matrices, buffer.getBuffer(MantleRenderTypes.FLUID), cube, still, flowing, from, to, color, light, isGas);
   }
 
-  /** Same as {@link net.minecraft.client.renderer.ScreenEffectRenderer#renderFluid(Minecraft, PoseStack, ResourceLocation)} but with opacity and color control */
-  public static void renderCamera(Minecraft minecraft, PoseStack poseStack, ResourceLocation texture, float opacity, int color) {
+  /**
+   * Same as {@link net.minecraft.client.renderer.ScreenEffectRenderer#renderFluid(Minecraft, PoseStack, MultiBufferSource, ResourceLocation)} but with opacity and color control.
+   * 1.21.5: immediate mode drawing is gone, so this now draws through {@link RenderType#blockScreenEffect(ResourceLocation)} like vanilla,
+   * with the tint moved from the shader color into the vertex color.
+   */
+  public static void renderCamera(Minecraft minecraft, PoseStack poseStack, MultiBufferSource bufferSource, ResourceLocation texture, float opacity, int color) {
     assert minecraft.player != null;
-    RenderSystem.setShader(CoreShaders.POSITION_TEX);
-    RenderSystem.setShaderTexture(0, texture);
     BlockPos pos = BlockPos.containing(minecraft.player.getX(), minecraft.player.getEyeY(), minecraft.player.getZ());
     Level level = minecraft.player.level();
     float brightness = LightTexture.getBrightness(level.dimensionType(), level.getMaxLocalRawBrightness(pos));
-    RenderSystem.enableBlend();
     // apply fluid tint if one is set
+    int vertexColor;
     if (color != -1) {
-      RenderSystem.setShaderColor(
+      vertexColor = ARGB.colorFromFloat(
+        opacity * (color >>> 24) / 255f,
         brightness * (color >> 16 & 255) / 255f,
         brightness * (color >> 8 & 255) / 255f,
-        brightness * (color & 255) / 255f,
-        opacity * (color >>> 24) / 255f);
+        brightness * (color & 255) / 255f);
     } else {
-      RenderSystem.setShaderColor(brightness, brightness, brightness, opacity);
+      vertexColor = ARGB.colorFromFloat(opacity, brightness, brightness, brightness);
     }
     float yRot = -minecraft.player.getYRot() / 64;
     float xRot = minecraft.player.getXRot() / 64;
     Matrix4f matrix = poseStack.last().pose();
-    BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
-    buffer.addVertex(matrix, -1, -1, -0.5f).setUv(4 + yRot, 4 + xRot);
-    buffer.addVertex(matrix,  1, -1, -0.5f).setUv(0 + yRot, 4 + xRot);
-    buffer.addVertex(matrix,  1,  1, -0.5f).setUv(0 + yRot, 0 + xRot);
-    buffer.addVertex(matrix, -1,  1, -0.5f).setUv(4 + yRot, 0 + xRot);
-    BufferUploader.drawWithShader(buffer.buildOrThrow());
-    RenderSystem.setShaderColor(1, 1, 1, 1);
-    RenderSystem.disableBlend();
+    VertexConsumer buffer = bufferSource.getBuffer(RenderType.blockScreenEffect(texture));
+    buffer.addVertex(matrix, -1, -1, -0.5f).setUv(4 + yRot, 4 + xRot).setColor(vertexColor);
+    buffer.addVertex(matrix,  1, -1, -0.5f).setUv(0 + yRot, 4 + xRot).setColor(vertexColor);
+    buffer.addVertex(matrix,  1,  1, -0.5f).setUv(0 + yRot, 0 + xRot).setColor(vertexColor);
+    buffer.addVertex(matrix, -1,  1, -0.5f).setUv(4 + yRot, 0 + xRot).setColor(vertexColor);
   }
 }

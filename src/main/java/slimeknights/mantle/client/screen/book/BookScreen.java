@@ -177,9 +177,7 @@ public class BookScreen extends Screen {
       graphics.drawString(this.font, "DEBUG", 2, 2, 0xFFFFFFFF, false);
     }
 
-    // RenderSystem.enableAlphaTest(); TODO: still needed?
-    RenderSystem.enableBlend();
-
+    // 1.21.5: blending is part of the GUI render pipelines, the old RenderSystem.enableBlend() is gone
     Vector3f coverColor = splitRGB(this.book.appearance.coverColor);
 
     if(this.page == -1) {
@@ -322,8 +320,7 @@ public class BookScreen extends Screen {
   }
 
   private void renderPageLayer(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, List<BookElement> elements, ILayerRenderFunction layerFunc) {
-    RenderSystem.setShaderTexture(0, book.appearance.getCoverTexture());
-
+    // 1.21.5: setShaderTexture takes a GpuTexture and every GUI blit binds its own texture, so the cover texture is no longer pre-bound here
     Font font = getFontRenderer();
 
     for (BookElement element : elements) {

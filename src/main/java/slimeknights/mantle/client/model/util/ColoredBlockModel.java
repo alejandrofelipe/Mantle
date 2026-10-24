@@ -259,6 +259,8 @@ public class ColoredBlockModel extends SimpleBlockModel {
     // delegate to the vanilla face bakery, which handles UV lock, shrink ratio, winding, normals, and neoforge face data
     BakedQuad quad = FaceBakery.bakeQuad(posFrom, posTo, face, sprite, facing, state, partRotation, shade, lightEmission);
     // use our override if specified, fallback to the faceData value already applied by the vanilla bakery
+    // PORT 1.21.5: emissivity is still baked into the vertex lightmap (UV2) rather than BakedQuad#lightEmission; verify
+    // glowing elements (luminosity) stay fullbright on blocks and items in the uitest phase
     if (emissivity > 0) {
       QuadTransformers.settingEmissivity(emissivity).processInPlace(quad);
     }

@@ -143,7 +143,11 @@ public class RetexturedModel extends ColoredBlockModel {
       return data;
     }
 
-    /** Rebakes the model, pointing all retextured names at the given texture */
+    /**
+     * Rebakes the model, pointing all retextured names at the given texture.
+     * PORT 1.21.5: runs on chunk meshing threads and reads the block atlas through {@link Material#sprite()}; verify
+     * retextured tables in the uitest phase (texture blocks are only known at render time, so this cannot use the baker).
+     */
     private SimpleModelWrapper bake(ResourceLocation texture) {
       Material material = new Material(TextureAtlas.LOCATION_BLOCKS, texture);
       Map<String,Material> replacements = new HashMap<>();

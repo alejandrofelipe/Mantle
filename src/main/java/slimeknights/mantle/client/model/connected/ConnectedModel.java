@@ -229,6 +229,8 @@ public class ConnectedModel extends ColoredBlockModel {
       // follow each face texture back to the connected texture it references, through the whole parent chain
       // 1.21.5: unlike 1.21.4, this also follows references in vanilla parents such as block/cube_all
       this.connectedNames = ModelHelper.findReferences(resolved, connected.connectedTextures.keySet(), sprites.keySet());
+      // PORT 1.21.5: suffix sprites are now resolved eagerly, so a pack missing an unused suffix texture logs it as a
+      // missing texture at bake (1.21.4 silently used missingno on demand); check the client log in the uitest phase
       for (Entry<String,Material> entry : extraTextures.entrySet()) {
         sprites.put(entry.getKey(), spriteGetter.get(entry.getValue(), data.name()));
       }

@@ -2,11 +2,10 @@ package slimeknights.mantle.command.client;
 
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.pipeline.TextureTarget;
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -29,10 +28,10 @@ import net.neoforged.fml.ModList;
 import org.apache.commons.lang3.text.WordUtils;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
-import org.lwjgl.opengl.GL11;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.book.BookLoader;
 import slimeknights.mantle.client.book.data.BookData;
+import slimeknights.mantle.client.render.RenderTargetCapture;
 import slimeknights.mantle.client.screen.book.BookScreen;
 import slimeknights.mantle.command.GeneratePackHelper;
 import slimeknights.mantle.command.MantleCommand;
@@ -44,6 +43,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Objects;
 
 /** A command for different book operations, currently open and export_images */
 public class BookCommand {
@@ -215,11 +215,14 @@ public class BookCommand {
       stack.scale(scale, scale, 1);
       Lighting.setupFor3DItems();
 
-      RenderTarget target = new TextureTarget(width, height, true, true);
+      // 1.21.5: render targets can no longer be bound for writing; GUI render types always draw into the main target.
+      // Resize the main target to the export size for the duration of the export, and restore the window size after.
+      Minecraft minecraft = Minecraft.getInstance();
+      RenderTarget target = minecraft.getMainRenderTarget();
+      target.resize(width, height);
 
       try {
-        MultiBufferSource.BufferSource buffer = Minecraft.getInstance().renderBuffers().bufferSource();
-        target.bindWrite(true);
+        MultiBufferSource.BufferSource buffer = minecraft.renderBuffers().bufferSource();
 
         GuiGraphics gui = new GuiGraphics(Minecraft.getInstance(), buffer);
 
@@ -238,12 +241,20 @@ public class BookCommand {
         String modName = mod == null ? book.getNamespace() : mod.getModInfo().getDisplayName();
 
         do {
-          RenderSystem.clear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
+          // clear to transparent so the exported image keeps its alpha
+          GpuTexture depth = target.getDepthTexture();
+          if (depth != null) {
+            RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(Objects.requireNonNull(target.getColorTexture()), 0, depth, 1.0);
+          } else {
+            RenderSystem.getDevice().createCommandEncoder().clearColorTexture(Objects.requireNonNull(target.getColorTexture()), 0);
+          }
 
           screen.tick();
 
-          RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
-            GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE);
+          // PORT 1.21.5: the export used to force blendFuncSeparate(SRC_ALPHA, ONE_MINUS_SRC_ALPHA, ONE, ONE) so alpha accumulates
+          // onto the transparent background; blending now comes from the GUI pipelines (BlendFunction.TRANSLUCENT, alpha ONE,
+          // ONE_MINUS_SRC_ALPHA), which still composites alpha correctly but can leave overlapping translucent pixels slightly
+          // more transparent than before. Check an exported page if transparency looks off.
 
           int page = screen.getPage_();
           // draw text on the cover; we just want it as an image
@@ -256,7 +267,7 @@ public class BookCommand {
           gui.flush();
           gui.pose().popPose();
 
-          try (NativeImage image = takeScreenshot(target)) {
+          try (NativeImage image = RenderTargetCapture.capture(target, true)) {
             String pageFormat = page < 0 ? "cover" :  (html ? "clean_" : "page_") + page;
             Path path = Paths.get(screenshotDir.toString(), pageFormat + ".png");
 
@@ -300,9 +311,8 @@ public class BookCommand {
         }
       } finally {
         stack.popMatrix();
-        RenderSystem.defaultBlendFunc();
-        target.unbindWrite();
-        target.destroyBuffers();
+        // restore the main target to the window size, the next frame redraws its contents
+        target.resize(minecraft.getWindow().getWidth(), minecraft.getWindow().getHeight());
       }
     } else {
       bookNotFound(book);
@@ -338,19 +348,6 @@ public class BookCommand {
         player.displayClientMessage(Component.translatable(EXPORT_SUCCESS, fileComponent), false);
       }
     }
-  }
-
-  /**
-   * Duplicate of {@link net.minecraft.client.Screenshot#takeScreenshot}, but with transparency
-   */
-  private static NativeImage takeScreenshot(RenderTarget pFramebuffer) {
-    int i = pFramebuffer.width;
-    int j = pFramebuffer.height;
-    NativeImage nativeimage = new NativeImage(i, j, false);
-    RenderSystem.bindTexture(pFramebuffer.getColorTextureId());
-    nativeimage.downloadTexture(0, false);
-    nativeimage.flipY();
-    return nativeimage;
   }
 
   public static void bookNotFound(ResourceLocation book) {

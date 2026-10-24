@@ -3,12 +3,12 @@ package slimeknights.mantle.client.uitest;
 import com.google.gson.GsonBuilder;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.Screenshot;
 import net.minecraft.client.tutorial.TutorialSteps;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import org.apache.commons.io.FileUtils;
 import slimeknights.mantle.Mantle;
+import slimeknights.mantle.client.render.RenderTargetCapture;
 
 import java.io.File;
 import java.io.IOException;
@@ -151,7 +151,9 @@ public class UiTestSuite {
 
   private void capture(Minecraft mc) {
     if (!runGuarded(mc, "capture", () -> {
-      NativeImage image = Screenshot.takeScreenshot(mc.getMainRenderTarget());
+      // 1.21.5: Screenshot.takeScreenshot reads back asynchronously (callback on a later frame); capture synchronously so the
+      // PNG is on disk before the scenario closes, and so the final scenario's file exists before finish() stops the client
+      NativeImage image = RenderTargetCapture.capture(mc.getMainRenderTarget(), false);
       try (image) {
         image.writeToFile(new File(outputDir, current().id().getPath() + ".png"));
       } catch (IOException e) {

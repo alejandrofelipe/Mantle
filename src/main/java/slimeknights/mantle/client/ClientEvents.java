@@ -27,6 +27,7 @@ import net.minecraft.world.phys.HitResult;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent.RegisterLoaders;
+import net.neoforged.neoforge.client.event.RegisterBlockStateModels;
 import net.neoforged.neoforge.client.event.RegisterItemModelsEvent;
 import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
@@ -133,9 +134,18 @@ public class ClientEvents {
   }
 
   @SubscribeEvent
+  static void registerBlockStateModels(RegisterBlockStateModels event) {
+    // 1.21.5: dynamic block models are block state model types, referenced by "type" in the blockstate JSON
+    event.registerModel(Mantle.getResource("connected"), ConnectedModel.Unbaked.MAP_CODEC);
+    event.registerModel(Mantle.getResource("retextured"), RetexturedModel.Unbaked.MAP_CODEC);
+  }
+
+  @SubscribeEvent
   static void registerItemModels(RegisterItemModelsEvent event) {
     // item side of the retextured block model: resolves the per-stack texture block and renders the matching variant
     event.register(Mantle.getResource("retextured"), RetexturedModel.ItemUnbaked.MAP_CODEC);
+    // item side of the NBT key model: selects the texture variant from the stack's custom data
+    event.register(Mantle.getResource("nbt_key"), NBTKeyModel.ItemUnbaked.MAP_CODEC);
   }
 
   @SubscribeEvent

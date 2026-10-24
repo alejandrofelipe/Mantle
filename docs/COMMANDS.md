@@ -299,9 +299,12 @@ Reports land in `build/reports/tests/test/` (HTML) and `build/test-results/test/
 $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\aleja\DEV\New Tinkers\tinkers\gradlew.bat" -p "C:\Users\aleja\DEV\New Tinkers\tinkers" runGameTestServer
 ```
 
-Runs every `@GameTest` class in `slimeknights.tconstruct.gametest`, gated by the
-`neoforge.enabledGameTestNamespaces=tconstruct` system property (the same flag also enables them on the
-`client` run for in-game `/test`). Current suite (1.21.4) = 38 tests — smeltery/alloyer/casting/tool-crafting
+Runs every registered gametest. **1.21.5 framework:** `@GameTest`/`@GameTestHolder` are gone — Tinkers marks
+test methods with its own `@TinkerGameTest(template, timeoutTicks)` and `TinkerGameTestRegistration` registers
+each as a `TEST_FUNCTION` + `FunctionGameTestInstance` (id `tconstruct:<method_name>`, structure
+`tconstruct:<template>`, environment `tconstruct:default`) on `RegisterGameTestsEvent`; the server runs every
+registered instance, so the old `neoforge.enabledGameTestNamespaces` property is gone. In-game (dev client):
+`/test run tconstruct:<name>`, `/test runfailed`, … Current suite = 38 tests — smeltery/alloyer/casting/tool-crafting
 logic, the `*_lookup_populated` recipe-lookup checks, `RecipeValidationGameTests` (every melting/casting/alloy
 recipe), `DatapackTagGapGameTests` and `WorldgenGameTests` (structures/sets/features/biome modifiers resolve,
 all 25 island templates load with the right palette, and every island, geode, cobalt ore and slime tree is
@@ -310,8 +313,10 @@ force-placed far from the test grid with fixed seeds — the `/place` path; natu
 (cold) and prints `All 38 required tests passed :)` + `BUILD SUCCESSFUL`.
 
 > **Fresh world every run.** `runGameTestServer` depends on `cleanGameTestWorld`, which deletes
-> `run/gameTestServer/world` first — vanilla reuses that world forever (flat preset, seed 0), so
-> placed structures and chunks from a previous run would otherwise leak into the next one.
+> `run/gameTestServer/world` first — the 1.21.4 server reused that world forever (flat preset, seed 0), so
+> placed structures and chunks from a previous run leaked into the next one. The 1.21.5 server reportedly uses
+> its own `run/gameTestServer/gametestserver/gametestworld` and recreates it each run — confirm on the first
+> green 1.21.5 run, then the task can go.
 
 > **Zero-tests trap.** With no matching tests the run still exits 0 (`No test functions were given!` +
 > `BUILD SUCCESSFUL`) — green only means something once you know tests exist. With tests present, a
@@ -372,9 +377,8 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 The suite logs `uitest: filtered to N of M scenario(s) via mantle.uitest.only=station_`; an empty match
 logs a warning and finishes cleanly (no crash). Property unset = all 14 scenarios run (the default).
 
-**gametest** — filtered only at the namespace level via `neoforge.enabledGameTestNamespaces` (already
-`tconstruct`); NeoForge has no clean per-test CLI filter, but the suite is ~5 tests (~1 s), so just run
-them all with `runGameTestServer`.
+**gametest** — 1.21.5: `-PgametestOnly=<selector>` forwards to the gametest launcher's `--tests` (wildcards
+allowed), e.g. `runGameTestServer -PgametestOnly=tconstruct:smeltery_*`; unset = all 38 tests (~10 s in-world).
 
 ---
 

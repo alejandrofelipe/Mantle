@@ -9,6 +9,7 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import slimeknights.mantle.Mantle;
+import slimeknights.mantle.data.loadable.RegistryJsonOps;
 
 /**
  * Simple implementation of a codec mapping to a JSON serializer.
@@ -54,7 +55,10 @@ public interface JsonCodec<T> extends Codec<T> {
   record GsonCodec<T>(String name, Gson gson, Class<T> classType) implements JsonCodec<T> {
     @Override
     public T deserialize(JsonElement element, DynamicOps<?> ops) {
-      return gson.fromJson(element, classType);
+      // thread the caller's registry-aware ops so GSON deserializers that resolve tags/holders (e.g. a loot-modifier
+      // condition reading its ingredient via RegistryJsonOps.deserialize()) see the reload's staged registries rather
+      // than the strict BuiltInRegistries fallback. GSON cannot pass ops down, so park it on the thread for the call.
+      return RegistryJsonOps.withThreadedOps(ops, () -> gson.fromJson(element, classType));
     }
 
     @Override

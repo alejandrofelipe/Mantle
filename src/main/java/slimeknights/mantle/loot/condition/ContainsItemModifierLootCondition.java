@@ -58,8 +58,10 @@ public class ContainsItemModifierLootCondition implements ILootModifierCondition
   public static ContainsItemModifierLootCondition deserialize(JsonElement element, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
     JsonObject json = GsonHelper.convertToJsonObject(element, "condition");
     // 1.21.4: a tag/single-item Ingredient serializes to a JSON string (e.g. "#c:ores/silver") or array, not always an
-    // object, so read the raw element instead of forcing a JsonObject (which threw "Expected ingredient to be a JsonObject")
-    Ingredient ingredient = Ingredient.CODEC.parse(RegistryJsonOps.serialize(), json.get("ingredient")).getOrThrow(JsonParseException::new);
+    // object, so read the raw element instead of forcing a JsonObject (which threw "Expected ingredient to be a JsonObject").
+    // Decode through the reload-threaded ops (RegistryJsonOps.deserialize), so a tag staged during the first reload
+    // (e.g. #c:ores/cobalt, #tconstruct:chrysophilite_ores) resolves instead of failing against the frozen BuiltInRegistries.
+    Ingredient ingredient = Ingredient.CODEC.parse(RegistryJsonOps.deserialize(), json.get("ingredient")).getOrThrow(JsonParseException::new);
     int needed = GsonHelper.getAsInt(json, "needed", 1);
     return new ContainsItemModifierLootCondition(ingredient, needed);
   }

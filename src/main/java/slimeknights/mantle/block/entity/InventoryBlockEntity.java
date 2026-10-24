@@ -7,7 +7,6 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.Container;
 import net.minecraft.world.MenuProvider;
@@ -204,7 +203,7 @@ public abstract class InventoryBlockEntity extends NameableBlockEntity implement
   protected void loadAdditional(CompoundTag tags, HolderLookup.Provider registries) {
     super.loadAdditional(tags, registries);
     if (saveSizeToNBT) {
-      this.resizeInternal(tags.getInt(TAG_INVENTORY_SIZE));
+      this.resizeInternal(tags.getIntOr(TAG_INVENTORY_SIZE, 0));
     }
     this.readInventoryFromNBT(tags, registries);
   }
@@ -246,14 +245,14 @@ public abstract class InventoryBlockEntity extends NameableBlockEntity implement
    * Reads an inventory from the tag. Overwrites current content
    */
   public void readInventoryFromNBT(CompoundTag tag, HolderLookup.Provider registries) {
-    ListTag list = tag.getList(TAG_ITEMS, Tag.TAG_COMPOUND);
+    ListTag list = tag.getListOrEmpty(TAG_ITEMS);
 
     int limit = this.getMaxStackSize();
     for (int i = 0; i < list.size(); ++i) {
-      CompoundTag itemTag = list.getCompound(i);
-      int slot = itemTag.getByte(TAG_SLOT) & 255;
+      CompoundTag itemTag = list.getCompoundOrEmpty(i);
+      int slot = itemTag.getByteOr(TAG_SLOT, (byte) 0) & 255;
       if (slot < this.inventory.size()) {
-        ItemStack stack = ItemStack.parseOptional(registries, itemTag);
+        ItemStack stack = ItemStack.parse(registries, itemTag).orElse(ItemStack.EMPTY);
         if (!stack.isEmpty() && stack.getCount() > limit) {
           stack.setCount(limit);
         }

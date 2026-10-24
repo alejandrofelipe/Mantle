@@ -4,7 +4,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.NumericTag;
 
 import javax.annotation.Nullable;
 
@@ -16,7 +16,7 @@ import javax.annotation.Nullable;
 public class TagHelper {
   /* BlockPos */
 
-  /** @deprecated use {@link net.minecraft.nbt.NbtUtils#writeBlockPos(BlockPos)} */
+  /** @deprecated use {@link BlockPos#CODEC} */
   @Deprecated(forRemoval = true)
   public static CompoundTag writePos(BlockPos pos) {
     CompoundTag tag = new CompoundTag();
@@ -26,12 +26,12 @@ public class TagHelper {
     return tag;
   }
 
-  /** @deprecated use {@link net.minecraft.nbt.NbtUtils#readBlockPos(CompoundTag)} */
+  /** @deprecated use {@link BlockPos#CODEC} */
   @Nullable
   @Deprecated(forRemoval = true)
   public static BlockPos readPos(CompoundTag tag) {
-    if (tag.contains("X", Tag.TAG_ANY_NUMERIC) &&tag.contains("Y", Tag.TAG_ANY_NUMERIC) && tag.contains("Z", Tag.TAG_ANY_NUMERIC)) {
-      return new BlockPos(tag.getInt("X"), tag.getInt("Y"), tag.getInt("Z"));
+    if (tag.get("X") instanceof NumericTag x && tag.get("Y") instanceof NumericTag y && tag.get("Z") instanceof NumericTag z) {
+      return new BlockPos(x.intValue(), y.intValue(), z.intValue());
     }
     return null;
   }

@@ -156,6 +156,7 @@ public abstract class SingleItemHandler<T extends MantleBlockEntity> implements 
    * @param nbt  NBT
    */
   public void readFromNBT(HolderLookup.Provider registries, CompoundTag nbt) {
-    stack = ItemStack.parseOptional(registries, nbt);
+    // 1.21.5: ItemStack.parseOptional was removed; an empty tag is the saved form of an empty stack
+    stack = nbt.isEmpty() ? ItemStack.EMPTY : ItemStack.parse(registries, nbt).orElse(ItemStack.EMPTY);
   }
 }

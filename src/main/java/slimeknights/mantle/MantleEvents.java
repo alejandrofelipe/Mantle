@@ -2,7 +2,7 @@ package slimeknights.mantle;
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.NumericTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -82,8 +82,8 @@ public class MantleEvents {
         // find items with our soulbound tag set and move them back into the inventory, will move them over later
         CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
         CompoundTag tag = customData != null ? customData.copyTag() : null;
-        if (tag != null && tag.contains(SOULBOUND_SLOT, Tag.TAG_ANY_NUMERIC)) {
-          int slot = tag.getInt(SOULBOUND_SLOT);
+        if (tag != null && tag.get(SOULBOUND_SLOT) instanceof NumericTag slotTag) {
+          int slot = slotTag.intValue();
           // return the tool to its requested slot if possible, remove from the drops
           if (inventory.getItem(slot).isEmpty()) {
             inventory.setItem(slot, stack);
@@ -141,7 +141,7 @@ public class MantleEvents {
       if (!stack.isEmpty()) {
         CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
         CompoundTag tag = customData != null ? customData.copyTag() : null;
-        if (tag != null && tag.contains(SOULBOUND_SLOT, Tag.TAG_ANY_NUMERIC)) {
+        if (tag != null && tag.get(SOULBOUND_SLOT) instanceof NumericTag) {
           if (cloneInv.getItem(i).isEmpty()) {
             cloneInv.setItem(i, stack);
           } else {

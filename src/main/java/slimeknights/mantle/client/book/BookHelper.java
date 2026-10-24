@@ -25,10 +25,8 @@ public class BookHelper {
     if (item != null && !item.isEmpty()) {
       CustomData customData = item.get(DataComponents.CUSTOM_DATA);
       if (customData != null) {
-        CompoundTag bookNBT = customData.copyTag().getCompound(BOOK_COMPOUND).getCompound(BOOK_DATA_COMPOUND);
-        if (bookNBT.contains(NBT_CURRENT_PAGE, 8)) {
-          return bookNBT.getString(NBT_CURRENT_PAGE);
-        }
+        CompoundTag bookNBT = customData.copyTag().getCompoundOrEmpty(BOOK_COMPOUND).getCompoundOrEmpty(BOOK_DATA_COMPOUND);
+        return bookNBT.getStringOr(NBT_CURRENT_PAGE, "");
       }
     }
 
@@ -43,8 +41,8 @@ public class BookHelper {
    */
   public static void writeSavedPageToBook(ItemStack stack, String currentPage) {
     CustomData.update(DataComponents.CUSTOM_DATA, stack, compoundNBT -> {
-      CompoundTag mantleCompound = compoundNBT.getCompound(BOOK_COMPOUND);
-      CompoundTag bookCompound = mantleCompound.getCompound(BOOK_DATA_COMPOUND);
+      CompoundTag mantleCompound = compoundNBT.getCompoundOrEmpty(BOOK_COMPOUND);
+      CompoundTag bookCompound = mantleCompound.getCompoundOrEmpty(BOOK_DATA_COMPOUND);
 
       bookCompound.putString(NBT_CURRENT_PAGE, currentPage);
 

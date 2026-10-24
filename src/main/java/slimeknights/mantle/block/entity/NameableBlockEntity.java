@@ -5,7 +5,6 @@ import lombok.Setter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -31,9 +30,7 @@ public abstract class NameableBlockEntity extends MantleBlockEntity implements I
 	@Override
 	protected void loadAdditional(CompoundTag tags, HolderLookup.Provider registries) {
 		super.loadAdditional(tags, registries);
-		if (tags.contains(TAG_CUSTOM_NAME, Tag.TAG_STRING)) {
-			this.customName = Component.Serializer.fromJson(tags.getString(TAG_CUSTOM_NAME), registries);
-		}
+		tags.getString(TAG_CUSTOM_NAME).ifPresent(name -> this.customName = Component.Serializer.fromJson(name, registries));
 	}
 
 	@Override

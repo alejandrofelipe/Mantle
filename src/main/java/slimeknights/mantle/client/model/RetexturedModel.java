@@ -8,10 +8,18 @@ import com.google.gson.JsonSyntaxException;
 import com.google.common.collect.Sets;
 import com.mojang.datafixers.util.Either;
 import com.mojang.math.Transformation;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.ItemTransforms;
 import net.minecraft.client.renderer.block.model.TextureSlots;
+import net.minecraft.client.renderer.item.ItemModel;
+import net.minecraft.client.renderer.item.ItemModelResolver;
+import net.minecraft.client.renderer.item.ItemStackRenderState;
+import net.minecraft.client.renderer.item.ItemStackRenderState.FoilType;
+import net.minecraft.client.renderer.item.ItemStackRenderState.LayerRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
@@ -23,7 +31,11 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.context.ContextMap;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.RenderTypeGroup;
 import net.neoforged.neoforge.client.model.AbstractUnbakedModel;
@@ -134,6 +146,21 @@ public class RetexturedModel extends AbstractUnbakedModel {
       return cache.computeIfAbsent(ModelHelper.getParticleTexture(block), tex -> bakeWithBlock(block));
     }
 
+    /**
+     * Resolves the baked model for the given item stack, reading the retexture block from the stack's texture data
+     * component. Drives the item-model system (replaces the removed {@code ItemOverrides.resolve}).
+     */
+    public BakedModel resolveForStack(ItemStack stack) {
+      if (stack.isEmpty()) {
+        return parent;
+      }
+      Block block = RetexturedHelper.getTexture(stack);
+      if (block == Blocks.AIR) {
+        return parent;
+      }
+      return getCachedModel(block);
+    }
+
     @Override
     public TextureAtlasSprite getParticleIcon(ModelData data) {
       Block block = data.get(RetexturedHelper.BLOCK_PROPERTY);
@@ -211,5 +238,50 @@ public class RetexturedModel extends AbstractUnbakedModel {
     }
     // if neither or missing, error
     throw new JsonSyntaxException("Missing retextured, expected to find a String or a JsonArray");
+  }
+
+  /**
+   * Item model that renders a {@link RetexturedModel}-baked block model, resolving the per-stack texture block from the
+   * baked {@link Baked} and attaching its render passes.
+   * <p>
+   * PORT 1.21.4: completes the deferred item side. Registered via {@code RegisterItemModelsEvent}; the item JSON is
+   * {@code {"model":{"type":"mantle:retextured","model":"<block model>"}}}. Mirrors Tinkers' {@code MaterialBlockModel.ItemUnbaked}.
+   */
+  public record ItemUnbaked(ResourceLocation model) implements ItemModel.Unbaked {
+    public static final MapCodec<ItemUnbaked> MAP_CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+      ResourceLocation.CODEC.fieldOf("model").forGetter(ItemUnbaked::model)
+    ).apply(inst, ItemUnbaked::new));
+
+    @Override
+    public MapCodec<ItemUnbaked> type() {
+      return MAP_CODEC;
+    }
+
+    @Override
+    public void resolveDependencies(net.minecraft.client.resources.model.ResolvableModel.Resolver resolver) {
+      resolver.resolve(model);
+    }
+
+    @Override
+    public ItemModel bake(ItemModel.BakingContext context) {
+      return new Baked(context.bake(model));
+    }
+
+    /** Baked item model wrapping the dynamic retextured block model */
+    public record Baked(BakedModel model) implements ItemModel {
+      @Override
+      public void update(ItemStackRenderState renderState, ItemStack stack, ItemModelResolver resolver, ItemDisplayContext displayContext, @javax.annotation.Nullable ClientLevel level, @javax.annotation.Nullable LivingEntity entity, int seed) {
+        BakedModel resolved = model instanceof RetexturedModel.Baked dynamic ? dynamic.resolveForStack(stack) : model;
+        // attach the resolved model's render passes as item-render-state layers (mirrors vanilla BlockModelWrapper)
+        boolean foil = stack.hasFoil();
+        for (BakedModel pass : resolved.getRenderPasses(stack)) {
+          LayerRenderState layer = renderState.newLayer();
+          if (foil) {
+            layer.setFoilType(FoilType.STANDARD);
+          }
+          layer.setupBlockModel(pass, pass.getRenderType(stack));
+        }
+      }
+    }
   }
 }

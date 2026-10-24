@@ -28,6 +28,7 @@ import net.minecraft.world.phys.HitResult;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent.RegisterLoaders;
+import net.neoforged.neoforge.client.event.RegisterItemModelsEvent;
 import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
@@ -130,6 +131,12 @@ public class ClientEvents {
     // NBT dynamic models - require specific data defined in the block/item to use
     event.register(Mantle.getResource("nbt_key"), NBTKeyModel.LOADER);
     event.register(Mantle.getResource("retextured"), RetexturedModel.LOADER);
+  }
+
+  @SubscribeEvent
+  static void registerItemModels(RegisterItemModelsEvent event) {
+    // item side of the retextured block model: resolves the per-stack texture block and renders the matching variant
+    event.register(Mantle.getResource("retextured"), RetexturedModel.ItemUnbaked.MAP_CODEC);
   }
 
   @SubscribeEvent

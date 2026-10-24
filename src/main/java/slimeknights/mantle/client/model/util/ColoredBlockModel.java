@@ -143,6 +143,13 @@ public class ColoredBlockModel extends SimpleBlockModel {
 
   @Override
   public BakedModel bake(TextureSlots textures, ModelBaker baker, ModelState modelTransform, boolean useAmbientOcclusion, boolean useBlockLight, ItemTransforms itemTransforms, ContextMap additionalProperties) {
+    // no elements of our own: delegate to the parent, matching SimpleBlockModel#bake and vanilla BlockModel behavior.
+    // the dynamic bakeReplaced/bakeWithElements paths cannot delegate here as parent BlockElements are package-private
+    // in 1.21.4 and those methods have no ModelBaker; thin wrappers (retextured/connected) inheriting parent geometry
+    // therefore render the base model only, which is enough for inventory/item icons and the non-dynamic block model.
+    if (getElements().isEmpty() && getParent() != null) {
+      return getParent().bake(textures, baker, modelTransform, useAmbientOcclusion, useBlockLight, itemTransforms, additionalProperties);
+    }
     Transformation rootTransform = additionalProperties.getOrDefault(NeoForgeModelProperties.TRANSFORM, Transformation.identity());
     RenderTypeGroup renderType = additionalProperties.getOrDefault(NeoForgeModelProperties.RENDER_TYPE, RenderTypeGroup.EMPTY);
     return bakeModel(textures, getElements(), colorData, baker.sprites()::get, modelTransform, useAmbientOcclusion, useBlockLight, itemTransforms, rootTransform, renderType);

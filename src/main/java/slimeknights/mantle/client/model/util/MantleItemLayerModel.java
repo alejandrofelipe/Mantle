@@ -6,14 +6,15 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Transformation;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.renderer.block.model.ItemTransforms;
 import net.minecraft.client.renderer.block.model.TextureSlots;
 import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.Material;
 import net.minecraft.client.resources.model.ModelBaker;
+import net.minecraft.client.resources.model.ModelDebugName;
 import net.minecraft.client.resources.model.ModelState;
+import net.minecraft.client.resources.model.QuadCollection;
+import net.minecraft.client.resources.model.UnbakedGeometry;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
 import net.minecraft.resources.ResourceLocation;
@@ -22,9 +23,9 @@ import net.neoforged.neoforge.client.NamedRenderTypeManager;
 import net.neoforged.neoforge.client.NeoForgeRenderTypes;
 import net.neoforged.neoforge.client.RenderTypeGroup;
 import net.neoforged.neoforge.client.model.AbstractUnbakedModel;
+import net.neoforged.neoforge.client.model.ExtendedUnbakedGeometry;
 import net.neoforged.neoforge.client.model.NeoForgeModelProperties;
 import net.neoforged.neoforge.client.model.StandardModelParameters;
-import net.neoforged.neoforge.client.model.UnbakedCompositeModel;
 import net.neoforged.neoforge.client.model.UnbakedElementsHelper;
 import net.neoforged.neoforge.client.model.UnbakedModelLoader;
 import net.neoforged.neoforge.client.model.pipeline.QuadBakingVertexConsumer;
@@ -43,10 +44,10 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.PrimitiveIterator;
 import java.util.function.Function;
 
@@ -54,8 +55,9 @@ import java.util.function.Function;
  * Clone of NeoForge's old {@code ItemLayerModel} to propagate a hardcoded color in, allows reducing rendering time by bypassing item colors for a static color.
  * Also supports luminosity, and when used as a model loader supports telling a layer to not use a tint index.
  * <p>
- * In 1.21.4 this is an {@link UnbakedModel}: textures come from the resolved {@link TextureSlots} passed to bake, and the
- * multi-render-type output is built via {@link UnbakedCompositeModel.Baked.Builder}.
+ * 1.21.5: textures come from the resolved {@link TextureSlots} passed to the {@link UnbakedGeometry}, which bakes all
+ * layers into a single {@link QuadCollection}. A geometry has a single render type (the model's {@code render_type}),
+ * so per-layer {@link LayerData#renderType()} is no longer applied by this loader.
  */
 public class MantleItemLayerModel extends AbstractUnbakedModel {
   /** Model loader instance */
@@ -66,10 +68,37 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
 
   /** Layers in the model */
   private final List<LayerData> layers;
+  /** Texture slots, with the particle defaulting to the first layer like vanilla generated item models */
+  private final TextureSlots.Data textureSlots;
 
   public MantleItemLayerModel(StandardModelParameters parameters, List<LayerData> layers) {
     super(parameters);
     this.layers = layers;
+    this.textureSlots = withDefaultParticle(parameters.textures(), "layer0");
+  }
+
+  /**
+   * Adds a {@code particle} reference to the given texture if the slots do not define a particle, matching vanilla
+   * {@code ItemModelGenerator}. In 1.21.5 the particle is resolved by the caller from the texture slots, so it can no
+   * longer be defaulted at bake time.
+   */
+  public static TextureSlots.Data withDefaultParticle(TextureSlots.Data textures, String texture) {
+    if (textures.values().containsKey("particle")) {
+      return textures;
+    }
+    Map<String,TextureSlots.SlotContents> map = new HashMap<>(textures.values());
+    map.putAll(new TextureSlots.Data.Builder().addReference("particle", texture).build().values());
+    return new TextureSlots.Data(Map.copyOf(map));
+  }
+
+  @Override
+  public TextureSlots.Data textureSlots() {
+    return textureSlots;
+  }
+
+  @Override
+  public ExtendedUnbakedGeometry geometry() {
+    return this::bake;
   }
 
   /** Gets the layer at the given index */
@@ -97,8 +126,8 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
     }
   }
 
-  @Override
-  public BakedModel bake(TextureSlots textureSlots, ModelBaker baker, ModelState modelTransform, boolean useAmbientOcclusion, boolean useBlockLight, ItemTransforms itemTransforms, ContextMap additionalProperties) {
+  /** Bakes the layers into a quad collection, used as this model's geometry */
+  private QuadCollection bake(TextureSlots textureSlots, ModelBaker baker, ModelState modelTransform, ModelDebugName debugName, ContextMap additionalProperties) {
     // gather the layer materials from the resolved texture slots
     List<Material> textures = new ArrayList<>();
     for (int i = 0; ; i++) {
@@ -111,33 +140,27 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
     if (textures.isEmpty()) {
       throw new IllegalStateException("Empty textures list");
     }
-    Function<Material,TextureAtlasSprite> spriteGetter = baker.sprites()::get;
-    // determine particle texture
-    Material particleMaterial = textureSlots.getMaterial("particle");
-    TextureAtlasSprite particle = spriteGetter.apply(particleMaterial != null ? particleMaterial : textures.get(0));
+    Function<Material,TextureAtlasSprite> spriteGetter = material -> baker.sprites().get(material, debugName);
 
     // setup quad building
-    record QuadGroup(RenderTypeGroup renderType, Collection<BakedQuad> quads) {}
-    ReversedListBuilder<QuadGroup> quadBuilder = new ReversedListBuilder<>();
+    ReversedListBuilder<List<BakedQuad>> quadBuilder = new ReversedListBuilder<>();
     ItemLayerPixels pixels = textures.size() == 1 ? null : new ItemLayerPixels();
     Transformation rootTransform = additionalProperties.getOrDefault(NeoForgeModelProperties.TRANSFORM, Transformation.identity());
     modelTransform = applyTransform(modelTransform, rootTransform);
 
-    // setup render types
-    RenderTypeGroup normalRenderTypes = getDefaultRenderType(additionalProperties.getOrDefault(NeoForgeModelProperties.RENDER_TYPE, RenderTypeGroup.EMPTY));
-
     // skip the pixel tracking if using a single texture only
-    Transformation transform = modelTransform.getRotation();
+    // PORT 1.21.5: per-layer render types are not applied, the geometry renders with the model's render type
+    Transformation transform = modelTransform.transformation();
     for (int i = textures.size() - 1; i >= 0; i--) {
       TextureAtlasSprite sprite = spriteGetter.apply(textures.get(i));
       LayerData data = getLayer(i);
-      quadBuilder.add(new QuadGroup(data.getRenderType(normalRenderTypes), getQuadsForSprite(data.color(), data.noTint() ? -1 : i, sprite, transform, data.luminosity(), pixels)));
+      quadBuilder.add(getQuadsForSprite(data.color(), data.noTint() ? -1 : i, sprite, transform, data.luminosity(), pixels));
     }
 
-    // build final model (item layers are flat, so gui3d is false)
-    UnbakedCompositeModel.Baked.Builder modelBuilder = UnbakedCompositeModel.Baked.builder(useAmbientOcclusion, false, useBlockLight, particle, itemTransforms);
-    quadBuilder.build(quadGroup -> modelBuilder.addQuads(quadGroup.renderType, quadGroup.quads));
-    return modelBuilder.build();
+    // item layer quads never cull
+    QuadCollection.Builder builder = new QuadCollection.Builder();
+    quadBuilder.build(quads -> quads.forEach(builder::addUnculledFace));
+    return builder.build();
   }
 
   /**

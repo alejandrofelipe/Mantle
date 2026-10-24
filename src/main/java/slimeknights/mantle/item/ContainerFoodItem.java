@@ -13,12 +13,14 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUseAnimation;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.Consumable;
+import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.item.consume_effects.ApplyStatusEffectsConsumeEffect;
 import net.minecraft.world.item.consume_effects.ConsumeEffect;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.fluids.FluidStack;
 
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -44,6 +46,11 @@ public class ContainerFoodItem extends Item {
 
   /** Adds effects to the tooltip. 1.21.4 moves status effects from {@link net.minecraft.world.food.FoodProperties} to the {@link Consumable} component. */
   public static void addEffectTooltip(Consumable consumable, List<Component> tooltip) {
+    addEffectTooltip(consumable, (Consumer<Component>) tooltip::add);
+  }
+
+  /** Adds effects to the tooltip consumer, as passed to {@link Item#appendHoverText} in 1.21.5. */
+  public static void addEffectTooltip(Consumable consumable, Consumer<Component> tooltip) {
     // add effects to the tooltip, code based on potion items
     for (ConsumeEffect consumeEffect : consumable.onConsumeEffects()) {
       if (consumeEffect instanceof ApplyStatusEffectsConsumeEffect applyEffects) {
@@ -55,14 +62,14 @@ public class ContainerFoodItem extends Item {
           if (effect.getDuration() > 20) {
             mutable = Component.translatable("potion.withDuration", mutable, MobEffectUtil.formatDuration(effect, 1.0f, 20.0f));
           }
-          tooltip.add(mutable.withStyle(effect.getEffect().value().getCategory().getTooltipFormatting()));
+          tooltip.accept(mutable.withStyle(effect.getEffect().value().getCategory().getTooltipFormatting()));
         }
       }
     }
   }
 
   @Override
-  public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flagIn) {
+  public void appendHoverText(ItemStack stack, Item.TooltipContext context, TooltipDisplay display, Consumer<Component> tooltip, TooltipFlag flagIn) {
     Consumable consumable = stack.get(DataComponents.CONSUMABLE);
     if (consumable != null) {
       addEffectTooltip(consumable, tooltip);

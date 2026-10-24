@@ -12,6 +12,7 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Consumer;
 
 /**
  * Helpers for working with translations
@@ -47,6 +48,15 @@ public class TranslationHelper {
    * @param tooltip  List of tooltips
    */
   public static void addOptionalTooltip(ItemStack stack, List<Component> tooltip) {
+    addOptionalTooltip(stack, (Consumer<Component>) tooltip::add);
+  }
+
+  /**
+   * Adds localized tooltip to a stack if present
+   * @param stack    Stack
+   * @param tooltip  Tooltip consumer, as passed to {@link net.minecraft.world.item.Item#appendHoverText} in 1.21.5
+   */
+  public static void addOptionalTooltip(ItemStack stack, Consumer<Component> tooltip) {
     addOptionalTooltip(stack.getItem().getDescriptionId() + ".tooltip", tooltip);
   }
 
@@ -56,6 +66,15 @@ public class TranslationHelper {
    * @param tooltip  List of tooltips
    */
   public static void addOptionalTooltip(String key, List<Component> tooltip) {
+    addOptionalTooltip(key, (Consumer<Component>) tooltip::add);
+  }
+
+  /**
+   * Adds localized tooltip to a tooltip consumer if present
+   * @param key      Translation key
+   * @param tooltip  Tooltip consumer
+   */
+  public static void addOptionalTooltip(String key, Consumer<Component> tooltip) {
     Language language = Language.getInstance();
     if (language.has(key)) {
       addEachLine(language.getOrDefault(key), tooltip);
@@ -68,8 +87,17 @@ public class TranslationHelper {
    * @param tooltip  List of tooltip strings to add to
    */
   public static void addEachLine(String text, List<Component> tooltip) {
+    addEachLine(text, (Consumer<Component>) tooltip::add);
+  }
+
+  /**
+   * Adds the text into the tooltip, splitting on newlines
+   * @param text     Translated text to split
+   * @param tooltip  Tooltip consumer
+   */
+  public static void addEachLine(String text, Consumer<Component> tooltip) {
     for (String string : text.split("\n")) {
-      tooltip.add(Component.literal(string).withStyle(ChatFormatting.GRAY));
+      tooltip.accept(Component.literal(string).withStyle(ChatFormatting.GRAY));
     }
   }
 

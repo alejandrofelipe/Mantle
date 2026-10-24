@@ -4,9 +4,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.TooltipDisplay;
 import slimeknights.mantle.util.TranslationHelper;
 
-import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Item with automatic tooltip support
@@ -18,8 +19,8 @@ public class TooltipItem extends Item {
   }
 
   @Override
-  public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flagIn) {
+  public void appendHoverText(ItemStack stack, Item.TooltipContext context, TooltipDisplay display, Consumer<Component> tooltip, TooltipFlag flagIn) {
     TranslationHelper.addOptionalTooltip(stack, tooltip);
-    super.appendHoverText(stack, context, tooltip, flagIn);
+    super.appendHoverText(stack, context, display, tooltip, flagIn);
   }
 }

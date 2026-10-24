@@ -16,6 +16,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.Level;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.SafeClientAccess;
@@ -23,7 +24,7 @@ import slimeknights.mantle.client.book.BookScreenOpener;
 import slimeknights.mantle.datagen.MantleTags;
 import slimeknights.mantle.util.RegistryHelper;
 
-import java.util.List;
+import java.util.function.Consumer;
 
 /** Item implementing all standard book behaviors, just requires calling methods from {@link slimeknights.mantle.client.book.data.BookData} in a few abstract methods. */
 @SuppressWarnings("unused")  // API
@@ -53,18 +54,19 @@ public abstract class AbstractBookItem extends LecternBookItem {
   }
 
   @Override
-  public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+  public void appendHoverText(ItemStack stack, Item.TooltipContext context, TooltipDisplay display, Consumer<Component> tooltip, TooltipFlag flag) {
     // if the stack is in the player inventory, show the right click to open tooltip.
     // SafeClientAccess.getPlayer() returns null on the server, so it doubles as the client-side gate
     // (Item.TooltipContext no longer exposes a Level/isClientSide in NeoForge 1.21).
     Player player = SafeClientAccess.getPlayer();
     if (player != null && isValidContainer(player.containerMenu)) {
       Inventory inventory = player.getInventory();
-      if (inventory.items.contains(stack) || inventory.offhand.contains(stack)) {
-        tooltip.add(CLICK_TO_OPEN);
+      // 1.21.5: Inventory#items is private and the offhand moved to the equipment; ItemStack has no equals, so this is an identity check
+      if (inventory.getNonEquipmentItems().contains(stack) || player.getOffhandItem() == stack) {
+        tooltip.accept(CLICK_TO_OPEN);
       }
     }
-    super.appendHoverText(stack, context, tooltip, flag);
+    super.appendHoverText(stack, context, display, tooltip, flag);
   }
 
   /** Called on the client to open the screen when used on right click in the hand */

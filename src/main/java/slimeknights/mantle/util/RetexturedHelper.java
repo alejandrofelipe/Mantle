@@ -21,8 +21,8 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.client.model.data.ModelData;
-import net.neoforged.neoforge.client.model.data.ModelProperty;
+import net.neoforged.neoforge.model.data.ModelData;
+import net.neoforged.neoforge.model.data.ModelProperty;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import slimeknights.mantle.Mantle;
@@ -30,6 +30,7 @@ import slimeknights.mantle.Mantle;
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
@@ -72,7 +73,7 @@ public final class RetexturedHelper {
     if (nbt == null) {
       return "";
     }
-    return nbt.getString(TAG_TEXTURE);
+    return nbt.getStringOr(TAG_TEXTURE, "");
   }
 
   /**
@@ -212,12 +213,22 @@ public final class RetexturedHelper {
    * @param flag     Tooltip flag instance
    */
   public static void addTooltip(ItemStack stack, List<Component> tooltip, TooltipFlag flag) {
+    addTooltip(stack, (Consumer<Component>) tooltip::add, flag);
+  }
+
+  /**
+   * Adds the texture block to the tooltip
+   * @param stack    Stack instance
+   * @param tooltip  Tooltip consumer, as passed to {@link Item#appendHoverText} in 1.21.5
+   * @param flag     Tooltip flag instance
+   */
+  public static void addTooltip(ItemStack stack, Consumer<Component> tooltip, TooltipFlag flag) {
     Block block = getTexture(stack);
     if (block != Blocks.AIR) {
-      tooltip.add(block.getName().withStyle(ChatFormatting.GRAY));
+      tooltip.accept(block.getName().withStyle(ChatFormatting.GRAY));
       // advanced includes the ID of the texture
       if (flag.isAdvanced()) {
-        tooltip.add(Component.translatable(KEY_ID, BuiltInRegistries.BLOCK.getKey(block).toString()).withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.accept(Component.translatable(KEY_ID, BuiltInRegistries.BLOCK.getKey(block).toString()).withStyle(ChatFormatting.DARK_GRAY));
       }
     }
   }

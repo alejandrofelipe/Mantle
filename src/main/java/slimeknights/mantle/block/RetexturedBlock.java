@@ -1,12 +1,9 @@
 package slimeknights.mantle.block;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
@@ -18,7 +15,6 @@ import slimeknights.mantle.util.BlockEntityHelper;
 import slimeknights.mantle.util.RetexturedHelper;
 
 import javax.annotation.Nullable;
-import java.util.List;
 
 /**
  * Logic for a retexturable block. Use alongside {@link IRetexturedBlockEntity} and {@link RetexturedHelper}
@@ -40,10 +36,7 @@ public abstract class RetexturedBlock extends Block implements EntityBlock {
     return getPickBlock(world, pos, state);
   }
 
-  @Override
-  public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
-    RetexturedHelper.addTooltip(stack, tooltip, flag);
-  }
+  // 1.21.5: Block#appendHoverText was removed; the texture tooltip moved to slimeknights.mantle.item.RetexturedBlockItem
 
 
   /* Utils */

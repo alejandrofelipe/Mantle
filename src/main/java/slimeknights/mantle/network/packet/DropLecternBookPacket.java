@@ -1,6 +1,7 @@
 package slimeknights.mantle.network.packet;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -12,6 +13,7 @@ import net.minecraft.world.level.block.LecternBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.LecternBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.redstone.ExperimentalRedstoneUtils;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import slimeknights.mantle.Mantle;
 
@@ -56,7 +58,8 @@ public record DropLecternBookPacket(BlockPos pos) implements IThreadsafePacket {
 
           // fix lectern state
           world.setBlock(pos, state.setValue(LecternBlock.POWERED, false).setValue(LecternBlock.HAS_BOOK, false), 3);
-          world.updateNeighborsAt(pos.below(), state.getBlock());
+          // 1.21.5: updateNeighborsAt takes a redstone orientation, computed the same way as LecternBlock#updateBelow
+          world.updateNeighborsAt(pos.below(), state.getBlock(), ExperimentalRedstoneUtils.initialOrientation(world, state.getValue(LecternBlock.FACING).getOpposite(), Direction.UP));
         }
       }
     }

@@ -3,6 +3,7 @@ package slimeknights.mantle.block;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionResult;
@@ -20,6 +21,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.items.IItemHandler;
 import slimeknights.mantle.block.entity.INameableMenuProvider;
+import slimeknights.mantle.block.entity.MantleBlockEntity;
 import slimeknights.mantle.inventory.BaseContainerMenu;
 
 import javax.annotation.Nullable;
@@ -95,21 +97,30 @@ public abstract class InventoryBlock extends Block implements EntityBlock {
 
   /* Inventory handling */
 
-  @SuppressWarnings("deprecation")
-  @Override
-  public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving) {
-    if (state.getBlock() != newState.getBlock()) {
-      BlockEntity te = worldIn.getBlockEntity(pos);
-      if (te != null) {
-        IItemHandler inventory = worldIn.getCapability(Capabilities.ItemHandler.BLOCK, pos, null);
-        if (inventory != null) {
-          dropInventoryItems(state, worldIn, pos, inventory);
-        }
-        worldIn.updateNeighbourForOutputSignal(pos, this);
-      }
+  /**
+   * Called by {@link MantleBlockEntity#preRemoveSideEffects(BlockPos, BlockState)} when this block is replaced by a different block,
+   * while the block entity is still present. Server side only.
+   * <p>
+   * PORT 1.21.5: replaces the drop logic of the removed {@code onRemove}. The chunk now removes the block entity <em>before</em>
+   * {@link #affectNeighborsAfterRemoval(BlockState, ServerLevel, BlockPos, boolean)} runs, so drops must happen from the block entity.
+   * Block entities for this block must extend {@link MantleBlockEntity}, or call this from their own {@code preRemoveSideEffects}.
+   * @param state        Block state being removed
+   * @param level        Level instance
+   * @param pos          Block position
+   * @param blockEntity  Block entity being removed
+   */
+  public void preRemoveSideEffects(BlockState state, Level level, BlockPos pos, BlockEntity blockEntity) {
+    // the level already holds the new state, so pass the old state and block entity to find the right capability
+    IItemHandler inventory = level.getCapability(Capabilities.ItemHandler.BLOCK, pos, state, blockEntity, null);
+    if (inventory != null) {
+      dropInventoryItems(state, level, pos, inventory);
     }
+  }
 
-    super.onRemove(state, worldIn, pos, newState, isMoving);
+  @Override
+  protected void affectNeighborsAfterRemoval(BlockState state, ServerLevel level, BlockPos pos, boolean movedByPiston) {
+    Containers.updateNeighboursAfterDestroy(state, level, pos);
+    super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
   }
 
   /**

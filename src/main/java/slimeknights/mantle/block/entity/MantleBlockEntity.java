@@ -8,6 +8,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import slimeknights.mantle.block.InventoryBlock;
 
 import javax.annotation.Nullable;
 
@@ -19,6 +20,18 @@ public class MantleBlockEntity extends BlockEntity {
 
   public boolean isClient() {
     return this.getLevel() != null && this.getLevel().isClientSide;
+  }
+
+  /**
+   * PORT 1.21.5: the chunk removes the block entity before {@code Block#affectNeighborsAfterRemoval}, so inventory drops moved here.
+   * Vanilla's default drops the contents of any {@link net.minecraft.world.Container}; Mantle instead lets {@link InventoryBlock} decide
+   * (keeping its {@code dropInventoryItems} hooks and avoiding double drops), matching the 1.21.4 {@code onRemove} behavior.
+   */
+  @Override
+  public void preRemoveSideEffects(BlockPos pos, BlockState state) {
+    if (level != null && state.getBlock() instanceof InventoryBlock inventoryBlock) {
+      inventoryBlock.preRemoveSideEffects(state, level, pos, this);
+    }
   }
 
   /**

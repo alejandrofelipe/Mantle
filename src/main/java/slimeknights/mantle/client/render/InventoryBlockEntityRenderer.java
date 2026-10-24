@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.world.Container;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 
@@ -14,7 +15,7 @@ public class InventoryBlockEntityRenderer<T extends BlockEntity & Container> imp
   public InventoryBlockEntityRenderer(BlockEntityRendererProvider.Context context) {}
 
   @Override
-  public void render(T inventory, float partialTicks, PoseStack matrices, MultiBufferSource buffer, int light, int combinedOverlayIn) {
+  public void render(T inventory, float partialTicks, PoseStack matrices, MultiBufferSource buffer, int light, int combinedOverlayIn, Vec3 cameraPos) {
     if (inventory.isEmpty()) return;
 
     // first, find the model for item display locations

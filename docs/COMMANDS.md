@@ -301,13 +301,13 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 
 Runs every `@GameTest` class in `slimeknights.tconstruct.gametest`, gated by the
 `neoforge.enabledGameTestNamespaces=tconstruct` system property (the same flag also enables them on the
-`client` run for in-game `/test`). Current suite (1.21.4) = 37 tests — smeltery/alloyer/casting/tool-crafting
+`client` run for in-game `/test`). Current suite (1.21.4) = 38 tests — smeltery/alloyer/casting/tool-crafting
 logic, the `*_lookup_populated` recipe-lookup checks, `RecipeValidationGameTests` (every melting/casting/alloy
 recipe), `DatapackTagGapGameTests` and `WorldgenGameTests` (structures/sets/features/biome modifiers resolve,
 all 25 island templates load with the right palette, and every island, geode, cobalt ore and slime tree is
 force-placed far from the test grid with fixed seeds — the `/place` path; natural generation, i.e. biome tags
 + structure-set spacing on real terrain, is not covered by the flat world). A green run takes ~1-4 min
-(cold) and prints `All 37 required tests passed :)` + `BUILD SUCCESSFUL`.
+(cold) and prints `All 38 required tests passed :)` + `BUILD SUCCESSFUL`.
 
 > **Fresh world every run.** `runGameTestServer` depends on `cleanGameTestWorld`, which deletes
 > `run/gameTestServer/world` first — vanilla reuses that world forever (flat preset, seed 0), so

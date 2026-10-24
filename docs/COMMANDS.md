@@ -1,4 +1,8 @@
-# Build & Run Commands — Mantle 1.21.1 / NeoForge port
+# Build & Run Commands — Mantle / TinkersConstruct (MC 1.21.4 / NeoForge 21.4.161)
+
+> **Current target: MC 1.21.4 / NeoForge 21.4.161** (branch `1.21.3` in both repos — the name predates the
+> retarget). The 1.21.1 notes below still apply except where the [1.21.4 notes](#1214-notes-m1) override them.
+> Migration gotchas: [`migration/1.21.1-to-1.21.4.md`](migration/1.21.1-to-1.21.4.md).
 
 Canonical, copy-paste-ready commands for this machine. The goal of this file is **zero retries**:
 every command here is written for the real environment probed on 2026-06-27. Read the
@@ -23,7 +27,7 @@ sections **before** running any Gradle task — skipping them is the #1 cause of
 | Default Java | Temurin **17** (`JAVA_HOME` → `C:\Users\aleja\scoop\apps\temurin17-jdk\current`) | MC 1.21.1 / NeoForge need **Java 21** — must override `JAVA_HOME` per command. |
 | Repo root | `C:\Users\aleja\DEV\New Tinkers\repo` | The working dir of the shell tools is the **parent** (`New Tinkers`). Always target the repo explicitly. |
 | Branch | `1.21.1` | All port work lives here. |
-| Gradle wrapper | **9.2.1** (`gradle/wrapper/gradle-wrapper.properties`) | Paired with NeoGradle 7.1.38 (the official 1.21.1 MDK toolchain). Already set; don't downgrade. |
+| Gradle wrapper | **9.2.1** (`gradle/wrapper/gradle-wrapper.properties`) | Paired with NeoGradle **7.1.39** (the official 1.21.4 MDK toolchain; 1.21.1 used 7.1.38). Already set; don't downgrade. |
 | System Gradle | 9.5.1 (Scoop) | **Do not use** for build tasks — always use the wrapper (9.2.1), which pins the exact Gradle that NeoGradle 7.1.38 requires. |
 | Scoop CLI tools | `git` 2.54, `grep`, `fd`, `jq`, `python`, `dotnet-sdk` | Available; `git`/`grep` work in both Bash and PowerShell. |
 
@@ -112,6 +116,36 @@ Set-Location "C:\Users\aleja\DEV\New Tinkers\repo"; $env:JAVA_HOME = "C:\Users\a
 
 ---
 
+## 1.21.4 notes (M1)
+
+- **Datagen is two runs.** `runData` (run type `clientData`: models/blockstates/item defs/atlases/textures)
+  and `runServerData` (run type `serverData`: recipes/tags/loot/advancements/fluid transfers). Each run's
+  HashCache **deletes every output it didn't produce** — the other side's files included — and the texture
+  generators skip files that already exist, so a `runData` also wipes ~10k untouched part textures.
+  Safe procedure:
+  ```powershell
+  # regenerate the side you changed (e.g. server), then restore everything you did NOT intend to change:
+  git -C "<repo>" restore --source=HEAD -- src/generated/resources/assets    # after a runServerData
+  git -C "<repo>" restore --source=HEAD -- src/generated/resources/data      # after a runData
+  git -C "<repo>" status --short src/generated                               # only intended files remain
+  ```
+- **Release jars** drop `.DEV` via the `ARTIFACT_VERSION` env var (`version = <mc>-<ARTIFACT_VERSION>`). It
+  leaks through the composite build, so build **Mantle and Tinkers separately**:
+  ```powershell
+  $env:ARTIFACT_VERSION = "1.13";   & "...\repo\gradlew.bat"    -p "...\repo" build
+  $env:ARTIFACT_VERSION = "3.12.0"; & "...\tinkers\gradlew.bat" -p "...\tinkers" build
+  Remove-Item Env:ARTIFACT_VERSION
+  ```
+- **Category-by-category porting gate:** plain `compileJava` stops at the first attribution failure. A
+  scratchpad init script makes javac report method-body errors too (never commit it to the repo):
+  ```groovy
+  // flow.init.gradle
+  allprojects { tasks.withType(JavaCompile).configureEach { options.compilerArgs.add('-XDshould-stop.ifError=FLOW') } }
+  ```
+  `gradlew.bat -p <repo> --init-script <scratch>\flow.init.gradle compileJava`
+- **"Green" has layers.** Build + unit can pass while the mod fails to load, gametests (server-only) can pass
+  while clients can't join, and a uitest `"ok"` only means "no crash" — open the PNGs to check the pixels.
+
 ## Task reference
 
 | Goal | Task (`GW <task>`) | Notes / expected signal |
@@ -122,7 +156,7 @@ Set-Location "C:\Users\aleja\DEV\New Tinkers\repo"; $env:JAVA_HOME = "C:\Users\a
 | **Compile** (per-stage gate) | `compileJava` | The verification gate for port stages 0–7. Success = `BUILD SUCCESSFUL`, zero `error:` lines. |
 | Compile tests (if present) | `compileTestJava` | Only if a test source set exists. |
 | **Full build** | `build` | Compiles + runs `jar`. Output: `build/libs/Mantle-1.21.1-*.jar`. |
-| **Datagen** | `runData` | Writes/refreshes `src/generated/resources/`. Background it; review the git diff afterward. |
+| **Datagen** | `runData` **+** `runServerData` | 1.21.4: two runs (client assets / server data). They **purge each other's outputs** — see [1.21.4 notes](#1214-notes-m1) before committing `src/generated/resources/`. Background them. |
 | **Run client** *(post-migration)* | `runClient` | Launches the game. **Background it and watch the log**; success = main menu, `mantle` in the mod list, no `mantle` registration errors. |
 | Run server *(post-migration)* | `runServer` | `--nogui` is preconfigured. Background it. |
 | Game tests | `runGameTestServer` | **Not defined in Mantle's `build.gradle runs{}`** — Mantle has no game-test suite. The **tinkers** repo defines this run; see [Automated tests & screenshots](#automated-tests--screenshots). |
@@ -245,7 +279,7 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 Runs the JUnit 5 + Mockito unit suite (`src/test/java`, `slimeknights.tconstruct.*`) on a plain JVM —
-no Minecraft boot. Current suite = 185 tests passing + 2 `@Disabled` (each carries its reason in-code).
+no Minecraft boot. Current suite (1.21.4) = 672 tests: 670 passing + 2 `@Disabled` (each carries its reason in-code).
 Reports land in `build/reports/tests/test/` (HTML) and `build/test-results/test/` (JUnit XML).
 
 > **UP-TO-DATE trap.** `build` already executes this suite, so a `test` right after a green `build`
@@ -267,9 +301,10 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 
 Runs every `@GameTest` class in `slimeknights.tconstruct.gametest`, gated by the
 `neoforge.enabledGameTestNamespaces=tconstruct` system property (the same flag also enables them on the
-`client` run for in-game `/test`). Current suite = 5 tests: `smeltery_melts`, `smeltery_melts_amethyst`,
-`smeltery_casts`, `alloyer_alloys`, `tool_crafting`. A green run takes ~3-4 min cold and prints
-`All 5 required tests passed :)` + `BUILD SUCCESSFUL`.
+`client` run for in-game `/test`). Current suite (1.21.4) = 31 tests — smeltery/alloyer/casting/tool-crafting
+logic, the `*_lookup_populated` recipe-lookup checks, `RecipeValidationGameTests` (every melting/casting/alloy
+recipe) and `DatapackTagGapGameTests`. A green run takes ~3-4 min cold and prints
+`All 31 required tests passed :)` + `BUILD SUCCESSFUL`.
 
 > **Zero-tests trap.** With no matching tests the run still exits 0 (`No test functions were given!` +
 > `BUILD SUCCESSFUL`) — green only means something once you know tests exist. With tests present, a
@@ -286,10 +321,10 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 Boots a real client straight into the committed superflat world `UITest` (`--quickPlaySingleplayer`,
-1280×720, `-Dmantle.uitest=true`), drives the 12 registered scenarios (`tinker_station`, `part_builder`,
-`smeltery`, `melter`, `casting_pour`, `book_materials_and_you`, `jei_melting_category`,
+1280×720, `-Dmantle.uitest=true`), drives the 14 registered scenarios (`tinker_station`, `part_builder`,
+`crafting_station`, `smeltery`, `melter`, `casting_pour`, `book_materials_and_you`, `jei_melting_category`,
 `jei_item_list_cleanup`, `book_interior`, `station_reflow`, `station_collapsed`,
-`station_collapsed_overlay`), writes
+`station_collapsed_overlay`, `extra_hearts`), writes
 `run/clientUiTest/uitest-screenshots/*.png` +
 `run/clientUiTest/uitest-results.json` (scenario id → `"ok"` / `"fail: ..."`), then **exits on its own**
 (`BUILD SUCCESSFUL`; verified full run ≈ 6-7 min cold including the build, ~3 min in-world, zero leftover
@@ -328,7 +363,7 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 The suite logs `uitest: filtered to N of M scenario(s) via mantle.uitest.only=station_`; an empty match
-logs a warning and finishes cleanly (no crash). Property unset = all 12 scenarios run (the default).
+logs a warning and finishes cleanly (no crash). Property unset = all 14 scenarios run (the default).
 
 **gametest** — filtered only at the namespace level via `neoforge.enabledGameTestNamespaces` (already
 `tconstruct`); NeoForge has no clean per-test CLI filter, but the suite is ~5 tests (~1 s), so just run

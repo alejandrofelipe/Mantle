@@ -304,13 +304,14 @@ test methods with its own `@TinkerGameTest(template, timeoutTicks)` and `TinkerG
 each as a `TEST_FUNCTION` + `FunctionGameTestInstance` (id `tconstruct:<method_name>`, structure
 `tconstruct:<template>`, environment `tconstruct:default`) on `RegisterGameTestsEvent`; the server runs every
 registered instance, so the old `neoforge.enabledGameTestNamespaces` property is gone. In-game (dev client):
-`/test run tconstruct:<name>`, `/test runfailed`, … Current suite = 38 tests — smeltery/alloyer/casting/tool-crafting
+`/test run tconstruct:<name>`, `/test runfailed`, … Current suite = 39 Tinkers tests (+ vanilla's built-in
+`minecraft:always_pass`, so the log says 40) — smeltery/alloyer/casting/tool-crafting
 logic, the `*_lookup_populated` recipe-lookup checks, `RecipeValidationGameTests` (every melting/casting/alloy
 recipe), `DatapackTagGapGameTests` and `WorldgenGameTests` (structures/sets/features/biome modifiers resolve,
 all 25 island templates load with the right palette, and every island, geode, cobalt ore and slime tree is
 force-placed far from the test grid with fixed seeds — the `/place` path; natural generation, i.e. biome tags
 + structure-set spacing on real terrain, is not covered by the flat world). A green run takes ~1-4 min
-(cold) and prints `All 38 required tests passed :)` + `BUILD SUCCESSFUL`.
+(cold) and prints `All 40 required tests passed :)` + `BUILD SUCCESSFUL` (1.21.5).
 
 > **Fresh world every run.** `runGameTestServer` depends on `cleanGameTestWorld`, which deletes
 > `run/gameTestServer/world` first — the 1.21.4 server reused that world forever (flat preset, seed 0), so
@@ -333,10 +334,11 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 Boots a real client straight into the committed superflat world `UITest` (`--quickPlaySingleplayer`,
-1280×720, `-Dmantle.uitest=true`), drives the 14 registered scenarios (`tinker_station`, `part_builder`,
+1280×720, `-Dmantle.uitest=true`), drives the 15 registered scenarios (`tinker_station`, `part_builder`,
 `crafting_station`, `smeltery`, `melter`, `casting_pour`, `book_materials_and_you`, `jei_melting_category`,
 `jei_item_list_cleanup`, `book_interior`, `station_reflow`, `station_collapsed`,
-`station_collapsed_overlay`, `extra_hearts`), writes
+`station_collapsed_overlay`, `extra_hearts`, `dynamic_block_models` — connected glass, a retextured table and a filled
+tank in the world, the 1.21.5 block-state-level models), writes
 `run/clientUiTest/uitest-screenshots/*.png` +
 `run/clientUiTest/uitest-results.json` (scenario id → `"ok"` / `"fail: ..."`), then **exits on its own**
 (`BUILD SUCCESSFUL`; verified full run ≈ 6-7 min cold including the build, ~3 min in-world, zero leftover
@@ -375,7 +377,7 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 The suite logs `uitest: filtered to N of M scenario(s) via mantle.uitest.only=station_`; an empty match
-logs a warning and finishes cleanly (no crash). Property unset = all 14 scenarios run (the default).
+logs a warning and finishes cleanly (no crash). Property unset = all 15 scenarios run (the default).
 
 **gametest** — 1.21.5: `-PgametestOnly=<selector>` forwards to the gametest launcher's `--tests` (wildcards
 allowed), e.g. `runGameTestServer -PgametestOnly=tconstruct:smeltery_*`; unset = all 38 tests (~10 s in-world).

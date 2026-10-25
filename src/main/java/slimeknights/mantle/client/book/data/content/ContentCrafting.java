@@ -3,14 +3,11 @@ package slimeknights.mantle.client.book.data.content;
 import lombok.Getter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.NonNullList;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
-import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
@@ -18,6 +15,7 @@ import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import net.minecraft.world.level.Level;
 import org.apache.commons.lang3.StringUtils;
 import slimeknights.mantle.Mantle;
+import slimeknights.mantle.client.ClientRecipes;
 import slimeknights.mantle.client.book.data.BookData;
 import slimeknights.mantle.client.book.data.BookLoadException;
 import slimeknights.mantle.client.book.data.element.ImageData;
@@ -125,11 +123,9 @@ public class ContentCrafting extends PageContent {
 
       Level level = Minecraft.getInstance().level;
       assert level != null;
-      // 1.21.4: recipes are no longer synced through a full RecipeManager; Level#recipeAccess is the RecipeManager on the client, and byKey takes a ResourceKey
-      Recipe<?> recipe = null;
-      if (level.recipeAccess() instanceof RecipeManager manager) {
-        recipe = manager.byKey(ResourceKey.create(Registries.RECIPE, ResourceLocation.parse(this.recipe))).map(RecipeHolder::value).orElse(null);
-      }
+      // the client level has no RecipeManager since 1.21.4 (recipeAccess() is only the recipe book container), so read the
+      // integrated server's recipes in singleplayer or the synced recipe map on a remote server
+      Recipe<?> recipe = ClientRecipes.byKey(ResourceLocation.parse(this.recipe));
       if (recipe instanceof CraftingRecipe craftingRecipe) {
         if(grid_size.equalsIgnoreCase("auto")) {
           if(canCraftInDimensions(craftingRecipe, 2, 2)) {

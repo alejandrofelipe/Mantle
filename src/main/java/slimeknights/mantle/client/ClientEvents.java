@@ -1,14 +1,15 @@
 package slimeknights.mantle.client;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.AttackIndicatorStatus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.ChatScreen;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.Sheets;
 import net.minecraft.client.renderer.blockentity.HangingSignRenderer;
 import net.minecraft.client.renderer.blockentity.SignRenderer;
@@ -18,6 +19,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -30,6 +32,8 @@ import net.neoforged.neoforge.client.event.ModelEvent.RegisterLoaders;
 import net.neoforged.neoforge.client.event.RegisterBlockStateModels;
 import net.neoforged.neoforge.client.event.RegisterItemModelsEvent;
 import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
+import net.neoforged.neoforge.client.ClientHooks;
+import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.neoforged.neoforge.common.NeoForge;
@@ -40,7 +44,6 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.templates.EmptyFluidHandler;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.common.EventBusSubscriber.Bus;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import slimeknights.mantle.Mantle;
@@ -68,17 +71,20 @@ import slimeknights.mantle.registration.RegistrationHelper;
 import slimeknights.mantle.util.OffhandCooldownTracker;
 import slimeknights.mantle.util.RegistryHelper;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
-@EventBusSubscriber(modid = Mantle.modId, value = Dist.CLIENT, bus = Bus.MOD)
+@EventBusSubscriber(modid = Mantle.modId, value = Dist.CLIENT)
 public class ClientEvents {
   // 1.21.1: attack indicator GUI atlas coordinates were replaced by named HUD sprites (mirrors the private constants in vanilla Gui)
   private static final ResourceLocation CROSSHAIR_ATTACK_INDICATOR_BACKGROUND_SPRITE = ResourceLocation.withDefaultNamespace("hud/crosshair_attack_indicator_background");
   private static final ResourceLocation CROSSHAIR_ATTACK_INDICATOR_PROGRESS_SPRITE = ResourceLocation.withDefaultNamespace("hud/crosshair_attack_indicator_progress");
   private static final ResourceLocation HOTBAR_ATTACK_INDICATOR_BACKGROUND_SPRITE = ResourceLocation.withDefaultNamespace("hud/hotbar_attack_indicator_background");
   private static final ResourceLocation HOTBAR_ATTACK_INDICATOR_PROGRESS_SPRITE = ResourceLocation.withDefaultNamespace("hud/hotbar_attack_indicator_progress");
+  /** Gauge tooltip found during the crosshair layer this frame, drawn once the HUD is done */
+  @Nullable
+  private static List<Component> pendingGaugeTooltip;
 
   /** Called on construct to initiatlize things that need early entry */
   public static void onConstruct() {}
@@ -153,6 +159,7 @@ public class ClientEvents {
     NeoForge.EVENT_BUS.register(new ExtraHeartRenderHandler());
     NeoForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, RenderGuiLayerEvent.Post.class, ClientEvents::renderOffhandAttackIndicator);
     NeoForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, RenderGuiLayerEvent.Post.class, ClientEvents::renderGaugeTooltip);
+    NeoForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, RenderGuiEvent.Post.class, ClientEvents::drawGaugeTooltip);
   }
 
   // registered with NeoForge game bus
@@ -190,15 +197,15 @@ public class ClientEvents {
         if (!isHotbar && minecraft.options.getCameraType().isFirstPerson()) {
           if (!minecraft.getDebugOverlay().showDebugScreen() || settings.hideGui || minecraft.player.isReducedDebugInfo() || settings.reducedDebugInfo().get()) {
             // mostly cloned from vanilla attack indicator
-            // 1.21.5: the inverting blend moved into the crosshair render pipeline, selected through RenderType::crosshair
+            // the inverting blend lives in the crosshair render pipeline (RenderPipelines.CROSSHAIR, as vanilla Gui#renderCrosshair)
             int scaledHeight = minecraft.getWindow().getGuiScaledHeight();
             // integer division makes this a pain to line up, there might be a simplier version of this formula but I cannot think of one
             int y = (scaledHeight / 2) - 14 + (2 * (scaledHeight % 2));
             int x = minecraft.getWindow().getGuiScaledWidth() / 2 - 8;
             int width = (int)(cooldown * 17.0F);
             // 1.21.1: GUI atlas coordinates replaced by named sprites
-            graphics.blitSprite(RenderType::crosshair, CROSSHAIR_ATTACK_INDICATOR_BACKGROUND_SPRITE, x, y, 16, 4);
-            graphics.blitSprite(RenderType::crosshair, CROSSHAIR_ATTACK_INDICATOR_PROGRESS_SPRITE, 16, 4, 0, 0, x, y, width, 4);
+            graphics.blitSprite(RenderPipelines.CROSSHAIR, CROSSHAIR_ATTACK_INDICATOR_BACKGROUND_SPRITE, x, y, 16, 4);
+            graphics.blitSprite(RenderPipelines.CROSSHAIR, CROSSHAIR_ATTACK_INDICATOR_PROGRESS_SPRITE, 16, 4, 0, 0, x, y, width, 4);
           }
         }
         break;
@@ -214,10 +221,9 @@ public class ClientEvents {
             x = centerWidth + 91 + 6 + 32;
           }
           int l1 = (int)(cooldown * 19.0F);
-          RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
           // 1.21.1: GUI atlas coordinates replaced by named sprites
-          graphics.blitSprite(RenderType::guiTextured, HOTBAR_ATTACK_INDICATOR_BACKGROUND_SPRITE, x, y, 18, 18);
-          graphics.blitSprite(RenderType::guiTextured, HOTBAR_ATTACK_INDICATOR_PROGRESS_SPRITE, 18, 18, 0, 18 - l1, x, y + 18 - l1, 18, l1);
+          graphics.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_ATTACK_INDICATOR_BACKGROUND_SPRITE, x, y, 18, 18);
+          graphics.blitSprite(RenderPipelines.GUI_TEXTURED, HOTBAR_ATTACK_INDICATOR_PROGRESS_SPRITE, 18, 18, 0, 18 - l1, x, y + 18 - l1, 18, l1);
         }
         break;
     }
@@ -286,8 +292,23 @@ public class ClientEvents {
       tooltip = FluidTooltipHandler.getFluidTooltip(fluid);
     }
 
-    int x = minecraft.getWindow().getGuiScaledWidth() / 2;
-    int y = minecraft.getWindow().getGuiScaledHeight() / 2;
-    event.getGuiGraphics().renderTooltip(minecraft.font, tooltip, Optional.empty(), x, y);
+    // 1.21.8: drawn at the end of the HUD (drawGaugeTooltip) so it stays on top of the later HUD layers, as the z=400 tooltip did before
+    pendingGaugeTooltip = tooltip;
+  }
+
+  /** Draws the tooltip found by {@link #renderGaugeTooltip(RenderGuiLayerEvent.Post)} on top of the whole HUD */
+  private static void drawGaugeTooltip(RenderGuiEvent.Post event) {
+    List<Component> tooltip = pendingGaugeTooltip;
+    if (tooltip == null) {
+      return;
+    }
+    pendingGaugeTooltip = null;
+    // the deferred setTooltipForNextFrame is only drawn by screens, so the HUD submits the tooltip directly in a new top stratum
+    GuiGraphics graphics = event.getGuiGraphics();
+    Font font = Minecraft.getInstance().font;
+    int x = graphics.guiWidth() / 2;
+    int y = graphics.guiHeight() / 2;
+    graphics.nextStratum();
+    graphics.renderTooltip(font, ClientHooks.gatherTooltipComponents(ItemStack.EMPTY, tooltip, x, graphics.guiWidth(), graphics.guiHeight(), font), x, y, DefaultTooltipPositioner.INSTANCE, null);
   }
 }

@@ -5,7 +5,7 @@ import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.Profiler;
@@ -329,11 +329,11 @@ public class ExtraHeartRenderHandler {
   private void renderHeartRow(GuiGraphics graphics, int x, int y, int indexOffset, int uOffset, int vOffset, int start, int end, boolean half) {
     // draw full hearts
     for (int i = start; i < end; i += 1) {
-      graphics.blit(RenderType::guiTextured, ICON_HEARTS, x + HEART_OFFSET * i, y + offsets[i + indexOffset], (float) uOffset, (float) vOffset, HEART_SIZE, HEART_SIZE, 256, 256);
+      graphics.blit(RenderPipelines.GUI_TEXTURED, ICON_HEARTS, x + HEART_OFFSET * i, y + offsets[i + indexOffset], (float) uOffset, (float) vOffset, HEART_SIZE, HEART_SIZE, 256, 256);
     }
     // draw half heart
     if (half) {
-      graphics.blit(RenderType::guiTextured, ICON_HEARTS, x + HEART_OFFSET * end, y + offsets[end + indexOffset], (float) (uOffset + HEART_SIZE), (float) vOffset, HEART_SIZE, HEART_SIZE, 256, 256);
+      graphics.blit(RenderPipelines.GUI_TEXTURED, ICON_HEARTS, x + HEART_OFFSET * end, y + offsets[end + indexOffset], (float) (uOffset + HEART_SIZE), (float) vOffset, HEART_SIZE, HEART_SIZE, 256, 256);
     }
   }
 

@@ -2,7 +2,7 @@ package slimeknights.mantle.client.screen.book;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import slimeknights.mantle.client.book.data.BookData;
@@ -48,7 +48,7 @@ public class ArrowButton extends Button {
     int color = this.isHovered ? this.hoverColor : this.color;
 
     int tint = 0xFF000000 | (color & 0xFFFFFF);
-    graphics.blit(RenderType::guiTextured, texture, this.getX(), this.getY(), (float) this.arrowType.x, (float) this.arrowType.y, this.width, this.height, this.width, this.height, 512, 512, tint);
+    graphics.blit(RenderPipelines.GUI_TEXTURED, texture, this.getX(), this.getY(), (float) this.arrowType.x, (float) this.arrowType.y, this.width, this.height, this.width, this.height, 512, 512, tint);
 //    this.renderBg(graphics, mouseX, mouseY, partialTicks);
   }
 

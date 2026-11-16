@@ -1,14 +1,14 @@
 package slimeknights.mantle.client.screen.book.element;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import org.joml.Matrix3x2fStack;
 
 import static slimeknights.mantle.client.screen.book.element.ItemElement.ITEM_SIZE_HARDCODED;
 
@@ -38,17 +38,17 @@ public class SpriteElement extends SizedBookElement {
     int y = this.y;
     // if scaling, need to adjust pose stack
     if (scale != 1) {
-      PoseStack matrices = graphics.pose();
-      matrices.pushPose();
+      Matrix3x2fStack matrices = graphics.pose();
+      matrices.pushMatrix();
       // want to translate before scaling, so clear local variables
-      matrices.translate(x, y, 0);
+      matrices.translate(x, y);
       x = 0;
       y = 0;
-      matrices.scale(scale, scale, 1);
+      matrices.scale(scale, scale);
     }
-    graphics.blitSprite(RenderType::guiTextured, sprite, x, y, 16, 16);
+    graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, 16, 16);
     if (scale != 1) {
-      graphics.pose().popPose();
+      graphics.pose().popMatrix();
     }
   }
 }

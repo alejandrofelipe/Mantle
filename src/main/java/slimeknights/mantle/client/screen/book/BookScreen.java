@@ -1,7 +1,5 @@
 package slimeknights.mantle.client.screen.book;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementNode;
 import net.minecraft.advancements.AdvancementProgress;
@@ -12,11 +10,12 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.font.FontManager;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientAdvancements;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
+import org.joml.Matrix3x2fStack;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.glfw.GLFW;
@@ -183,7 +182,7 @@ public class BookScreen extends Screen {
     if(this.page == -1) {
       this.renderCover(graphics, coverColor);
     } else {
-      PoseStack matrixStack = graphics.pose();
+      Matrix3x2fStack matrixStack = graphics.pose();
       // TODO: can we create copies of the guiGraphics?
       // Jank way to copy last matrix in matrix stack, as no proper way is provided
 //      PoseStack leftMatrix = new PoseStack();
@@ -217,17 +216,20 @@ public class BookScreen extends Screen {
       if (this.book.appearance.drawPageNumbers) {
         if (renderLeft) {
           String pNum = this.page * 2 + "";
-          matrixStack.pushPose();
+          matrixStack.pushMatrix();
           drawerTransform(matrixStack, false);
-          graphics.drawString(fontRenderer, pNum, (PAGE_WIDTH - fontRenderer.width(pNum)) / 2f, PAGE_HEIGHT - 10, 0xFFAAAAAA, false);
-          matrixStack.popPose();
+          // 1.21.8: drawString only takes int positions, translate to keep the half-pixel centering of the float overload
+          matrixStack.translate((PAGE_WIDTH - fontRenderer.width(pNum)) / 2f, 0);
+          graphics.drawString(fontRenderer, pNum, 0, PAGE_HEIGHT - 10, 0xFFAAAAAA, false);
+          matrixStack.popMatrix();
         }
         if (renderRight) {
           String pNum = this.page * 2 + 1 + "";
-          matrixStack.pushPose();
+          matrixStack.pushMatrix();
           drawerTransform(matrixStack, true);
-          graphics.drawString(fontRenderer, pNum, (PAGE_WIDTH - fontRenderer.width(pNum)) / 2f, PAGE_HEIGHT - 10, 0xFFAAAAAA, false);
-          matrixStack.popPose();
+          matrixStack.translate((PAGE_WIDTH - fontRenderer.width(pNum)) / 2f, 0);
+          graphics.drawString(fontRenderer, pNum, 0, PAGE_HEIGHT - 10, 0xFFAAAAAA, false);
+          matrixStack.popMatrix();
         }
       }
 
@@ -239,19 +241,19 @@ public class BookScreen extends Screen {
       // we did that in 1.16.5 - causes tooltips of left to draw under elements on right
       for (ILayerRenderFunction layer : LAYERS) {
         if(renderLeft) {
-          matrixStack.pushPose();
+          matrixStack.pushMatrix();
           drawerTransform(matrixStack, false);
-          matrixStack.scale(PAGE_SCALE, PAGE_SCALE, 1F);
+          matrixStack.scale(PAGE_SCALE, PAGE_SCALE);
           renderPageLayer(graphics, leftMX, mY, partialTicks, leftElements, layer);
-          matrixStack.popPose();
+          matrixStack.popMatrix();
         }
 
         if(renderRight) {
-          matrixStack.pushPose();
+          matrixStack.pushMatrix();
           drawerTransform(matrixStack, true);
-          matrixStack.scale(PAGE_SCALE, PAGE_SCALE, 1F);
+          matrixStack.scale(PAGE_SCALE, PAGE_SCALE);
           renderPageLayer(graphics, rightMX, mY, partialTicks, rightElements, layer);
-          matrixStack.popPose();
+          matrixStack.popMatrix();
         }
       }
     }
@@ -275,47 +277,47 @@ public class BookScreen extends Screen {
     int centerY = this.height / 2 - PAGE_HEIGHT_UNSCALED / 2;
 
     int coverTint = ARGB.colorFromFloat(1.0f, coverColor.x(), coverColor.y(), coverColor.z());
-    graphics.blit(RenderType::guiTextured, cover, centerX, centerY, 0.0F, 0.0F, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE, coverTint);
+    graphics.blit(RenderPipelines.GUI_TEXTURED, cover, centerX, centerY, 0.0F, 0.0F, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE, coverTint);
 
-    PoseStack matrixStack = graphics.pose();
+    Matrix3x2fStack matrixStack = graphics.pose();
     if (!this.book.appearance.title.isEmpty()) {
-      graphics.blit(RenderType::guiTextured, cover, centerX, centerY, 0.0F, (float) PAGE_HEIGHT_UNSCALED, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE);
+      graphics.blit(RenderPipelines.GUI_TEXTURED, cover, centerX, centerY, 0.0F, (float) PAGE_HEIGHT_UNSCALED, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE);
 
-      matrixStack.pushPose();
+      matrixStack.pushMatrix();
 
       int width = this.font.width(this.book.appearance.title);
       float scale = Mth.clamp((float)PAGE_WIDTH / width, 0F, 2.5F);
 
-      matrixStack.scale(scale, scale, 1F);
+      matrixStack.scale(scale, scale);
 
       graphics.drawString(this.font, this.book.appearance.title, (int)((this.width / 2F) / scale + 3 - width / 2F), (int)((this.height / 2F - fontRenderer.lineHeight / 2F) / scale - 4), this.book.appearance.getCoverTextColor(), true);
-      matrixStack.popPose();
+      matrixStack.popMatrix();
     }
 
     if (!this.book.appearance.subtitle.isEmpty()) {
-      matrixStack.pushPose();
+      matrixStack.pushMatrix();
 
       int width = this.font.width(this.book.appearance.subtitle);
       float scale = Mth.clamp((float)PAGE_WIDTH / width, 0F, 1.5F);
 
-      matrixStack.scale(scale, scale, 1F);
+      matrixStack.scale(scale, scale);
       graphics.drawString(this.font, this.book.appearance.subtitle, (int)((this.width / 2F) / scale + 7 - width / 2F), (int)((this.height / 2F + 100 - fontRenderer.lineHeight * 2) / scale), this.book.appearance.getCoverTextColor(), true);
-      matrixStack.popPose();
+      matrixStack.popMatrix();
     }
   }
 
   private void renderUnderLayer(GuiGraphics graphics, Vector3f coverColor) {
     int tint = ARGB.colorFromFloat(1f, coverColor.x(), coverColor.y(), coverColor.z());
-    graphics.blit(RenderType::guiTextured, this.book.appearance.getBookTexture(), this.width / 2 - PAGE_WIDTH_UNSCALED, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2, 0.0F, 0.0F, PAGE_WIDTH_UNSCALED * 2, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE, tint);
+    graphics.blit(RenderPipelines.GUI_TEXTURED, this.book.appearance.getBookTexture(), this.width / 2 - PAGE_WIDTH_UNSCALED, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2, 0.0F, 0.0F, PAGE_WIDTH_UNSCALED * 2, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE, tint);
   }
 
   private void renderPageBackground(GuiGraphics graphics, boolean rightSide) {
     Vector3f pageTint = splitRGB(this.book.appearance.getPageTint());
     int tint = ARGB.colorFromFloat(1f, pageTint.x(), pageTint.y(), pageTint.z());
     if(!rightSide) {
-      graphics.blit(RenderType::guiTextured, book.appearance.getBookTexture(), this.width / 2 - PAGE_WIDTH_UNSCALED, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2, 0.0F, (float) PAGE_HEIGHT_UNSCALED, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE, tint);
+      graphics.blit(RenderPipelines.GUI_TEXTURED, book.appearance.getBookTexture(), this.width / 2 - PAGE_WIDTH_UNSCALED, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2, 0.0F, (float) PAGE_HEIGHT_UNSCALED, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE, tint);
     } else {
-      graphics.blit(RenderType::guiTextured, book.appearance.getBookTexture(), this.width / 2, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2, (float) PAGE_WIDTH_UNSCALED, (float) PAGE_HEIGHT_UNSCALED, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE, tint);
+      graphics.blit(RenderPipelines.GUI_TEXTURED, book.appearance.getBookTexture(), this.width / 2, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2, (float) PAGE_WIDTH_UNSCALED, (float) PAGE_HEIGHT_UNSCALED, PAGE_WIDTH_UNSCALED, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE, tint);
     }
   }
 
@@ -325,7 +327,7 @@ public class BookScreen extends Screen {
 
     for (BookElement element : elements) {
       if (!drawText && element.isText()) continue;
-      RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
+      // 1.21.8: no global shader color to reset, every GUI draw carries its own color
       layerFunc.draw(element, graphics, mouseX, mouseY, partialTicks, font);
     }
   }
@@ -583,11 +585,11 @@ public class BookScreen extends Screen {
     return false;
   }
 
-  public void drawerTransform(PoseStack matrixStack, boolean rightSide) {
+  public void drawerTransform(Matrix3x2fStack matrixStack, boolean rightSide) {
     if (rightSide) {
-      matrixStack.translate(this.width / 2 + PAGE_PADDING_RIGHT + PAGE_MARGIN, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2 + PAGE_PADDING_TOP + PAGE_MARGIN, 0);
+      matrixStack.translate(this.width / 2 + PAGE_PADDING_RIGHT + PAGE_MARGIN, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2 + PAGE_PADDING_TOP + PAGE_MARGIN);
     } else {
-      matrixStack.translate(this.width / 2 - PAGE_WIDTH_UNSCALED + PAGE_PADDING_LEFT + PAGE_MARGIN, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2 + PAGE_PADDING_TOP + PAGE_MARGIN, 0);
+      matrixStack.translate(this.width / 2 - PAGE_WIDTH_UNSCALED + PAGE_PADDING_LEFT + PAGE_MARGIN, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2 + PAGE_PADDING_TOP + PAGE_MARGIN);
     }
   }
 

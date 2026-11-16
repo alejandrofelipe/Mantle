@@ -1,11 +1,12 @@
 package slimeknights.mantle.client.screen.book.element;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.ARGB;
+import org.joml.Matrix3x2fStack;
 import slimeknights.mantle.client.book.data.element.ImageData;
 import slimeknights.mantle.client.screen.book.BookScreen;
 
@@ -72,20 +73,29 @@ public class ImageElement extends SizedBookElement {
 
   @Override
   public void draw(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, Font fontRenderer) {
+    this.draw(graphics, mouseX, mouseY, partialTicks, fontRenderer, 0xFFFFFFFF);
+  }
+
+  /**
+   * Draws this element with an extra ARGB tint multiplied into the color multiplier.
+   * Replaces wrapping the draw in {@code RenderSystem.setShaderColor}, which no longer exists in 1.21.8.
+   * The tint does not apply to item images, as GUI item rendering takes no color.
+   */
+  public void draw(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, Font fontRenderer, int tint) {
     if (this.image.item == null) {
-      int tint = 0xFF000000 | (this.colorMultiplier & 0xFFFFFF);
+      int color = ARGB.multiply(0xFF000000 | (this.colorMultiplier & 0xFFFFFF), tint);
       ResourceLocation texture = requireNonNullElse(this.image.location, TextureManager.INTENTIONAL_MISSING_TEXTURE);
-      graphics.blit(RenderType::guiTextured, texture, this.x, this.y, (float) this.image.u, (float) this.image.v, this.width, this.height, this.image.uw, this.image.vh, this.image.texWidth, this.image.texHeight, tint);
+      graphics.blit(RenderPipelines.GUI_TEXTURED, texture, this.x, this.y, (float) this.image.u, (float) this.image.v, this.width, this.height, this.image.uw, this.image.vh, this.image.texWidth, this.image.texHeight, color);
     }
     else {
-      PoseStack matrices = graphics.pose();
-      matrices.pushPose();
-      matrices.translate(this.x, this.y, 0F);
-      matrices.scale(this.width / 16F, this.height / 16F, 1F);
+      Matrix3x2fStack matrices = graphics.pose();
+      matrices.pushMatrix();
+      matrices.translate(this.x, this.y);
+      matrices.scale(this.width / 16F, this.height / 16F);
 
       this.itemElement.draw(graphics, mouseX, mouseY, partialTicks, fontRenderer);
 
-      matrices.popPose();
+      matrices.popMatrix();
     }
   }
 }

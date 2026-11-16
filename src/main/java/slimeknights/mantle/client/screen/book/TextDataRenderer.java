@@ -1,12 +1,14 @@
 package slimeknights.mantle.client.screen.book;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.ARGB;
 import org.apache.commons.lang3.StringUtils;
+import org.joml.Matrix3x2fStack;
+import org.joml.Vector2f;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.book.data.element.TextData;
 
@@ -26,7 +28,9 @@ public class TextDataRenderer {
     String action = drawText(graphics, x, y, boxWidth, boxHeight, data, mouseX, mouseY, fr, tooltip);
 
     if (!tooltip.isEmpty()) {
-      graphics.renderTooltip(fr, tooltip, Optional.empty(), mouseX, mouseY);
+      // 1.21.8: tooltips are deferred to the end of the frame and drawn without the page transform, so convert the page relative mouse to screen space
+      Vector2f screen = graphics.pose().transformPosition(mouseX, mouseY, new Vector2f());
+      graphics.setTooltipForNextFrame(fr, tooltip, Optional.empty(), Math.round(screen.x), Math.round(screen.y));
     }
 
     return action;
@@ -105,6 +109,8 @@ public class TextDataRenderer {
       String text = translateString(item.text);
 
       String[] split = cropStringBySize(text, modifiers, boxWidth, boxHeight - (atY - y), boxWidth - (atX - x), fr, item.scale);
+      // rgbColor comes from book JSON (RRGGBB) or code, and is also the alpha base for the legacy formatting colors above
+      int color = legacyTextColor(item.rgbColor);
 
       box1X = atX;
       box1Y = atY;
@@ -118,7 +124,7 @@ public class TextDataRenderer {
         }
 
         String s = split[i];
-        drawScaledString(graphics, fr, modifiers + s, atX, atY, item.rgbColor, item.dropshadow, item.scale);
+        drawScaledString(graphics, fr, modifiers + s, atX, atY, color, item.dropshadow, item.scale);
 
         if (i < split.length - 1) {
           atY += fr.lineHeight;
@@ -172,7 +178,7 @@ public class TextDataRenderer {
       }
 
       if (atY >= y + boxHeight) {
-        graphics.drawString(fr, "...", atX, atY, 0, item.dropshadow);
+        graphics.drawString(fr, "...", atX, atY, 0xFF000000, item.dropshadow);
         break;
       }
       y = atY;
@@ -248,14 +254,22 @@ public class TextDataRenderer {
   //BEGIN METHODS FROM GUI
   //TODO: does this exist elsewhere now?
   public static void drawScaledString(GuiGraphics graphics, Font font, String text, float x, float y, int color, boolean dropShadow, float scale) {
-    PoseStack poseStack = graphics.pose();
-    poseStack.pushPose();
-    poseStack.translate(x, y, 0);
-    poseStack.scale(scale, scale, 1F);
+    Matrix3x2fStack poseStack = graphics.pose();
+    poseStack.pushMatrix();
+    poseStack.translate(x, y);
+    poseStack.scale(scale, scale);
 
     graphics.drawString(font, text, 0, 0, color, dropShadow);
 
-    poseStack.popPose();
+    poseStack.popMatrix();
   }
   //END METHODS FROM GUI
+
+  /**
+   * Applies the pre-1.21.6 font color rule: a color with (almost) no alpha is drawn opaque.
+   * Since 1.21.6, text with alpha 0 is skipped entirely, so RRGGBB colors from book data (and literals like {@code 0}) would be invisible.
+   */
+  public static int legacyTextColor(int color) {
+    return (color & 0xFC000000) == 0 ? ARGB.opaque(color) : color;
+  }
 }

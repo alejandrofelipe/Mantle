@@ -14,7 +14,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions.FontContext;
+import org.joml.Matrix3x2f;
+import org.joml.Vector2f;
 import org.joml.Vector2i;
+import org.joml.Vector2ic;
 import slimeknights.mantle.client.screen.book.BookScreen;
 
 import java.util.List;
@@ -119,8 +122,18 @@ public abstract class BookElement {
       ? textLines.stream().flatMap(text -> splitLine(text, font, tooltipTextWidthF)).toList()
       : textLines.stream().map(Component::getVisualOrderText).toList();
 
-    // render the tooltip using the public positioner-based overload (renderTooltipInternal is private in 1.21.1)
-    graphics.renderTooltip(font, lines, POSITIONER, mouseX, mouseY);
+    // 1.21.8: tooltips are deferred to the end of the frame and drawn without the page transform that is active now,
+    // so hand the screen space mouse position over and run the page relative positioner through the captured transform
+    Matrix3x2f pageToScreen = new Matrix3x2f(graphics.pose());
+    Matrix3x2f screenToPage = pageToScreen.invert(new Matrix3x2f());
+    ClientTooltipPositioner positioner = (screenWidth, screenHeight, x, y, width, height) -> {
+      Vector2f pageMouse = screenToPage.transformPosition(x, y, new Vector2f());
+      Vector2ic pagePos = POSITIONER.positionTooltip(screenWidth, screenHeight, Math.round(pageMouse.x), Math.round(pageMouse.y), width, height);
+      Vector2f screenPos = pageToScreen.transformPosition(pagePos.x(), pagePos.y(), new Vector2f());
+      return new Vector2i(Math.round(screenPos.x), Math.round(screenPos.y));
+    };
+    Vector2f screenMouse = pageToScreen.transformPosition(mouseX, mouseY, new Vector2f());
+    graphics.setTooltipForNextFrame(font, lines, positioner, Math.round(screenMouse.x), Math.round(screenMouse.y), false);
   }
 
   /**

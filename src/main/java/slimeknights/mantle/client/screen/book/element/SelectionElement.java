@@ -1,10 +1,10 @@
 package slimeknights.mantle.client.screen.book.element;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.ARGB;
 import slimeknights.mantle.client.book.data.SectionData;
 import slimeknights.mantle.client.screen.book.BookScreen;
 import slimeknights.mantle.client.screen.book.TextDataRenderer;
@@ -49,16 +49,15 @@ public class SelectionElement extends SizedBookElement {
     if (hover) {
       graphics.fill(this.iconX, this.iconY, this.iconX + IMG_SIZE, this.iconY + IMG_SIZE, this.parent.book.appearance.hoverColor);
     }
+    // 1.21.8: the old RenderSystem.setShaderColor tint is passed into the icon draw instead
+    int tint;
     if (unlocked) {
-      RenderSystem.setShaderColor(1F, 1F, 1F, hover ? 1F : 0.5F);
+      tint = ARGB.white(hover ? 1F : 0.5F);
     } else {
-      float r = ((this.parent.book.appearance.lockedSectionColor >> 16) & 0xff) / 255.F;
-      float g = ((this.parent.book.appearance.lockedSectionColor >> 8) & 0xff) / 255.F;
-      float b = (this.parent.book.appearance.lockedSectionColor & 0xff) / 255.F;
-      RenderSystem.setShaderColor(r, g, b, 0.75F);
+      tint = ARGB.color(0.75F, this.parent.book.appearance.lockedSectionColor);
     }
 
-    this.iconRenderer.draw(graphics, mouseX, mouseY, partialTicks, fontRenderer);
+    this.iconRenderer.draw(graphics, mouseX, mouseY, partialTicks, fontRenderer, tint);
 
     if (this.parent.drawText && this.section.parent.appearance.drawSectionListText) {
       String title = this.section.getTitle().replace("\\n", "\n");

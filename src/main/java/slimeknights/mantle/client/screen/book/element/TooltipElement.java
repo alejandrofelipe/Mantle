@@ -23,7 +23,7 @@ public class TooltipElement extends SizedBookElement {
   @Override
   public void drawOverlay(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, Font fontRenderer) {
     if (this.isHovered(mouseX, mouseY)) {
-      setPageTooltip(graphics, fontRenderer, this.tooltips.stream().map(Component::getVisualOrderText).toList(), null, mouseX, mouseY);
+      setPageTooltip(graphics, fontRenderer, this.tooltips, mouseX, mouseY);
     }
   }
 }

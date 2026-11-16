@@ -27,7 +27,7 @@ public class TextDataRenderer {
     String action = drawText(graphics, x, y, boxWidth, boxHeight, data, mouseX, mouseY, fr, tooltip);
 
     if (!tooltip.isEmpty()) {
-      BookElement.setPageTooltip(graphics, fr, tooltip.stream().map(Component::getVisualOrderText).toList(), null, mouseX, mouseY);
+      BookElement.setPageTooltip(graphics, fr, tooltip, mouseX, mouseY);
     }
 
     return action;

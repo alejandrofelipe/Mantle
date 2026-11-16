@@ -22,6 +22,7 @@ import slimeknights.mantle.client.screen.book.BookScreen;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 public abstract class BookElement {
@@ -127,19 +128,22 @@ public abstract class BookElement {
   }
 
   /**
-   * Sets a tooltip for the book page currently being drawn. This is the single place handling the 1.21.6+ deferred tooltips for the book:
+   * Sets an already wrapped tooltip for the book page currently being drawn.
+   * Together with {@link #setPageTooltip(GuiGraphics, Font, List, int, int)} this is the single place handling the 1.21.6+ deferred tooltips for the book:
    * <ul>
    *   <li>{@link GuiGraphics#setTooltipForNextFrame} draws the tooltip at the end of the frame, after the page transform active now has been popped.
    *   So the page relative mouse position is moved to screen space here, and {@code pagePositioner} is run in page space and its result moved back.</li>
    *   <li>This assumes an unscaled page transform (a pure translation, as {@link BookScreen#PAGE_SCALE} is 1): only the pose translation is used,
    *   and the tooltip size given to the positioner is in screen space while it compares against page sizes.</li>
-   *   <li>Up to 1.21.5 tooltips were drawn immediately, so the last one drawn ended on top. The deferred queue keeps the first tooltip of the frame
-   *   unless {@code focused} is set, so book tooltips are set as focused to keep the last one winning. Vanilla widgets on the book screen render after
-   *   the book and set unfocused tooltips, so they still cannot replace a book tooltip, same as before where the book tooltip was drawn on top.</li>
+   *   <li>Ordering is mixed. Up to 1.21.5 tooltips were drawn immediately, so the last one drawn ended on top; the deferred queue keeps the first
+   *   tooltip of the frame unless it is set as focused. The only public focused overload takes pre-split {@link FormattedCharSequence} lines
+   *   (there is no public way to submit gathered {@code ClientTooltipComponent}s as focused), so this method sets focused tooltips and the last
+   *   one wins, while the {@link Component} overload keeps the NeoForge gather/wrap of 1.21.5 and is first-wins. Vanilla widgets on the book screen
+   *   render after the book with unfocused tooltips, so they cannot replace a book tooltip either way.</li>
    * </ul>
    * @param graphics        Graphics instance, with the page transform active
    * @param font            Font for the tooltip
-   * @param lines           Tooltip lines
+   * @param lines           Tooltip lines, already wrapped
    * @param pagePositioner  Positioner working in page relative coordinates, or null to use the vanilla screen positioner
    * @param mouseX          Page relative mouse X
    * @param mouseY          Page relative mouse Y
@@ -156,6 +160,22 @@ public abstract class BookElement {
       };
     }
     graphics.setTooltipForNextFrame(font, lines, positioner, mouseX + offsetX, mouseY + offsetY, true);
+  }
+
+  /**
+   * Sets a component tooltip for the book page currently being drawn, with the vanilla screen positioner.
+   * Goes through {@link net.neoforged.neoforge.client.ClientHooks#gatherTooltipComponents} like the 1.21.5 {@code renderTooltip(Font, List, Optional, int, int)},
+   * so it keeps the screen width wrapping and the GatherComponents event, but it is first-wins in the deferred queue.
+   * See {@link #setPageTooltip(GuiGraphics, Font, List, ClientTooltipPositioner, int, int)} for the page transform handling and ordering.
+   * @param graphics  Graphics instance, with the page transform active
+   * @param font      Font for the tooltip
+   * @param lines     Tooltip lines
+   * @param mouseX    Page relative mouse X
+   * @param mouseY    Page relative mouse Y
+   */
+  public static void setPageTooltip(GuiGraphics graphics, Font font, List<Component> lines, int mouseX, int mouseY) {
+    Matrix3x2f pose = graphics.pose();
+    graphics.setTooltipForNextFrame(font, lines, Optional.empty(), mouseX + Math.round(pose.m20()), mouseY + Math.round(pose.m21()));
   }
 
   /**

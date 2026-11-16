@@ -19,8 +19,9 @@ import slimeknights.mantle.config.Config;
  * 1.21.5: core shader JSONs are gone; each shader is now part of a {@link RenderPipeline}, which also owns the uniforms, samplers,
  * vertex format, blend, depth and cull state that used to live in the shader JSON and in {@link net.minecraft.client.renderer.RenderStateShard}s.
  * Pipelines must be registered in {@link RegisterRenderPipelinesEvent} so they are compiled with the vanilla ones.
+ * 1.21.6: uniforms are std140 blocks; Mantle's shaders import the {@code DynamicTransforms}, {@code Projection} and {@code Fog} blocks, matching {@link RenderPipelines#MATRICES_FOG_SNIPPET}.
  */
-@EventBusSubscriber(modid = Mantle.modId, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = Mantle.modId, value = Dist.CLIENT)
 public class MantleShaders {
   /** Vertex format for the structure renderer, block format plus overlay UVs. Defined here rather than {@link MantleRenderTypes} so pipelines can be built without loading render types. */
   public static final VertexFormat BLOCK_WITH_OVERLAY = VertexFormat.builder()
@@ -34,7 +35,7 @@ public class MantleShaders {
     .build();
 
   /** Shared fluid state: translucent, culled, depth tested and written, {@code POSITION_COLOR_TEX_LIGHTMAP} quads. Has no shaders, see {@link #FLUID_SNIPPET} and {@link #FLUID_NO_FOG_SNIPPET}. */
-  private static final RenderPipeline.Snippet FLUID_BASE_SNIPPET = RenderPipeline.builder(RenderPipelines.MATRICES_COLOR_FOG_SNIPPET)
+  private static final RenderPipeline.Snippet FLUID_BASE_SNIPPET = RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
     .withSampler("Sampler0")
     .withBlend(BlendFunction.TRANSLUCENT)
     .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP, VertexFormat.Mode.QUADS)
@@ -55,7 +56,7 @@ public class MantleShaders {
   /** Fluid pipeline without the fog fix, for shader compatibility */
   public static final RenderPipeline FLUID_NO_FOG = RenderPipeline.builder(FLUID_NO_FOG_SNIPPET).withLocation(pipeline("fluid_no_fog")).build();
   /** Translucent block pipeline ignoring the lightmap, used for book structures */
-  public static final RenderPipeline TRANSLUCENT_FULLBRIGHT = RenderPipeline.builder(RenderPipelines.MATRICES_COLOR_FOG_SNIPPET)
+  public static final RenderPipeline TRANSLUCENT_FULLBRIGHT = RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
     .withLocation(pipeline("translucent_fullbright"))
     .withVertexShader(Mantle.getResource("core/block_fullbright"))
     .withFragmentShader(Mantle.getResource("core/block_fullbright"))

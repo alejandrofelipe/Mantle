@@ -31,6 +31,7 @@ import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent.RegisterLoaders;
 import net.neoforged.neoforge.client.event.RegisterBlockStateModels;
 import net.neoforged.neoforge.client.event.RegisterItemModelsEvent;
+import net.neoforged.neoforge.client.event.RegisterPictureInPictureRenderersEvent;
 import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
 import net.neoforged.neoforge.client.ClientHooks;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
@@ -60,6 +61,8 @@ import slimeknights.mantle.client.model.util.MantleItemLayerModel;
 import slimeknights.mantle.client.model.util.ModelHelper;
 import slimeknights.mantle.client.render.FluidCuboid;
 import slimeknights.mantle.client.render.RenderItem;
+import slimeknights.mantle.client.screen.book.element.pip.StructurePiPRenderer;
+import slimeknights.mantle.client.screen.book.element.pip.StructureRenderState;
 import slimeknights.mantle.client.uitest.UiTestScenarios;
 import slimeknights.mantle.client.uitest.UiTestSuite;
 import slimeknights.mantle.command.client.MantleClientCommand;
@@ -98,6 +101,12 @@ public class ClientEvents {
     if (MantleRegistrations.HANGING_SIGN != null) {
       event.registerBlockEntityRenderer(MantleRegistrations.HANGING_SIGN, HangingSignRenderer::new);
     }
+  }
+
+  @SubscribeEvent
+  static void registerPictureInPictureRenderers(RegisterPictureInPictureRenderersEvent event) {
+    // 1.21.8: 3D content in GUIs is rendered to a texture by a picture-in-picture renderer
+    event.register(StructureRenderState.class, StructurePiPRenderer::new);
   }
 
   @SubscribeEvent

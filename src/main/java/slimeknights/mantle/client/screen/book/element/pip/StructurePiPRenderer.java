@@ -1,0 +1,111 @@
+package slimeknights.mantle.client.screen.book.element.pip;
+
+import com.mojang.blaze3d.platform.Lighting;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.render.pip.PictureInPictureRenderer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.block.BlockRenderDispatcher;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import slimeknights.mantle.Mantle;
+import slimeknights.mantle.client.book.structure.StructureInfo;
+import slimeknights.mantle.client.book.structure.level.TemplateLevel;
+import slimeknights.mantle.client.render.MantleRenderTypes;
+
+import java.util.List;
+
+/**
+ * Renders a book structure preview into its own texture, which the GUI then blits.
+ * 1.21.8: replaces the immediate 3D drawing {@link slimeknights.mantle.client.screen.book.element.StructureElement} did inside the GUI.
+ * Registered for {@link StructureRenderState} in {@link slimeknights.mantle.client.ClientEvents}; NeoForge pools one renderer per state on screen.
+ */
+public class StructurePiPRenderer extends PictureInPictureRenderer<StructureRenderState> {
+  /** Last time a render error was logged, to avoid logging every frame */
+  private static long lastPrintedErrorTimeMs = -1;
+
+  public StructurePiPRenderer(MultiBufferSource.BufferSource bufferSource) {
+    super(bufferSource);
+  }
+
+  @Override
+  public Class<StructureRenderState> getRenderStateClass() {
+    return StructureRenderState.class;
+  }
+
+  @Override
+  protected String getTextureLabel() {
+    return "mantle_structure";
+  }
+
+  @Override
+  protected float getTranslateY(int height, int guiScale) {
+    // center the structure vertically, like the entity renderer
+    return height / 2f;
+  }
+
+  @Override
+  protected void renderToTexture(StructureRenderState state, PoseStack poseStack) {
+    // the fullbright block shader ignores the lights, but keep the GUI block lighting bound like the vanilla 3D picture-in-picture renderers
+    Minecraft minecraft = Minecraft.getInstance();
+    minecraft.gameRenderer.getLighting().setupFor(Lighting.Entry.ITEMS_3D);
+
+    // the pose arrives centered on the texture, y down, scaled to state.scale() GUI units per unit with z pointing away from the viewer
+    float pixelsPerBlock = minecraft.getWindow().getGuiScale() * state.scale();
+    poseStack.translate(state.offsetX() / state.scale(), state.offsetY() / state.scale(), 0);
+    // flip to y up and z toward the viewer, as the old GUI transform did. Depth is kept at one unit per block like the old z scale of 1,
+    // which keeps every structure well inside the +-1000 depth range of the texture projection
+    poseStack.scale(1, -1, -1 / pixelsPerBlock);
+
+    TemplateLevel level = state.level();
+    StructureInfo info = state.info();
+    int structureLength = info.structureLength;
+    int structureWidth = info.structureWidth;
+    int structureHeight = info.structureHeight;
+
+    try {
+      poseStack.pushTransformation(state.transform());
+      poseStack.translate(structureLength / -2f, structureHeight / -2f, structureWidth / -2f);
+
+      BlockRenderDispatcher blockRender = minecraft.getBlockRenderer();
+      VertexConsumer buffer = this.bufferSource.getBuffer(MantleRenderTypes.TRANSLUCENT_FULLBRIGHT);
+      for (int h = 0; h < structureHeight; h++) {
+        for (int l = 0; l < structureLength; l++) {
+          for (int w = 0; w < structureWidth; w++) {
+            BlockPos pos = new BlockPos(l, h, w);
+            BlockState blockState = level.getBlockState(pos);
+
+            if (!blockState.isAir()) {
+              poseStack.pushPose();
+              poseStack.translate(l, h, w);
+
+              int overlay;
+              if (pos.equals(new BlockPos(1, 1, 1)))
+                overlay = OverlayTexture.pack(0, true);
+              else
+                overlay = OverlayTexture.NO_OVERLAY;
+
+              // block models collect parts against the level (block entity data is read through TemplateLevel#getModelData);
+              // every part goes into the single fullbright translucent buffer
+              level.random.setSeed(blockState.getSeed(pos));
+              List<BlockModelPart> parts = blockRender.getBlockModel(blockState).collectParts(level, pos, blockState, level.random);
+              blockRender.getModelRenderer().tesselateBlock(level, parts, blockState, pos, poseStack, layer -> buffer, false, overlay);
+
+              poseStack.popPose();
+            }
+          }
+        }
+      }
+    } catch (Exception e) {
+      // the pose stack is thrown away after this call, so no need to unwind it
+      long now = System.currentTimeMillis();
+      if (now > lastPrintedErrorTimeMs + 1000) {
+        Mantle.logger.error("Error rendering book structure", e);
+        lastPrintedErrorTimeMs = now;
+      }
+    }
+  }
+}

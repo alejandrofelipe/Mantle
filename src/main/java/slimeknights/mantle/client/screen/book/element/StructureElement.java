@@ -1,25 +1,19 @@
 package slimeknights.mantle.client.screen.book.element;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.math.Transformation;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.block.BlockRenderDispatcher;
-import net.minecraft.client.renderer.block.model.BlockModelPart;
-import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import org.joml.AxisAngle4f;
+import org.joml.Matrix3x2fStack;
 import org.joml.Quaternionf;
+import org.joml.Vector2f;
 import org.joml.Vector3f;
 import slimeknights.mantle.client.book.structure.StructureInfo;
 import slimeknights.mantle.client.book.structure.level.TemplateLevel;
-import slimeknights.mantle.client.render.MantleRenderTypes;
 import slimeknights.mantle.client.screen.book.BookScreen;
+import slimeknights.mantle.client.screen.book.element.pip.StructureRenderState;
 
 import java.util.List;
 import java.util.stream.IntStream;
@@ -36,7 +30,6 @@ public class StructureElement extends SizedBookElement {
   public final TemplateLevel structureWorld;
 
   public long lastStep = -1;
-  public long lastPrintedErrorTimeMs = -1;
 
   public StructureElement(int x, int y, int width, int height, StructureTemplate template, List<StructureTemplate.StructureBlockInfo> structure) {
     super(x, y, width, height);
@@ -62,86 +55,34 @@ public class StructureElement extends SizedBookElement {
 
   @Override
   public void draw(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, Font fontRenderer) {
-    MultiBufferSource.BufferSource buffer = Minecraft.getInstance().renderBuffers().bufferSource();
-    PoseStack transform = graphics.pose();
-    PoseStack.Pose lastEntryBeforeTry = transform.last();
+    long currentTime = System.currentTimeMillis();
 
-    try {
-      long currentTime = System.currentTimeMillis();
-
-      if (this.lastStep < 0)
-        this.lastStep = currentTime;
-      else if (this.canTick && currentTime - this.lastStep > 200) {
-        this.renderInfo.step();
-        this.lastStep = currentTime;
-      }
-
-      if (!this.canTick) {
-        this.renderInfo.reset();
-      }
-
-      int structureLength = this.renderInfo.structureLength;
-      int structureWidth = this.renderInfo.structureWidth;
-      int structureHeight = this.renderInfo.structureHeight;
-
-      transform.pushPose();
-
-      final BlockRenderDispatcher blockRender = Minecraft.getInstance().getBlockRenderer();
-
-      transform.translate(this.transX, this.transY, Math.max(structureHeight, Math.max(structureWidth, structureLength)));
-      transform.scale(this.scale, -this.scale, 1);
-      transform.pushTransformation(this.additionalTransform);
-      transform.mulPose(new Quaternionf().rotateYXZ(0, 0, 0));
-
-      transform.translate(structureLength / -2f, structureHeight / -2f, structureWidth / -2f);
-
-      for (int h = 0; h < structureHeight; h++) {
-        for (int l = 0; l < structureLength; l++) {
-          for (int w = 0; w < structureWidth; w++) {
-            BlockPos pos = new BlockPos(l, h, w);
-            BlockState state = this.structureWorld.getBlockState(pos);
-
-            if (!state.isAir()) {
-              transform.pushPose();
-              transform.translate(l, h, w);
-
-              int overlay;
-
-              if (pos.equals(new BlockPos(1, 1, 1)))
-                overlay = OverlayTexture.pack(0, true);
-              else
-                overlay = OverlayTexture.NO_OVERLAY;
-
-              // 1.21.5: block models collect parts against the level (block entity data is read through
-              // TemplateLevel#getModelData); every part goes into the single fullbright translucent buffer
-              structureWorld.random.setSeed(state.getSeed(pos));
-              List<BlockModelPart> parts = blockRender.getBlockModel(state).collectParts(structureWorld, pos, state, structureWorld.random);
-              blockRender.getModelRenderer().tesselateBlock(
-                structureWorld, parts, state, pos, transform,
-                buffer.getBuffer(MantleRenderTypes.TRANSLUCENT_FULLBRIGHT), false, overlay);
-
-              transform.popPose();
-            }
-          }
-        }
-      }
-
-      transform.popPose();
-      transform.popPose();
-
-    } catch (Exception e) {
-      final long now = System.currentTimeMillis();
-
-      if (now > this.lastPrintedErrorTimeMs + 1000) {
-        e.printStackTrace();
-        this.lastPrintedErrorTimeMs = now;
-      }
-
-      while (lastEntryBeforeTry != transform.last())
-        transform.popPose();
+    if (this.lastStep < 0)
+      this.lastStep = currentTime;
+    else if (this.canTick && currentTime - this.lastStep > 200) {
+      this.renderInfo.step();
+      this.lastStep = currentTime;
     }
 
-    buffer.endBatch();
+    if (!this.canTick) {
+      this.renderInfo.reset();
+    }
+
+    // 1.21.8: GUIs are deferred, so the structure is drawn by StructurePiPRenderer into its own texture and blitted by the GUI.
+    // Picture-in-picture bounds are absolute and ignore the pose, so move the page position and scale to screen space here.
+    Matrix3x2fStack pose = graphics.pose();
+    Vector2f center = pose.transformPosition(this.transX, this.transY, new Vector2f());
+    float screenScale = this.scale * (float) Math.sqrt(pose.m00() * pose.m00() + pose.m01() * pose.m01());
+    // the old drawing was not clipped to the element, so size the area to fit the structure at any rotation
+    int length = this.renderInfo.structureLength;
+    int height = this.renderInfo.structureHeight;
+    int width = this.renderInfo.structureWidth;
+    int radius = Mth.ceil(Math.sqrt(length * length + height * height + width * width) / 2 * screenScale) + 1;
+    int centerX = Math.round(center.x);
+    int centerY = Math.round(center.y);
+    graphics.submitPictureInPictureRenderState(new StructureRenderState(
+      this.structureWorld, this.renderInfo, this.additionalTransform, center.x - centerX, center.y - centerY,
+      centerX - radius, centerY - radius, centerX + radius, centerY + radius, screenScale, graphics.peekScissorStack()));
   }
 
   @Override

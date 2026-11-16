@@ -39,8 +39,6 @@ public class InventoryTileEntityRenderer<T extends BlockEntity & Container> impl
     }
   }
 
-  @Override
-  public boolean shouldRenderOffScreen(T tile) {
-    return !tile.isEmpty();
-  }
+  // 1.21.6: shouldRenderOffScreen lost its block entity parameter, so it can no longer check for an empty inventory. It was only read when the block entity
+  // was added or its section rebuilt, making that check mostly stale anyway; use the default of rendering with the section (still frustum culled by the render bounding box).
 }

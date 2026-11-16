@@ -4,6 +4,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BlockElement;
 import net.minecraft.client.renderer.block.model.SimpleModelWrapper;
 import net.minecraft.client.renderer.block.model.TextureSlots;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.Material;
@@ -121,7 +122,7 @@ public record ElementModelData(List<BlockElement> elements, List<ColorData> colo
 
   /** Gets the chunk render type for block parts, or null to use the block's default */
   @Nullable
-  public RenderType blockRenderType() {
+  public ChunkSectionLayer blockRenderType() {
     return renderType.isEmpty() ? null : renderType.block();
   }
 

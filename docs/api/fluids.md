@@ -176,10 +176,12 @@ public class MyFluidTextureProvider extends AbstractFluidTextureProvider {
       .root(ResourceLocation.fromNamespaceAndPath(MOD_ID, "block/fluid/molten_metal/"))
       .still().flowing()                                          // <root>still, <root>flowing
       .color(0xFF_E0_7A_30)
-      .fog(FogShape.SPHERE, 0.25f, 6f);
+      .fog(0.25f, 6f);                                            // environmental fog start/end while the camera is in the fluid
   }
 }
 ```
+
+Since 1.21.6 fog has no shape: `fog(start, end)` overrides the environmental (spherical) fog range, only ever tightening it. Fluid texture JSON with the legacy `fog.shape` key still loads, the shape is ignored with a one-time warning.
 
 ### Fluid tooltips (`AbstractFluidTooltipProvider`)
 

@@ -1,14 +1,13 @@
 package slimeknights.mantle.fluid.texture;
 
-import com.mojang.blaze3d.shaders.FogShape;
 import com.mojang.blaze3d.vertex.PoseStack;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.FogParameters;
-import net.minecraft.client.renderer.FogRenderer.FogMode;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.fog.FogData;
+import net.minecraft.client.renderer.fog.environment.FogEnvironment;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.ARGB;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
@@ -78,18 +77,17 @@ public class ClientTextureFluidType implements IClientFluidTypeExtensions {
   }
 
   @Override
-  public FogParameters modifyFogRender(Camera camera, FogMode mode, float renderDistance, float partialTick, FogParameters fogParameters) {
-    // 1.21.4: fog is now an immutable FogParameters record (the RenderSystem.setShaderFog* setters were removed), so
-    // return a copy with our overrides applied. Only override start/end when they would tighten the existing fog.
+  public void modifyFogRender(Camera camera, @Nullable FogEnvironment environment, float renderDistance, float partialTick, FogData fogData) {
+    // 1.21.6: fog is a mutable FogData with separate environmental (spherical) and render distance (cylindrical) ranges, and no shape.
+    // Our start/end map to the environmental range, like vanilla lava/water/powder snow. Only override when it would tighten the existing fog.
     FluidTexture data = FluidTextureManager.getData(type);
-    FogShape overrideShape = data.fogShape();
-    if (overrideShape == null) {
-      return fogParameters;
+    if (!data.overrideFog()) {
+      return;
     }
-    return new FogParameters(
-      Math.min(data.fogStart(), fogParameters.start()),
-      Math.min(data.fogEnd(), fogParameters.end()),
-      overrideShape,
-      fogParameters.red(), fogParameters.green(), fogParameters.blue(), fogParameters.alpha());
+    fogData.environmentalStart = Math.min(data.fogStart(), fogData.environmentalStart);
+    fogData.environmentalEnd = Math.min(data.fogEnd(), fogData.environmentalEnd);
+    // vanilla fluid environments also end the sky and clouds at the environmental end, so they do not show through the fluid
+    fogData.skyEnd = Math.min(fogData.skyEnd, fogData.environmentalEnd);
+    fogData.cloudEnd = Math.min(fogData.cloudEnd, fogData.environmentalEnd);
   }
 }

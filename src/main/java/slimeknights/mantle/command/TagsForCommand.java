@@ -317,6 +317,7 @@ public class TagsForCommand {
     double range = Objects.requireNonNull(player.getAttribute(Attributes.ENTITY_INTERACTION_RANGE)).getValue();
     Vec3 direction = start.add(look.x * range, look.y * range, look.z * range);
     AABB bb = player.getBoundingBox().expandTowards(look.x * range, look.y * range, look.z * range).expandTowards(1, 1, 1);
+    // 0.3F is the margin the 1.21.5 6-arg overload used implicitly; kept for parity (the new 6-arg overload takes a Projectile and uses computeMargin)
     EntityHitResult entityTrace = ProjectileUtil.getEntityHitResult(source.getLevel(), player, start, direction, bb, e -> true, 0.3F);
     if (entityTrace != null) {
       EntityType<?> target = entityTrace.getEntity().getType();

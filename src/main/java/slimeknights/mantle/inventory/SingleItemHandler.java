@@ -2,6 +2,7 @@ package slimeknights.mantle.inventory;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import com.mojang.logging.LogUtils;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
@@ -9,6 +10,8 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import slimeknights.mantle.block.entity.MantleBlockEntity;
+
+import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 
@@ -18,6 +21,8 @@ import javax.annotation.Nonnull;
 @SuppressWarnings("unused")
 @RequiredArgsConstructor
 public abstract class SingleItemHandler<T extends MantleBlockEntity> implements IItemHandlerModifiable {
+  private static final Logger LOGGER = LogUtils.getLogger();
+
   protected final T parent;
   private final int maxStackSize;
 
@@ -161,6 +166,6 @@ public abstract class SingleItemHandler<T extends MantleBlockEntity> implements 
    */
   public void readFromNBT(HolderLookup.Provider registries, CompoundTag nbt) {
     // an empty tag is the saved form of an empty stack
-    stack = nbt.isEmpty() ? ItemStack.EMPTY : ItemStack.CODEC.parse(registries.createSerializationContext(NbtOps.INSTANCE), nbt).result().orElse(ItemStack.EMPTY);
+    stack = nbt.isEmpty() ? ItemStack.EMPTY : ItemStack.CODEC.parse(registries.createSerializationContext(NbtOps.INSTANCE), nbt).resultOrPartial(err -> LOGGER.error("Failed to read item stack for {}: {}", parent, err)).orElse(ItemStack.EMPTY);
   }
 }

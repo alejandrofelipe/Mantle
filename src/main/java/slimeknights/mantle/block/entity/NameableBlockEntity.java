@@ -27,7 +27,7 @@ public abstract class NameableBlockEntity extends MantleBlockEntity implements I
 
 	/**
 	 * Codec storing the component as a JSON string, the format used by Mantle before 1.21.8 ({@code Component.Serializer.toJson}), so existing worlds keep loading.
-	 * When decoding, falls back to the vanilla component format if the tag is not a string.
+	 * When decoding, a string tag is tried as a JSON string first; if that fails to parse or decode, or the tag is not a string, the vanilla component format is used as a fallback.
 	 */
 	private static final Codec<Component> JSON_STRING_CODEC = new Codec<>() {
 		@Override
@@ -45,10 +45,14 @@ public abstract class NameableBlockEntity extends MantleBlockEntity implements I
 			DynamicOps<JsonElement> jsonOps = ops instanceof RegistryOps<T> registryOps ? registryOps.withParent(JsonOps.INSTANCE) : JsonOps.INSTANCE;
 			try {
 				JsonElement json = JsonParser.parseString(string.result().get());
-				return ComponentSerialization.CODEC.parse(jsonOps, json).map(component -> Pair.of(component, input));
+				DataResult<Pair<Component, T>> parsed = ComponentSerialization.CODEC.parse(jsonOps, json).map(component -> Pair.of(component, input));
+				if (parsed.result().isPresent()) {
+					return parsed;
+				}
 			} catch (JsonParseException e) {
-				return DataResult.error(e::getMessage);
+				// not JSON, fall through to the vanilla format
 			}
+			return ComponentSerialization.CODEC.decode(ops, input);
 		}
 	};
 

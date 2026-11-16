@@ -229,8 +229,8 @@ public abstract class InventoryBlockEntity extends NameableBlockEntity implement
    */
   public void writeInventory(ValueOutput output) {
     ValueOutput.TypedOutputList<ItemStackWithSlot> list = output.list(TAG_ITEMS, ItemStackWithSlot.CODEC);
-    for (int i = 0; i < this.inventory.size(); i++) {
-      ItemStack stack = this.inventory.get(i);
+    for (int i = 0; i < this.getContainerSize(); i++) {
+      ItemStack stack = this.getItem(i);
       if (!stack.isEmpty()) {
         list.add(new ItemStackWithSlot(i, stack));
       }
@@ -238,7 +238,7 @@ public abstract class InventoryBlockEntity extends NameableBlockEntity implement
   }
 
   /**
-   * Reads an inventory from the input. Overwrites current content
+   * Reads an inventory from the input. Slots present in the input are overwritten, slots absent from it are left unchanged.
    * Replaces {@code readInventoryFromNBT(CompoundTag, HolderLookup.Provider)}.
    */
   public void readInventory(ValueInput input) {

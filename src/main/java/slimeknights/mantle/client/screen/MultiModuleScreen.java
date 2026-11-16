@@ -1,17 +1,17 @@
 package slimeknights.mantle.client.screen;
 
 import com.google.common.collect.Lists;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
+import org.joml.Matrix3x2fStack;
 import slimeknights.mantle.inventory.MultiModuleContainerMenu;
 import slimeknights.mantle.inventory.WrapperSlot;
 
@@ -96,13 +96,13 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
     this.drawContainerName(graphics);
     this.drawPlayerInventoryName(graphics);
 
-    PoseStack poses = graphics.pose();
+    Matrix3x2fStack poses = graphics.pose();
     for (ModuleScreen<?,?> module : this.modules) {
       // set correct state for the module
-      poses.pushPose();
-      poses.translate(module.getGuiLeft() - this.leftPos, module.getGuiTop() - this.topPos, 0.0F);
+      poses.pushMatrix();
+      poses.translate(module.getGuiLeft() - this.leftPos, module.getGuiTop() - this.topPos);
       module.handleDrawGuiContainerForegroundLayer(graphics, mouseX, mouseY);
-      poses.popPose();
+      poses.popMatrix();
     }
   }
 
@@ -116,17 +116,17 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
   }
 
   protected void drawBackground(GuiGraphics graphics, ResourceLocation background) {
-    graphics.blit(RenderType::guiTextured, background, this.cornerX, this.cornerY, 0.0F, 0.0F, this.realWidth, this.realHeight, 256, 256);
+    graphics.blit(RenderPipelines.GUI_TEXTURED, background, this.cornerX, this.cornerY, 0.0F, 0.0F, this.realWidth, this.realHeight, 256, 256);
   }
 
   protected void drawContainerName(GuiGraphics graphics) {
-    graphics.drawString(this.font, this.getTitle().getVisualOrderText(), 8, 6, 0x404040, false);
+    graphics.drawString(this.font, this.getTitle().getVisualOrderText(), 8, 6, 0xFF404040, false);
   }
 
   protected void drawPlayerInventoryName(GuiGraphics graphics) {
     assert Minecraft.getInstance().player != null;
     Component localizedName = Minecraft.getInstance().player.getInventory().getDisplayName();
-    graphics.drawString(this.font, localizedName.getVisualOrderText(), 8, this.imageHeight - 96 + 2, 0x404040, false);
+    graphics.drawString(this.font, localizedName.getVisualOrderText(), 8, this.imageHeight - 96 + 2, 0xFF404040, false);
   }
 
   @Override
@@ -140,13 +140,30 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
   }
 
   @Override
+  public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+    // 1.21.6+: Screen.render no longer calls renderBackground; Screen#renderWithTooltip calls it separately, before render.
+    // AbstractContainerScreen's renderBackground runs renderBg, which up to 1.21.5 ran inside render's corrected bounds,
+    // so wrap it in the same main-window corner here to keep renderBg seeing the same leftPos/topPos/imageWidth/imageHeight.
+    int oldX = this.leftPos;
+    int oldY = this.topPos;
+    int oldW = this.imageWidth;
+    int oldH = this.imageHeight;
+
+    this.leftPos = this.cornerX;
+    this.topPos = this.cornerY;
+    this.imageWidth = this.realWidth;
+    this.imageHeight = this.realHeight;
+    super.renderBackground(graphics, mouseX, mouseY, partialTicks);
+    this.leftPos = oldX;
+    this.topPos = oldY;
+    this.imageWidth = oldW;
+    this.imageHeight = oldH;
+  }
+
+  @Override
   public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
-    // 1.21: Screen.render (via super.render) now calls renderBackground itself, and AbstractContainerScreen's
-    // renderBackground runs renderBg. The old explicit renderBackground call here (1.20 style) therefore rendered the
-    // whole container a second time BEFORE leftPos/topPos were corrected to the main-window corner — the stale-offset
-    // duplicate showed through for anything drawn at depth > 0 (e.g. GUI fluids at z=100 painted over the correct
-    // pass). Only wrap super.render (and the explicit tooltip pass, which 1.21 still leaves to subclasses) in the
-    // corrected bounds.
+    // Wrap super.render (and the explicit tooltip pass, which vanilla still leaves to subclasses) in the bounds corrected
+    // to the main-window corner. The background is wrapped the same way in renderBackground above.
     int oldX = this.leftPos;
     int oldY = this.topPos;
     int oldW = this.imageWidth;

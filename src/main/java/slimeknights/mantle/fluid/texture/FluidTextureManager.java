@@ -1,6 +1,7 @@
 package slimeknights.mantle.fluid.texture;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.ResourceLocation;
@@ -62,7 +63,12 @@ public class FluidTextureManager implements IEarlySafeManagerReloadListener {
         Mantle.logger.debug("Ignoring fluid texture {} as no fluid type exists with that name", id);
       } else {
         // parse it if valid
-        map.put(type, FluidTexture.deserialize(GsonHelper.convertToJsonObject(entry.getValue(), "fluid_texture")));
+        JsonObject json = GsonHelper.convertToJsonObject(entry.getValue(), "fluid_texture");
+        // 1.21.6: fog shape no longer exists, it is still accepted but ignored
+        if (json.has("fog") && GsonHelper.getAsJsonObject(json, "fog").has("shape")) {
+          Mantle.logger.warn("Fluid texture {} sets fog 'shape', which is no longer supported as of Minecraft 1.21.6 and will be ignored. Set just 'start' and 'end' instead", id);
+        }
+        map.put(type, FluidTexture.deserialize(json));
       }
     }
     this.textures = map;

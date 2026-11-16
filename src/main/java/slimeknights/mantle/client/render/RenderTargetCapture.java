@@ -32,6 +32,10 @@ public class RenderTargetCapture {
     int width = target.width;
     int height = target.height;
     int pixelSize = texture.getFormat().pixelSize();
+    if (pixelSize != 4) {
+      // the copy below reads each pixel as a 4 byte ABGR int
+      throw new IllegalStateException("Can only capture 4 byte per pixel framebuffers, got format " + texture.getFormat());
+    }
     int alphaMask = keepAlpha ? 0 : 0xFF000000;
     GpuDevice device = RenderSystem.getDevice();
     CommandEncoder encoder = device.createCommandEncoder();
@@ -40,14 +44,20 @@ public class RenderTargetCapture {
       encoder.copyTextureToBuffer(texture, buffer, 0, () -> {}, 0);
       try (GpuBuffer.MappedView view = encoder.mapBuffer(buffer, true, false)) {
         NativeImage image = new NativeImage(width, height, false);
-        for (int y = 0; y < height; y++) {
-          for (int x = 0; x < width; x++) {
-            int abgr = view.data().getInt((x + y * width) * pixelSize);
-            // GL rows start at the bottom
-            image.setPixelABGR(x, height - y - 1, abgr | alphaMask);
+        try {
+          for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+              int abgr = view.data().getInt((x + y * width) * pixelSize);
+              // GL rows start at the bottom
+              image.setPixelABGR(x, height - y - 1, abgr | alphaMask);
+            }
           }
+          return image;
+        } catch (RuntimeException | Error e) {
+          // caller only owns the image once it is returned
+          image.close();
+          throw e;
         }
-        return image;
       }
     }
   }

@@ -11,6 +11,11 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 
+/**
+ * Renders the items of an inventory block entity at the positions from {@link RenderItem#STATE_REGISTRY}.
+ * Does not override {@link #shouldRenderOffScreen()}: since 1.21.6 it no longer receives the block entity so it cannot check for an empty inventory,
+ * so the default of rendering with the chunk section is used.
+ */
 public class InventoryBlockEntityRenderer<T extends BlockEntity & Container> implements BlockEntityRenderer<T> {
   public InventoryBlockEntityRenderer(BlockEntityRendererProvider.Context context) {}
 
@@ -36,7 +41,4 @@ public class InventoryBlockEntityRenderer<T extends BlockEntity & Container> imp
       }
     }
   }
-
-  // 1.21.6: shouldRenderOffScreen lost its block entity parameter, so it can no longer check for an empty inventory. It was only read when the block entity
-  // was added or its section rebuilt, making that check mostly stale anyway; use the default of rendering with the section (still frustum culled by the render bounding box).
 }

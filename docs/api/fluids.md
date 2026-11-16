@@ -181,7 +181,7 @@ public class MyFluidTextureProvider extends AbstractFluidTextureProvider {
 }
 ```
 
-Since 1.21.6 fog has no shape: `fog(start, end)` overrides the environmental (spherical) fog range, only ever tightening it. Fluid texture JSON with the legacy `fog.shape` key still loads, the shape is ignored with a one-time warning.
+Since 1.21.6 fog has no shape: `fog(start, end)` overrides the environmental (spherical) fog range while the camera is in the fluid, only ever tightening it, and is written as `fog.start` + `fog.end`. When reading JSON, the override is enabled if `fog` has both `start` and `end`, or has the legacy `shape` key (missing `start`/`end` then default to `0.25`/`1`, as before). A lone `start` or `end` without `shape` is ignored, as it was in 1.21.5. `shape` is still accepted but its value is ignored, and a warning naming the fluid texture is logged on each reload.
 
 ### Fluid tooltips (`AbstractFluidTooltipProvider`)
 

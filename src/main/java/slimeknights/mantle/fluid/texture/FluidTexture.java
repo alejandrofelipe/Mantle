@@ -11,7 +11,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.GsonHelper;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
-import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.model.TextureColorHelper;
 import slimeknights.mantle.data.loadable.common.ColorLoadable;
 import slimeknights.mantle.util.JsonHelper;
@@ -24,9 +23,6 @@ import java.util.Objects;
 @Data
 @AllArgsConstructor
 public final class FluidTexture {
-  /** Set once we warned about a legacy {@code fog.shape} key, to avoid spamming the log */
-  private static boolean warnedFogShape = false;
-
   private final ResourceLocation still;
   private final ResourceLocation flowing;
   @Nullable
@@ -118,13 +114,9 @@ public final class FluidTexture {
       } else if (color == -1) {
         calculateFogColor = GsonHelper.getAsBoolean(fog, "calculate_color", false);
       }
-      // 1.21.6: fog shape no longer exists, still accept it so old resources load, but it is ignored. It used to be the switch for start/end, so it still enables the override.
-      boolean hasShape = fog.has("shape");
-      if (hasShape && !warnedFogShape) {
-        warnedFogShape = true;
-        Mantle.logger.warn("Fluid texture fog 'shape' is no longer supported as of Minecraft 1.21.6 and will be ignored, set just 'start' and 'end' instead");
-      }
-      overrideFog = hasShape || fog.has("start") || fog.has("end");
+      // 1.21.6: fog shape no longer exists, still accept it so old resources load, but its value is ignored (FluidTextureManager warns).
+      // It used to be the switch for start/end, so it still enables the override; without it, both start and end are required.
+      overrideFog = fog.has("shape") || (fog.has("start") && fog.has("end"));
       if (overrideFog) {
         fogStart = GsonHelper.getAsFloat(fog, "start", 0.25f);
         fogEnd = GsonHelper.getAsFloat(fog, "end", 1);

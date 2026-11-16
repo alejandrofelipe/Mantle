@@ -11,7 +11,10 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 
-/** @deprecated use {@link InventoryBlockEntityRenderer} for the new render item registry. */
+/**
+ * Does not override {@link #shouldRenderOffScreen()}: since 1.21.6 it no longer receives the block entity so it cannot check for an empty inventory.
+ * @deprecated use {@link InventoryBlockEntityRenderer} for the new render item registry.
+ */
 @Deprecated(forRemoval = true)
 public class InventoryTileEntityRenderer<T extends BlockEntity & Container> implements BlockEntityRenderer<T> {
   public InventoryTileEntityRenderer(BlockEntityRendererProvider.Context context) {}
@@ -38,7 +41,4 @@ public class InventoryTileEntityRenderer<T extends BlockEntity & Container> impl
       }
     }
   }
-
-  // 1.21.6: shouldRenderOffScreen lost its block entity parameter, so it can no longer check for an empty inventory. It was only read when the block entity
-  // was added or its section rebuilt, making that check mostly stale anyway; use the default of rendering with the section (still frustum culled by the render bounding box).
 }

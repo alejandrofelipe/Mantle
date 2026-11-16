@@ -107,7 +107,7 @@ public class GeneratePackHelper {
     JsonObject meta = new JsonObject();
     JsonObject pack = new JsonObject();
     pack.addProperty("description", description);
-    pack.addProperty("pack_format", SharedConstants.getCurrentVersion().getPackVersion(packType));
+    pack.addProperty("pack_format", SharedConstants.getCurrentVersion().packVersion(packType));
     meta.add("pack", pack);
     saveJson(meta, path);
   }

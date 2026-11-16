@@ -7,6 +7,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.GameRules;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -51,7 +52,7 @@ public class MantleCommand {
     // ReloadableServerRegistries.Holder#getKeys lists the ids for a given registry key.
     SourcesCommand.register(Registries.LOOT_TABLE.location().getPath(), (context, builder)
       -> SharedSuggestionProvider.suggestResource(
-        context.getSource().getServer().reloadableRegistries().getKeys(Registries.LOOT_TABLE), builder));
+        context.getSource().getServer().reloadableRegistries().lookup().lookupOrThrow(Registries.LOOT_TABLE).listElementIds().map(ResourceKey::location), builder));
     SourcesCommand.register("recipes", (context, builder)
       // 1.21.4: CommandSourceStack#getRecipeNames was removed; recipe ids come from the server's RecipeManager
       -> SharedSuggestionProvider.suggestResource(context.getSource().getServer().getRecipeManager().getRecipes().stream().map(holder -> holder.id().location()), builder));

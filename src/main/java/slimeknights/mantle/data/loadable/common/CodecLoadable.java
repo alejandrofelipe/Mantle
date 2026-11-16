@@ -30,7 +30,7 @@ public record CodecLoadable<T>(DynamicOps<Tag> ops, Codec<T> codec) implements L
 
   @Override
   public T decode(FriendlyByteBuf buffer, TypedMap context) {
-    return buffer.readJsonWithCodec(codec);
+    return buffer.readLenientJsonWithCodec(codec);
   }
 
   @Override

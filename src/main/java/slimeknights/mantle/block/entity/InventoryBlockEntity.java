@@ -3,19 +3,19 @@ package slimeknights.mantle.block.entity;
 import lombok.Getter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.Container;
 import net.minecraft.world.MenuProvider;
+import net.minecraft.world.ItemStackWithSlot;
 import net.minecraft.world.Nameable;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import net.neoforged.neoforge.items.wrapper.InvWrapper;
@@ -200,63 +200,56 @@ public abstract class InventoryBlockEntity extends NameableBlockEntity implement
   /* NBT */
 
   @Override
-  protected void loadAdditional(CompoundTag tags, HolderLookup.Provider registries) {
-    super.loadAdditional(tags, registries);
+  protected void loadAdditional(ValueInput input) {
+    super.loadAdditional(input);
     if (saveSizeToNBT) {
-      this.resizeInternal(tags.getIntOr(TAG_INVENTORY_SIZE, 0));
+      this.resizeInternal(input.getIntOr(TAG_INVENTORY_SIZE, 0));
     }
-    this.readInventoryFromNBT(tags, registries);
+    this.readInventory(input);
   }
 
   @Override
-  protected void saveSynced(CompoundTag tags, HolderLookup.Provider registries) {
-    super.saveSynced(tags, registries);
+  protected void saveSynced(ValueOutput output) {
+    super.saveSynced(output);
     // only sync the size to the client by default
     if (saveSizeToNBT) {
-      tags.putInt(TAG_INVENTORY_SIZE, this.inventory.size());
+      output.putInt(TAG_INVENTORY_SIZE, this.inventory.size());
     }
   }
 
   @Override
-  public void saveAdditional(CompoundTag tags, HolderLookup.Provider registries) {
-    super.saveAdditional(tags, registries);
-    this.writeInventoryToNBT(tags, registries);
+  public void saveAdditional(ValueOutput output) {
+    super.saveAdditional(output);
+    this.writeInventory(output);
   }
 
   /**
-   * Writes the contents of the inventory to the tag
+   * Writes the contents of the inventory to the output, as a list under {@code Items} with each entry holding the stack fields plus a {@code Slot} byte.
+   * Replaces {@code writeInventoryToNBT(CompoundTag, HolderLookup.Provider)}.
    */
-  public void writeInventoryToNBT(CompoundTag tag, HolderLookup.Provider registries) {
-    Container inventory = this;
-    ListTag nbttaglist = new ListTag();
-
-    for (int i = 0; i < inventory.getContainerSize(); i++) {
-      if (!inventory.getItem(i).isEmpty()) {
-        CompoundTag itemTag = new CompoundTag();
-        itemTag.putByte(TAG_SLOT, (byte) i);
-        nbttaglist.add(inventory.getItem(i).save(registries, itemTag));
+  public void writeInventory(ValueOutput output) {
+    ValueOutput.TypedOutputList<ItemStackWithSlot> list = output.list(TAG_ITEMS, ItemStackWithSlot.CODEC);
+    for (int i = 0; i < this.inventory.size(); i++) {
+      ItemStack stack = this.inventory.get(i);
+      if (!stack.isEmpty()) {
+        list.add(new ItemStackWithSlot(i, stack));
       }
     }
-
-    tag.put(TAG_ITEMS, nbttaglist);
   }
 
   /**
-   * Reads an inventory from the tag. Overwrites current content
+   * Reads an inventory from the input. Overwrites current content
+   * Replaces {@code readInventoryFromNBT(CompoundTag, HolderLookup.Provider)}.
    */
-  public void readInventoryFromNBT(CompoundTag tag, HolderLookup.Provider registries) {
-    ListTag list = tag.getListOrEmpty(TAG_ITEMS);
-
+  public void readInventory(ValueInput input) {
     int limit = this.getMaxStackSize();
-    for (int i = 0; i < list.size(); ++i) {
-      CompoundTag itemTag = list.getCompoundOrEmpty(i);
-      int slot = itemTag.getByteOr(TAG_SLOT, (byte) 0) & 255;
-      if (slot < this.inventory.size()) {
-        ItemStack stack = ItemStack.parse(registries, itemTag).orElse(ItemStack.EMPTY);
+    for (ItemStackWithSlot entry : input.listOrEmpty(TAG_ITEMS, ItemStackWithSlot.CODEC)) {
+      if (entry.isValidInContainer(this.inventory.size())) {
+        ItemStack stack = entry.stack();
         if (!stack.isEmpty() && stack.getCount() > limit) {
           stack.setCount(limit);
         }
-        this.inventory.set(slot, stack);
+        this.inventory.set(entry.slot(), stack);
       }
     }
   }

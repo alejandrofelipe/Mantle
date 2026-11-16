@@ -9,6 +9,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -47,7 +48,8 @@ public class NetworkWrapper {
    * @param payload  Packet to send
    */
   public void sendToServer(CustomPacketPayload payload) {
-    PacketDistributor.sendToServer(payload);
+    // 1.21.8: sendToServer moved to the client-only ClientPacketDistributor; kept in a holder so it is never loaded on a dedicated server
+    ClientSender.sendToServer(payload);
   }
 
   /**
@@ -109,5 +111,12 @@ public class NetworkWrapper {
    */
   public void sendToTracking(CustomPacketPayload payload, Entity entity) {
     PacketDistributor.sendToPlayersTrackingEntity(entity, payload);
+  }
+
+  /** Holder isolating the client-only distributor, only class-loaded when a packet is actually sent to the server */
+  private static class ClientSender {
+    static void sendToServer(CustomPacketPayload payload) {
+      ClientPacketDistributor.sendToServer(payload);
+    }
   }
 }

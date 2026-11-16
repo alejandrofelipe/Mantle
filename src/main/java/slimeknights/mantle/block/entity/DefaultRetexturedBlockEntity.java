@@ -2,12 +2,12 @@ package slimeknights.mantle.block.entity;
 
 import lombok.Getter;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.model.data.ModelData;
 import slimeknights.mantle.block.RetexturedBlock;
 import slimeknights.mantle.util.RetexturedHelper;
@@ -54,17 +54,17 @@ public class DefaultRetexturedBlockEntity extends MantleBlockEntity implements I
   }
 
   @Override
-  protected void saveSynced(CompoundTag tags, HolderLookup.Provider registries) {
-    super.saveSynced(tags, registries);
+  protected void saveSynced(ValueOutput output) {
+    super.saveSynced(output);
     if (texture != Blocks.AIR) {
-      tags.putString(TAG_TEXTURE, getTextureName());
+      output.putString(TAG_TEXTURE, getTextureName());
     }
   }
 
   @Override
-  protected void loadAdditional(CompoundTag tags, HolderLookup.Provider registries) {
-    super.loadAdditional(tags, registries);
-    tags.getString(TAG_TEXTURE).ifPresent(name -> {
+  protected void loadAdditional(ValueInput input) {
+    super.loadAdditional(input);
+    input.getString(TAG_TEXTURE).ifPresent(name -> {
       texture = RetexturedHelper.getBlock(name);
       RetexturedHelper.onTextureUpdated(this);
     });

@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import slimeknights.mantle.block.entity.MantleBlockEntity;
@@ -142,12 +144,14 @@ public abstract class SingleItemHandler<T extends MantleBlockEntity> implements 
    * @return  Module in NBT
    */
   public CompoundTag writeToNBT(HolderLookup.Provider registries) {
-    CompoundTag nbt = new CompoundTag();
     if (!stack.isEmpty()) {
-      // 1.21: ItemStack.save returns the encoded tag merged with the prefix instead of mutating it
-      nbt = (CompoundTag) stack.save(registries, nbt);
+      // 1.21.8: ItemStack.save was removed, encode with the codec through a registry-aware NBT context (same tag shape)
+      Tag tag = ItemStack.CODEC.encodeStart(registries.createSerializationContext(NbtOps.INSTANCE), stack).getOrThrow(IllegalStateException::new);
+      if (tag instanceof CompoundTag compound) {
+        return compound;
+      }
     }
-    return nbt;
+    return new CompoundTag();
   }
 
   /**
@@ -156,7 +160,7 @@ public abstract class SingleItemHandler<T extends MantleBlockEntity> implements 
    * @param nbt  NBT
    */
   public void readFromNBT(HolderLookup.Provider registries, CompoundTag nbt) {
-    // 1.21.5: ItemStack.parseOptional was removed; an empty tag is the saved form of an empty stack
-    stack = nbt.isEmpty() ? ItemStack.EMPTY : ItemStack.parse(registries, nbt).orElse(ItemStack.EMPTY);
+    // an empty tag is the saved form of an empty stack
+    stack = nbt.isEmpty() ? ItemStack.EMPTY : ItemStack.CODEC.parse(registries.createSerializationContext(NbtOps.INSTANCE), nbt).result().orElse(ItemStack.EMPTY);
   }
 }

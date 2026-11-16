@@ -21,7 +21,7 @@ public class MantleBlockTagProvider extends BlockTagsProvider {
 
   @Override
   protected void addTags(Provider pProvider) {
-    this.tag(GAUGES).addOptionalTag(ATTACHED_GAUGES.location()).addOptionalTag(GAUGE_TANKS.location());
+    this.tag(GAUGES).addOptionalTag(ATTACHED_GAUGES).addOptionalTag(GAUGE_TANKS);
   }
 
   @Override

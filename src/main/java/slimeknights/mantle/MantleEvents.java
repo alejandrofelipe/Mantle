@@ -18,7 +18,6 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.common.EventBusSubscriber.Bus;
 import slimeknights.mantle.datagen.MantleTags;
 
 import java.util.ArrayList;
@@ -29,10 +28,9 @@ import java.util.List;
 /**
  * Handles events for any Mantle driven logic.
  * <p>
- * Registered automatically via {@link EventBusSubscriber} on the NeoForge game bus ({@link Bus#GAME}, formerly
- * Forge's {@code Bus.FORGE}).
+ * Registered automatically via {@link EventBusSubscriber} on the NeoForge game bus (FML infers the bus from the event type).
  */
-@EventBusSubscriber(modid = Mantle.modId, bus = Bus.GAME)
+@EventBusSubscriber(modid = Mantle.modId)
 public class MantleEvents {
   // The soulbound handlers below stash the SOULBOUND_SLOT marker in DataComponents.CUSTOM_DATA via CustomData
   // (#update to read-modify-write, #copyTag/#contains to inspect), the 1.21 replacement for the removed ItemStack

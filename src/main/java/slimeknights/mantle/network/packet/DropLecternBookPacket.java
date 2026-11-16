@@ -38,7 +38,7 @@ public record DropLecternBookPacket(BlockPos pos) implements IThreadsafePacket {
       return;
     }
 
-    ServerLevel world = player.serverLevel();
+    ServerLevel world = player.level();
     if(!world.hasChunkAt(pos)) {
       return;
     }

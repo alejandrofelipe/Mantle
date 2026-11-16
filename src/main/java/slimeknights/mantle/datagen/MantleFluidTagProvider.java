@@ -28,9 +28,9 @@ public class MantleFluidTagProvider extends FluidTagsProvider {
     this.tag(WATER).add(Fluids.WATER, Fluids.FLOWING_WATER);
     this.tag(LAVA).add(Fluids.LAVA, Fluids.FLOWING_LAVA);
     this.tag(SOUP)
-      .addOptionalTag(BEETROOT_SOUP.location())
-      .addOptionalTag(MUSHROOM_STEW.location())
-      .addOptionalTag(RABBIT_STEW.location());
+      .addOptionalTag(BEETROOT_SOUP)
+      .addOptionalTag(MUSHROOM_STEW)
+      .addOptionalTag(RABBIT_STEW);
   }
 
   @Override

@@ -1,7 +1,5 @@
 package slimeknights.mantle.plugin.jei.entity;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import lombok.RequiredArgsConstructor;
 import mezz.jei.api.ingredients.IIngredientRenderer;
 import net.minecraft.ChatFormatting;
@@ -9,7 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -20,6 +18,8 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
+import org.joml.Matrix3x2fStack;
+import org.joml.Vector2f;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.recipe.ingredient.EntityIngredient;
 
@@ -82,10 +82,25 @@ public class EntityIngredientRenderer implements IIngredientRenderer<EntityIngre
           }
           // catch exceptions drawing the entity to be safe, any caught exceptions blacklist the entity
           try {
-            // 1.21: renderEntityInInventoryFollowsMouse now takes a rectangle (x1,y1,x2,y2) instead of an anchor point.
-            // The 0..size square keeps the old anchor (center-x, bottom). 0.0625F is the vanilla y-offset, and the
-            // trailing (0, 10) are the follow-mouse coordinates that reproduce the original fixed tilt.
-            InventoryScreen.renderEntityInInventoryFollowsMouse(graphics, 0, 0, size, size, scale, 0.0625F, 0, 10, livingEntity);
+            // 1.21: the entity is drawn in a rectangle (x1,y1,x2,y2), the 0..size square keeps the old anchor (center-x, bottom).
+            // 0.0625F is the vanilla y-offset. The fixed tilt is what following a mouse at (0, 10) gave relative to the square.
+            // 1.21.8: entities are drawn as a picture-in-picture, which takes absolute screen bounds and ignores the pose JEI
+            // translated to the ingredient position, so transform the square to screen space and draw it under an identity pose
+            // (the scissor the entity helper enables is also transformed by the pose, so it must see the absolute bounds too).
+            Matrix3x2fStack pose = graphics.pose();
+            Vector2f min = pose.transformPosition(0, 0, new Vector2f());
+            Vector2f max = pose.transformPosition(size, size, new Vector2f());
+            float poseScale = (float) Math.sqrt(pose.m00() * pose.m00() + pose.m01() * pose.m01());
+            float angleX = (float) Math.atan((size / 2f) / 40f);
+            float angleY = (float) Math.atan((size / 2f - 10) / 40f);
+            pose.pushMatrix();
+            pose.identity();
+            try {
+              InventoryScreen.renderEntityInInventoryFollowsAngle(graphics, Math.round(min.x), Math.round(min.y), Math.round(max.x), Math.round(max.y),
+                                                                  Math.round(scale * poseScale), 0.0625F, angleX, angleY, livingEntity);
+            } finally {
+              pose.popMatrix();
+            }
             return;
           } catch (Exception e) {
             Mantle.logger.error("Error drawing entity " + BuiltInRegistries.ENTITY_TYPE.getKey(type), e);
@@ -100,11 +115,9 @@ public class EntityIngredientRenderer implements IIngredientRenderer<EntityIngre
       }
 
       // fallback, draw a pink and black "spawn egg"
-      // 1.21.4: GuiGraphics.blit now takes a RenderType function (RenderType::guiTextured) and float u/v; the old
-      // RenderSystem.setShader(GameRenderer::getPositionTexShader) call was removed as the render type binds the shader.
-      RenderSystem.setShaderColor(1, 1, 1, 1);
+      // 1.21.8: GuiGraphics.blit takes a render pipeline, and the color is part of each draw (white by default) rather than a global shader color
       int offset = (size - 16) / 2;
-      graphics.blit(RenderType::guiTextured, MISSING, offset, offset, 0.0F, 0.0F, 16, 16, 16, 16);
+      graphics.blit(RenderPipelines.GUI_TEXTURED, MISSING, offset, offset, 0.0F, 0.0F, 16, 16, 16, 16);
     }
   }
 

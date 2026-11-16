@@ -144,26 +144,21 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
     // 1.21.6+: Screen.render no longer calls renderBackground; Screen#renderWithTooltip calls it separately, before render.
     // AbstractContainerScreen's renderBackground runs renderBg, which up to 1.21.5 ran inside render's corrected bounds,
     // so wrap it in the same main-window corner here to keep renderBg seeing the same leftPos/topPos/imageWidth/imageHeight.
-    int oldX = this.leftPos;
-    int oldY = this.topPos;
-    int oldW = this.imageWidth;
-    int oldH = this.imageHeight;
-
-    this.leftPos = this.cornerX;
-    this.topPos = this.cornerY;
-    this.imageWidth = this.realWidth;
-    this.imageHeight = this.realHeight;
-    super.renderBackground(graphics, mouseX, mouseY, partialTicks);
-    this.leftPos = oldX;
-    this.topPos = oldY;
-    this.imageWidth = oldW;
-    this.imageHeight = oldH;
+    // Note NeoForge's ContainerScreenEvent.Render.Background is now posted by Screen#renderWithTooltip after this, outside the corrected bounds.
+    this.withCorrectedBounds(() -> super.renderBackground(graphics, mouseX, mouseY, partialTicks));
   }
 
   @Override
   public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
-    // Wrap super.render (and the explicit tooltip pass, which vanilla still leaves to subclasses) in the bounds corrected
-    // to the main-window corner. The background is wrapped the same way in renderBackground above.
+    // Wrap super.render (and the explicit tooltip pass, which vanilla still leaves to subclasses) in the bounds corrected to the main-window corner
+    this.withCorrectedBounds(() -> {
+      super.render(graphics, mouseX, mouseY, partialTicks);
+      this.renderTooltip(graphics, mouseX, mouseY);
+    });
+  }
+
+  /** Runs the action with leftPos/topPos/imageWidth/imageHeight set to the main window corner and size, restoring the module-expanded values after */
+  private void withCorrectedBounds(Runnable action) {
     int oldX = this.leftPos;
     int oldY = this.topPos;
     int oldW = this.imageWidth;
@@ -173,12 +168,14 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
     this.topPos = this.cornerY;
     this.imageWidth = this.realWidth;
     this.imageHeight = this.realHeight;
-    super.render(graphics, mouseX, mouseY, partialTicks);
-    this.renderTooltip(graphics, mouseX, mouseY);
-    this.leftPos = oldX;
-    this.topPos = oldY;
-    this.imageWidth = oldW;
-    this.imageHeight = oldH;
+    try {
+      action.run();
+    } finally {
+      this.leftPos = oldX;
+      this.topPos = oldY;
+      this.imageWidth = oldW;
+      this.imageHeight = oldH;
+    }
   }
 
   // needed to get the correct slot on clicking

@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner;
+import net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
@@ -15,11 +16,11 @@ import net.minecraft.world.item.TooltipFlag;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions.FontContext;
 import org.joml.Matrix3x2f;
-import org.joml.Vector2f;
 import org.joml.Vector2i;
 import org.joml.Vector2ic;
 import slimeknights.mantle.client.screen.book.BookScreen;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -122,18 +123,39 @@ public abstract class BookElement {
       ? textLines.stream().flatMap(text -> splitLine(text, font, tooltipTextWidthF)).toList()
       : textLines.stream().map(Component::getVisualOrderText).toList();
 
-    // 1.21.8: tooltips are deferred to the end of the frame and drawn without the page transform that is active now,
-    // so hand the screen space mouse position over and run the page relative positioner through the captured transform
-    Matrix3x2f pageToScreen = new Matrix3x2f(graphics.pose());
-    Matrix3x2f screenToPage = pageToScreen.invert(new Matrix3x2f());
-    ClientTooltipPositioner positioner = (screenWidth, screenHeight, x, y, width, height) -> {
-      Vector2f pageMouse = screenToPage.transformPosition(x, y, new Vector2f());
-      Vector2ic pagePos = POSITIONER.positionTooltip(screenWidth, screenHeight, Math.round(pageMouse.x), Math.round(pageMouse.y), width, height);
-      Vector2f screenPos = pageToScreen.transformPosition(pagePos.x(), pagePos.y(), new Vector2f());
-      return new Vector2i(Math.round(screenPos.x), Math.round(screenPos.y));
-    };
-    Vector2f screenMouse = pageToScreen.transformPosition(mouseX, mouseY, new Vector2f());
-    graphics.setTooltipForNextFrame(font, lines, positioner, Math.round(screenMouse.x), Math.round(screenMouse.y), false);
+    setPageTooltip(graphics, font, lines, POSITIONER, mouseX, mouseY);
+  }
+
+  /**
+   * Sets a tooltip for the book page currently being drawn. This is the single place handling the 1.21.6+ deferred tooltips for the book:
+   * <ul>
+   *   <li>{@link GuiGraphics#setTooltipForNextFrame} draws the tooltip at the end of the frame, after the page transform active now has been popped.
+   *   So the page relative mouse position is moved to screen space here, and {@code pagePositioner} is run in page space and its result moved back.</li>
+   *   <li>This assumes an unscaled page transform (a pure translation, as {@link BookScreen#PAGE_SCALE} is 1): only the pose translation is used,
+   *   and the tooltip size given to the positioner is in screen space while it compares against page sizes.</li>
+   *   <li>Up to 1.21.5 tooltips were drawn immediately, so the last one drawn ended on top. The deferred queue keeps the first tooltip of the frame
+   *   unless {@code focused} is set, so book tooltips are set as focused to keep the last one winning. Vanilla widgets on the book screen render after
+   *   the book and set unfocused tooltips, so they still cannot replace a book tooltip, same as before where the book tooltip was drawn on top.</li>
+   * </ul>
+   * @param graphics        Graphics instance, with the page transform active
+   * @param font            Font for the tooltip
+   * @param lines           Tooltip lines
+   * @param pagePositioner  Positioner working in page relative coordinates, or null to use the vanilla screen positioner
+   * @param mouseX          Page relative mouse X
+   * @param mouseY          Page relative mouse Y
+   */
+  public static void setPageTooltip(GuiGraphics graphics, Font font, List<FormattedCharSequence> lines, @Nullable ClientTooltipPositioner pagePositioner, int mouseX, int mouseY) {
+    Matrix3x2f pose = graphics.pose();
+    int offsetX = Math.round(pose.m20());
+    int offsetY = Math.round(pose.m21());
+    ClientTooltipPositioner positioner = DefaultTooltipPositioner.INSTANCE;
+    if (pagePositioner != null) {
+      positioner = (screenWidth, screenHeight, x, y, width, height) -> {
+        Vector2ic pagePos = pagePositioner.positionTooltip(screenWidth, screenHeight, x - offsetX, y - offsetY, width, height);
+        return new Vector2i(pagePos.x() + offsetX, pagePos.y() + offsetY);
+      };
+    }
+    graphics.setTooltipForNextFrame(font, lines, positioner, mouseX + offsetX, mouseY + offsetY, true);
   }
 
   /**

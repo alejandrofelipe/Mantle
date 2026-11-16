@@ -82,7 +82,7 @@ public class ClientEvents {
   private static final ResourceLocation CROSSHAIR_ATTACK_INDICATOR_PROGRESS_SPRITE = ResourceLocation.withDefaultNamespace("hud/crosshair_attack_indicator_progress");
   private static final ResourceLocation HOTBAR_ATTACK_INDICATOR_BACKGROUND_SPRITE = ResourceLocation.withDefaultNamespace("hud/hotbar_attack_indicator_background");
   private static final ResourceLocation HOTBAR_ATTACK_INDICATOR_PROGRESS_SPRITE = ResourceLocation.withDefaultNamespace("hud/hotbar_attack_indicator_progress");
-  /** Gauge tooltip found during the crosshair layer this frame, drawn once the HUD is done */
+  /** Gauge tooltip found during the crosshair layer this frame, drawn once the HUD is done. Cleared on RenderGuiEvent.Pre so a frame that fails mid-HUD cannot leak it into the next */
   @Nullable
   private static List<Component> pendingGaugeTooltip;
 
@@ -159,6 +159,7 @@ public class ClientEvents {
     NeoForge.EVENT_BUS.register(new ExtraHeartRenderHandler());
     NeoForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, RenderGuiLayerEvent.Post.class, ClientEvents::renderOffhandAttackIndicator);
     NeoForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, RenderGuiLayerEvent.Post.class, ClientEvents::renderGaugeTooltip);
+    NeoForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, RenderGuiEvent.Pre.class, pre -> pendingGaugeTooltip = null);
     NeoForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, RenderGuiEvent.Post.class, ClientEvents::drawGaugeTooltip);
   }
 
@@ -303,7 +304,8 @@ public class ClientEvents {
       return;
     }
     pendingGaugeTooltip = null;
-    // the deferred setTooltipForNextFrame is only drawn by screens, so the HUD submits the tooltip directly in a new top stratum
+    // draws immediately, bypassing the setTooltipForNextFrame queue: that queue is only drawn by Screen#renderWithTooltip, and GuiGraphics is
+    // recreated each frame, so without a screen open a deferred tooltip would never show. A new stratum keeps it above the whole HUD.
     GuiGraphics graphics = event.getGuiGraphics();
     Font font = Minecraft.getInstance().font;
     int x = graphics.guiWidth() / 2;

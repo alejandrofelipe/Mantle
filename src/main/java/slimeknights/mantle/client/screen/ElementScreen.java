@@ -36,6 +36,7 @@ public class ElementScreen {
    *
    * @param xPos X-Coordinate on the screen
    * @param yPos Y-Coordinate on the screen
+   * @param blitOffset Ignored since 1.21.6 (the GUI has no z offset anymore), kept for API compatibility
    */
   public void draw(GuiGraphics graphics, int xPos, int yPos, int blitOffset) {
     graphics.blit(RenderPipelines.GUI_TEXTURED, this.texture, xPos, yPos, (float) this.x, (float) this.y, this.w, this.h, this.texW, this.texH);

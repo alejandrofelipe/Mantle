@@ -8,14 +8,13 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.ARGB;
 import org.apache.commons.lang3.StringUtils;
 import org.joml.Matrix3x2fStack;
-import org.joml.Vector2f;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.book.data.element.TextData;
+import slimeknights.mantle.client.screen.book.element.BookElement;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 public class TextDataRenderer {
 
@@ -28,9 +27,7 @@ public class TextDataRenderer {
     String action = drawText(graphics, x, y, boxWidth, boxHeight, data, mouseX, mouseY, fr, tooltip);
 
     if (!tooltip.isEmpty()) {
-      // 1.21.8: tooltips are deferred to the end of the frame and drawn without the page transform, so convert the page relative mouse to screen space
-      Vector2f screen = graphics.pose().transformPosition(mouseX, mouseY, new Vector2f());
-      graphics.setTooltipForNextFrame(fr, tooltip, Optional.empty(), Math.round(screen.x), Math.round(screen.y));
+      BookElement.setPageTooltip(graphics, fr, tooltip.stream().map(Component::getVisualOrderText).toList(), null, mouseX, mouseY);
     }
 
     return action;
@@ -109,8 +106,6 @@ public class TextDataRenderer {
       String text = translateString(item.text);
 
       String[] split = cropStringBySize(text, modifiers, boxWidth, boxHeight - (atY - y), boxWidth - (atX - x), fr, item.scale);
-      // rgbColor comes from book JSON (RRGGBB) or code, and is also the alpha base for the legacy formatting colors above
-      int color = legacyTextColor(item.rgbColor);
 
       box1X = atX;
       box1Y = atY;
@@ -124,7 +119,7 @@ public class TextDataRenderer {
         }
 
         String s = split[i];
-        drawScaledString(graphics, fr, modifiers + s, atX, atY, color, item.dropshadow, item.scale);
+        drawScaledString(graphics, fr, modifiers + s, atX, atY, item.rgbColor, item.dropshadow, item.scale);
 
         if (i < split.length - 1) {
           atY += fr.lineHeight;
@@ -259,7 +254,8 @@ public class TextDataRenderer {
     poseStack.translate(x, y);
     poseStack.scale(scale, scale);
 
-    graphics.drawString(font, text, 0, 0, color, dropShadow);
+    // color is often RRGGBB (book JSON TextData#rgbColor, external callers), and is also the alpha base for legacy formatting codes in the text
+    graphics.drawString(font, text, 0, 0, legacyTextColor(color), dropShadow);
 
     poseStack.popMatrix();
   }

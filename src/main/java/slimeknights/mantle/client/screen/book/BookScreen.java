@@ -176,7 +176,7 @@ public class BookScreen extends Screen {
       graphics.drawString(this.font, "DEBUG", 2, 2, 0xFFFFFFFF, false);
     }
 
-    // 1.21.5: blending is part of the GUI render pipelines, the old RenderSystem.enableBlend() is gone
+    // blending and colors are carried by each GUI draw (render pipeline + ARGB color), there is no global render state to set up here
     Vector3f coverColor = splitRGB(this.book.appearance.coverColor);
 
     if(this.page == -1) {
@@ -184,20 +184,6 @@ public class BookScreen extends Screen {
     } else {
       Matrix3x2fStack matrixStack = graphics.pose();
       // TODO: can we create copies of the guiGraphics?
-      // Jank way to copy last matrix in matrix stack, as no proper way is provided
-//      PoseStack leftMatrix = new PoseStack();
-//      leftMatrix.last().pose().mul(matrixStack.last().pose());
-//      leftMatrix.last().normal().mul(matrixStack.last().normal());
-//
-//      PoseStack rightMatrix = new PoseStack();
-//      rightMatrix.last().pose().mul(matrixStack.last().pose());
-//      rightMatrix.last().normal().mul(matrixStack.last().normal());
-//
-//      drawerTransform(leftMatrix, false);
-//      drawerTransform(rightMatrix, true);
-//
-//      leftMatrix.scale(PAGE_SCALE, PAGE_SCALE, 1F);
-//      rightMatrix.scale(PAGE_SCALE, PAGE_SCALE, 1F);
 
       boolean renderLeft = shouldRenderPage(this.page, false);
       boolean renderRight = shouldRenderPage(this.page, true);

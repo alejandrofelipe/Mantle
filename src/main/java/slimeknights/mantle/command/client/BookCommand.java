@@ -1,9 +1,9 @@
 package slimeknights.mantle.command.client;
 
-import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -15,8 +15,10 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.render.state.GuiRenderState;
 import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.fog.FogRenderer;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.ResourceLocationArgument;
@@ -26,8 +28,6 @@ import net.minecraft.world.entity.player.Player;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
 import org.apache.commons.lang3.text.WordUtils;
-import org.joml.Matrix4f;
-import org.joml.Matrix4fStack;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.book.BookLoader;
 import slimeknights.mantle.client.book.data.BookData;
@@ -194,7 +194,6 @@ public class BookCommand {
 
       int width = BookScreen.PAGE_WIDTH_UNSCALED * 2 * scale;
       int height = BookScreen.PAGE_HEIGHT_UNSCALED * scale;
-      float zFar = 1000.0F + 10000.0F * 3;
 
       bookData.load();
       BookScreen screen = new BookScreen(Component.literal("Book"), bookData, "", null, null);
@@ -205,27 +204,23 @@ public class BookCommand {
       screen.enableAnimations = false;
       screen.drawScreenBackground = false;
 
-      Matrix4f matrix = (new Matrix4f()).setOrtho(0.0F, width, height, 0.0F, 1000.0F, zFar);
-      RenderSystem.setProjectionMatrix(matrix, ProjectionType.ORTHOGRAPHIC);
-
-      Matrix4fStack stack = RenderSystem.getModelViewStack();
-      stack.pushMatrix();
-      stack.identity();
-      stack.translate(0, 0, 1000F - zFar);
-      stack.scale(scale, scale, 1);
-      Lighting.setupFor3DItems();
-
       // 1.21.5: render targets can no longer be bound for writing; GUI render types always draw into the main target.
       // Resize the main target to the export size for the duration of the export, and restore the window size after.
+      // 1.21.8: GuiGraphics only records render states, the game's GuiRenderer draws them into the main target. It takes the projection, scissor
+      // and picture-in-picture resolution from the window, so the window framebuffer size and GUI scale are swapped to the export ones too.
       Minecraft minecraft = Minecraft.getInstance();
+      GameRenderer gameRenderer = minecraft.gameRenderer;
+      Window window = minecraft.getWindow();
+      int windowWidth = window.getWidth();
+      int windowHeight = window.getHeight();
+      int windowGuiScale = window.getGuiScale();
       RenderTarget target = minecraft.getMainRenderTarget();
+      window.setWidth(width);
+      window.setHeight(height);
+      window.setGuiScale(scale);
       target.resize(width, height);
 
       try {
-        MultiBufferSource.BufferSource buffer = minecraft.renderBuffers().bufferSource();
-
-        GuiGraphics gui = new GuiGraphics(Minecraft.getInstance(), buffer);
-
         String bookKey = book.getPath() + "_" + version;
         // title goes export title -> regular title -> path
         String exportTitle = bookData.appearance.exportTitle;
@@ -262,10 +257,13 @@ public class BookCommand {
             screen.drawText = page < 0;
           }
 
-          gui.pose().pushPose();
-          screen.render(gui, 0, 0, 0);
-          gui.flush();
-          gui.pose().popPose();
+          // mirror the GUI part of GameRenderer#render: record the screen into the game's GUI state, then draw it with the game's GUI renderer
+          gameRenderer.getLighting().setupFor(Lighting.Entry.ITEMS_3D);
+          GuiRenderState renderState = gameRenderer.guiRenderState;
+          renderState.reset();
+          screen.render(new GuiGraphics(minecraft, renderState), 0, 0, 0);
+          // render resets the state once drawn
+          gameRenderer.guiRenderer.render(gameRenderer.fogRenderer.getBuffer(FogRenderer.FogMode.NONE));
 
           try (NativeImage image = RenderTargetCapture.capture(target, true)) {
             String pageFormat = page < 0 ? "cover" :  (html ? "clean_" : "page_") + page;
@@ -310,9 +308,13 @@ public class BookCommand {
           }
         }
       } finally {
-        stack.popMatrix();
-        // restore the main target to the window size, the next frame redraws its contents
-        target.resize(minecraft.getWindow().getWidth(), minecraft.getWindow().getHeight());
+        // drop anything recorded by a page that failed to draw, the next frame starts from a clean state anyways
+        gameRenderer.guiRenderState.reset();
+        // restore the window and main target size, the next frame redraws its contents
+        window.setWidth(windowWidth);
+        window.setHeight(windowHeight);
+        window.setGuiScale(windowGuiScale);
+        target.resize(windowWidth, windowHeight);
       }
     } else {
       bookNotFound(book);

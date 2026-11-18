@@ -8,7 +8,10 @@ import com.mojang.blaze3d.systems.CommandEncoder;
 import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTexture;
+import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL44;
+import org.lwjgl.opengl.GLCapabilities;
 
 import java.util.concurrent.TimeUnit;
 
@@ -75,6 +78,12 @@ public class RenderTargetCapture {
 
   /** Blocks until every GPU command queued so far, including the copy, has finished. */
   private static void awaitGpu(CommandEncoder encoder) {
+    // the persistent mapping is not GL_MAP_COHERENT_BIT, so per ARB_buffer_storage the GPU write only becomes visible to the
+    // client pointer after this barrier followed by a fence wait (without buffer storage the map call itself synchronizes)
+    GLCapabilities caps = GL.getCapabilities();
+    if (caps.GL_ARB_buffer_storage && caps.glMemoryBarrier != 0) {
+      GL44.glMemoryBarrier(GL44.GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
+    }
     try (GpuFence fence = encoder.createFence()) {
       // the fence wait does not flush, so submit the queued commands or it may never signal
       GL11.glFlush();

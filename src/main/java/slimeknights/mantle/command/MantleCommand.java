@@ -52,7 +52,8 @@ public class MantleCommand {
     SourcesCommand.register(Registries.LOOT_TABLE.location().getPath(), (context, builder)
       -> SharedSuggestionProvider.suggestResource(
         context.getSource().getServer().reloadableRegistries().getKeys(Registries.LOOT_TABLE), builder));
-    SourcesCommand.register("recipes", (context, builder)
+    // 1.21: the datapack folder is now "recipe" (was "recipes"); the subcommand keeps its "recipes" literal
+    SourcesCommand.register("recipes", "recipe", ".json", (context, builder)
       -> SharedSuggestionProvider.suggestResource(context.getSource().getRecipeNames(), builder));
 
     // add command listener

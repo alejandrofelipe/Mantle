@@ -334,13 +334,18 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 Boots a real client straight into the committed superflat world `UITest` (`--quickPlaySingleplayer`,
-1280×720, `-Dmantle.uitest=true`), drives the 17 registered scenarios (`tinker_station`, `part_builder`,
+1280×720, `-Dmantle.uitest=true`), drives the 30 registered scenarios (`tinker_station`, `part_builder`,
 `crafting_station`, `smeltery`, `melter`, `casting_pour`, `book_materials_and_you`, `jei_melting_category`,
 `jei_item_list_cleanup`, `book_interior`, `station_reflow`, `station_collapsed`,
 `station_collapsed_overlay`, `extra_hearts`, `dynamic_block_models` — connected glass, a retextured table and a filled
 tank in the world, the 1.21.5 block-state-level models —, `head_items` — every Tinkers head in a survival inventory,
 one held and one worn, `dynamic_item_icons` — a survival inventory of custom-model items, asserting each has a
-distinct, stable GUI model identity (the 1.21.6+ GUI item atlas key)), writes
+distinct, stable GUI model identity (the 1.21.6+ GUI item atlas key), `jei_<category>_category` for the other 11 Tinkers
+JEI categories (`casting_table`, `casting_basin`, `molding`, `alloy`, `entity_melting`, `foundry`, `modifiers`,
+`severing`, `tool_building`, `part_builder`, `worktable` — each asserts the category is registered and has recipes),
+`book_structure` — the smeltery 3D structure preview in "Mighty Smelting" (Mantle's picture-in-picture structure
+renderer) —, `crafting_tweaks_rotate` — presses the Crafting Tweaks rotate button on a filled crafting station and
+asserts the grid rotated), writes
 `run/clientUiTest/uitest-screenshots/*.png` +
 `run/clientUiTest/uitest-results.json` (scenario id → `"ok"` / `"fail: ..."`), then **exits on its own**
 (`BUILD SUCCESSFUL`; verified full run ≈ 6-7 min cold including the build, ~3 min in-world, zero leftover
@@ -359,6 +364,8 @@ through `id` → `prepare` → `prepareSettleTicks` (wait) → `open` → `settl
 (screenshot) → `close` — and call `UiTestScenarios.register(...)` during client setup, gated on
 `UiTestScenarios.isActive()`; see `slimeknights.tconstruct.client.uitest.TinkerUiTestScenarios` as the
 template. Registration must happen before world load — the suite snapshots the registry at world load.
+Screens open with the cursor centered, so hover tooltips can cover the capture: call `UiTestContext#parkMouse()` (top
+left corner; the JEI category scenarios re-park every tick until capture).
 
 ### Focused testing — run only the changed domain
 
@@ -379,7 +386,7 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 The suite logs `uitest: filtered to N of M scenario(s) via mantle.uitest.only=station_`; an empty match
-logs a warning and finishes cleanly (no crash). Property unset = all 15 scenarios run (the default).
+logs a warning and finishes cleanly (no crash). Property unset = all 30 scenarios run (the default).
 
 **gametest** — 1.21.5: `-PgametestOnly=<selector>` forwards to the gametest launcher's `--tests` (wildcards
 allowed), e.g. `runGameTestServer -PgametestOnly=tconstruct:smeltery_*`; unset = all 38 tests (~10 s in-world).

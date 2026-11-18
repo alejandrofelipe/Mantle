@@ -4,8 +4,15 @@ import com.google.gson.GsonBuilder;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.tutorial.TutorialSteps;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.GameRules;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import org.apache.commons.io.FileUtils;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.render.RenderTargetCapture;
@@ -15,21 +22,37 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Client-tick state machine driving registered {@link UiTestScenario}s:
- * waits for the quick-play world, then per scenario prepare -> open -> capture -> close,
+ * waits for the quick-play world, applies and verifies the world setup (music muted, mob spawning off, mobs discarded
+ * and blocked from joining; recorded as {@link #SETUP_RESULT}), then per scenario prepare -> open -> capture -> close,
  * finally writes uitest-results.json and stops the client. Active only with -Dmantle.uitest=true.
  */
 public class UiTestSuite {
-  private enum Phase { WAIT_WORLD, PREPARE_SETTLE, SETTLE, FINISH }
+  private enum Phase { WAIT_WORLD, SETUP, PREPARE_SETTLE, SETTLE, FINISH }
 
+  /** Result key of the suite's own environment check (music muted, mobs disabled), recorded before the scenarios. */
+  public static final String SETUP_RESULT = "mantle:suite_setup";
+  /**
+   * Entity tag (as in {@code /tag} or {@code Tags:[...]} in {@code /summon}) exempting a {@link Mob} from the suite's
+   * mob blocking; a scenario that needs a mob adds it before spawning, e.g. {@code mob.addTag(ALLOW_MOB_TAG)}.
+   */
+  public static final String ALLOW_MOB_TAG = "mantle_uitest_allow_mob";
   /** Ticks with a player present before the suite starts (world/chunk warmup). */
   private static final int WORLD_WARMUP_TICKS = 100;
+  /** Ticks between applying the world setup on the server and verifying it. */
+  private static final int SETUP_SETTLE_TICKS = 20;
+  /** Ceiling for the server to answer the setup verification. */
+  private static final int SETUP_TIMEOUT_TICKS = 200;
+  /** Radius around the player in which the client must see no mobs after setup. */
+  private static final double SETUP_MOB_RADIUS = 128;
   /** Per-scenario hard ceiling; overruns record a fail and move on. */
   private static final int SCENARIO_TIMEOUT_TICKS = 20 * 60;
   /** Whole-suite ceiling; overruns finish (and report) whatever ran. */
@@ -44,11 +67,101 @@ public class UiTestSuite {
   private int index = 0;
   private List<UiTestScenario> scenarios;
   private File outputDir;
+  /** Server-side half of the setup check: null until the server answered, empty when fine, else the problems. */
+  private volatile String serverSetupCheck;
 
   public static void init() {
     NeoForge.EVENT_BUS.addListener(new UiTestSuite()::onClientTick);
+    // keep captures deterministic: no mob ever joins a server level (saved mobs in lazily loaded chunks included)
+    NeoForge.EVENT_BUS.addListener(UiTestSuite::onEntityJoinLevel);
+    muteMusic(Minecraft.getInstance());
     Mantle.logger.info("uitest: suite armed; {} scenario(s) registered so far (registry is snapshotted at world load)",
       UiTestScenarios.all().size());
+  }
+
+  /** Silences the music source (only this run dir's options) and stops anything already playing; sound effects stay on. */
+  private static void muteMusic(Minecraft mc) {
+    mc.options.getSoundSourceOptionInstance(SoundSource.MUSIC).set(0.0);
+    mc.getMusicManager().stopPlaying();
+  }
+
+  private static boolean isBlockedMob(Entity entity) {
+    return entity instanceof Mob && !entity.getTags().contains(ALLOW_MOB_TAG);
+  }
+
+  private static void onEntityJoinLevel(EntityJoinLevelEvent event) {
+    if (!event.getLevel().isClientSide() && isBlockedMob(event.getEntity())) {
+      event.setCanceled(true);
+    }
+  }
+
+  /** Server thread: disables mob spawning game rules and discards every mob already in a loaded level. */
+  private static void applyWorldSetup(MinecraftServer server) {
+    GameRules rules = server.overworld().getGameRules();
+    for (GameRules.Key<GameRules.BooleanValue> rule : List.of(GameRules.RULE_DOMOBSPAWNING, GameRules.RULE_DO_PATROL_SPAWNING,
+                                                              GameRules.RULE_DO_TRADER_SPAWNING, GameRules.RULE_DOINSOMNIA)) {
+      rules.getRule(rule).set(false, server);
+    }
+    int discarded = 0;
+    for (ServerLevel level : server.getAllLevels()) {
+      List<Entity> mobs = new ArrayList<>();
+      for (Entity entity : level.getAllEntities()) {
+        if (isBlockedMob(entity)) {
+          mobs.add(entity);
+        }
+      }
+      mobs.forEach(Entity::discard);
+      discarded += mobs.size();
+    }
+    Mantle.logger.info("uitest: world setup applied (mob spawning off, {} mob(s) discarded)", discarded);
+  }
+
+  /** Server thread: problems with the applied world setup, empty when fine. */
+  private static String checkWorldSetup(MinecraftServer server) {
+    List<String> problems = new ArrayList<>();
+    if (server.overworld().getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) {
+      problems.add("doMobSpawning is true");
+    }
+    for (ServerLevel level : server.getAllLevels()) {
+      int mobs = 0;
+      for (Entity entity : level.getAllEntities()) {
+        if (!entity.isRemoved() && isBlockedMob(entity)) {
+          mobs++;
+        }
+      }
+      if (mobs > 0) {
+        problems.add(mobs + " mob(s) in " + level.dimension().location());
+      }
+    }
+    return String.join("; ", problems);
+  }
+
+  /** Records {@link #SETUP_RESULT} from the server answer plus the client-side checks (music volume, visible mobs). */
+  private void recordSetupResult(Minecraft mc) {
+    List<String> problems = new ArrayList<>();
+    String server = serverSetupCheck;
+    if (server == null) {
+      problems.add("server setup check timed out");
+    } else if (!server.isEmpty()) {
+      problems.add(server);
+    }
+    double music = mc.options.getSoundSourceOptionInstance(SoundSource.MUSIC).get();
+    if (music != 0) {
+      problems.add("music volume is " + music);
+    }
+    if (mc.level != null && mc.player != null) {
+      List<Mob> visible = mc.level.getEntitiesOfClass(Mob.class, mc.player.getBoundingBox().inflate(SETUP_MOB_RADIUS), UiTestSuite::isBlockedMob);
+      if (!visible.isEmpty()) {
+        problems.add(visible.size() + " mob(s) visible near the player: " + visible);
+      }
+    }
+    if (problems.isEmpty()) {
+      results.put(SETUP_RESULT, "ok");
+    } else {
+      String failure = "fail: " + String.join("; ", problems);
+      Mantle.logger.error("uitest: suite setup check failed: {}", failure);
+      results.put(SETUP_RESULT, failure);
+    }
   }
 
   private void onClientTick(ClientTickEvent.Post event) {
@@ -85,10 +198,23 @@ public class UiTestSuite {
               FileUtils.deleteDirectory(outputDir);
             } catch (Exception ignored) {}
             outputDir.mkdirs();
-            startScenario(mc);
+            muteMusic(mc); // re-assert in case something reset the option since arming
+            MinecraftServer server = Objects.requireNonNull(mc.getSingleplayerServer(), "uitest: no integrated server");
+            server.execute(() -> applyWorldSetup(server));
+            enter(Phase.SETUP);
           }
         } else {
           phaseTicks = 0; // only count ticks while actually in-world at the title-free screen
+        }
+      }
+      case SETUP -> {
+        MinecraftServer server = mc.getSingleplayerServer();
+        if (phaseTicks == SETUP_SETTLE_TICKS && server != null) {
+          server.execute(() -> serverSetupCheck = checkWorldSetup(server));
+        }
+        if (phaseTicks > SETUP_SETTLE_TICKS && (serverSetupCheck != null || phaseTicks >= SETUP_TIMEOUT_TICKS)) {
+          recordSetupResult(mc);
+          startScenario(mc);
         }
       }
       case PREPARE_SETTLE -> {

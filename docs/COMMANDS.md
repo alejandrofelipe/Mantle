@@ -351,6 +351,15 @@ asserts the grid rotated), writes
 (`BUILD SUCCESSFUL`; verified full run ≈ 6-7 min cold including the build, ~3 min in-world, zero leftover
 processes). **Do not interact with the window while it runs.**
 
+**Deterministic environment.** While the suite is active the MUSIC sound source is muted (set to 0 in this run
+dir's `options.txt`; sound effects stay on) and mobs are disabled: at world load the server turns off
+`doMobSpawning`/`doPatrolSpawning`/`doTraderSpawning`/`doInsomnia` and discards every `Mob` in the loaded levels, and an
+`EntityJoinLevelEvent` listener cancels any `Mob` joining a server level for the rest of the run (saved mobs in chunks
+loaded later by a scenario's `/tp` included). Non-mob entities — armor stands, item frames, displays — are untouched.
+The suite verifies this before the first scenario and records it as `"mantle:suite_setup"` in `uitest-results.json`
+(`"ok"` or `"fail: ..."`). A scenario that needs a mob tags it with `UiTestSuite.ALLOW_MOB_TAG`
+(`mantle_uitest_allow_mob`, e.g. `mob.addTag(...)` or `Tags:["mantle_uitest_allow_mob"]` in `/summon`) before spawning.
+
 > **Result-reading rule.** A `FATAL` `Error executing task` line in the log overrides an `"ok"` in
 > `uitest-results.json` — server-thread scenario guards log there instead of failing the recorded result,
 > so check the log even when the JSON looks clean.

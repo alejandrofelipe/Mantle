@@ -363,10 +363,10 @@ public class RetexturedModel extends ColoredBlockModel {
       return new Baked(new ItemVariant(quads, properties), retexturer, ElementModelData.itemRenderType(resolved));
     }
 
-    /** Quads and properties for a single item variant, with lazily computed extents */
-    private record ItemVariant(List<BakedQuad> quads, ModelRenderProperties properties, Supplier<Vector3f[]> extents) {
+    /** Quads and properties for a single item variant, with lazily computed extents and whether any sprite is animated */
+    private record ItemVariant(List<BakedQuad> quads, ModelRenderProperties properties, Supplier<Vector3f[]> extents, boolean animated) {
       private ItemVariant(List<BakedQuad> quads, ModelRenderProperties properties) {
-        this(quads, properties, Suppliers.memoize(() -> BlockModelWrapper.computeExtents(quads)));
+        this(quads, properties, Suppliers.memoize(() -> BlockModelWrapper.computeExtents(quads)), ModelHelper.hasAnimatedSprite(quads));
       }
     }
 
@@ -403,7 +403,7 @@ public class RetexturedModel extends ColoredBlockModel {
             variant = getVariant(block);
           }
         }
-        ModelHelper.addItemLayer(renderState, stack, displayContext, variant.quads, variant.properties, renderType, variant.extents);
+        ModelHelper.addItemLayer(renderState, stack, displayContext, variant.quads, variant.properties, renderType, variant.extents, variant.animated);
       }
     }
   }

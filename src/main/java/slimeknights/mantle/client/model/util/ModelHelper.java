@@ -150,10 +150,11 @@ public class ModelHelper {
    * @param renderType      Render type for the layer, null to use the stack's default
    * @param extents         Model extents, see {@link BlockModelWrapper#computeExtents(List)}. Must be memoized and created
    *                        once per cached variant: it doubles as the variant's model identity (see below).
+   * @param animated        Whether any quad uses an animated sprite, see {@link #hasAnimatedSprite(List)}; compute once per variant
    * @return  The added layer, for further customization such as tint layers
    */
   public static ItemStackRenderState.LayerRenderState addItemLayer(ItemStackRenderState renderState, ItemStack stack, ItemDisplayContext displayContext, List<BakedQuad> quads,
-                                                                   ModelRenderProperties properties, @Nullable RenderType renderType, Supplier<Vector3f[]> extents) {
+                                                                   ModelRenderProperties properties, @Nullable RenderType renderType, Supplier<Vector3f[]> extents, boolean animated) {
     // 1.21.6+: GUI items are drawn once into an atlas keyed by the render state's model identity, so every distinct
     // look must append a distinct element (vanilla appends the BlockModelWrapper itself). Without one, all dynamic items
     // share the empty identity and show whichever was drawn first. The memoized extents supplier is unique per variant
@@ -166,17 +167,25 @@ public class ModelHelper {
       renderState.setAnimated();
       renderState.appendModelIdentityElement(ItemStackRenderState.FoilType.STANDARD);
     }
-    for (BakedQuad quad : quads) {
-      if (quad.sprite().isAnimated()) {
-        renderState.setAnimated();
-        break;
-      }
+    // animated sprites must re-render their atlas slot every frame too
+    if (animated) {
+      renderState.setAnimated();
     }
     layer.setExtents(extents);
     layer.setRenderType(renderType != null ? renderType : ItemBlockRenderTypes.getRenderType(stack));
     properties.applyToLayer(layer, displayContext);
     layer.prepareQuadList().addAll(quads);
     return layer;
+  }
+
+  /** Checks if any of the quads uses an animated sprite, matching vanilla's {@code BlockModelWrapper} constructor. Call once per baked variant, not per render. */
+  public static boolean hasAnimatedSprite(List<BakedQuad> quads) {
+    for (BakedQuad quad : quads) {
+      if (quad.sprite().isAnimated()) {
+        return true;
+      }
+    }
+    return false;
   }
 
 

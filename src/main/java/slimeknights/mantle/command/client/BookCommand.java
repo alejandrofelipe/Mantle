@@ -215,12 +215,14 @@ public class BookCommand {
       int windowHeight = window.getHeight();
       int windowGuiScale = window.getGuiScale();
       RenderTarget target = minecraft.getMainRenderTarget();
-      window.setWidth(width);
-      window.setHeight(height);
-      window.setGuiScale(scale);
-      target.resize(width, height);
 
+      // swap inside the try so a failure partway (e.g. running out of memory resizing at a large scale) still restores the window
       try {
+        window.setWidth(width);
+        window.setHeight(height);
+        window.setGuiScale(scale);
+        target.resize(width, height);
+
         String bookKey = book.getPath() + "_" + version;
         // title goes export title -> regular title -> path
         String exportTitle = bookData.appearance.exportTitle;
@@ -264,6 +266,8 @@ public class BookCommand {
           screen.render(new GuiGraphics(minecraft, renderState), 0, 0, 0);
           // render resets the state once drawn
           gameRenderer.guiRenderer.render(gameRenderer.fogRenderer.getBuffer(FogRenderer.FogMode.NONE));
+          // each page is a frame for the GUI renderer, so animated items in the item atlas redraw for the next page
+          gameRenderer.guiRenderer.incrementFrameNumber();
 
           try (NativeImage image = RenderTargetCapture.capture(target, true)) {
             String pageFormat = page < 0 ? "cover" :  (html ? "clean_" : "page_") + page;

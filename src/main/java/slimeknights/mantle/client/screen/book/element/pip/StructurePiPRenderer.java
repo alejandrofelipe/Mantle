@@ -8,6 +8,7 @@ import net.minecraft.client.gui.render.pip.PictureInPictureRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.block.model.BlockModelPart;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -17,14 +18,23 @@ import slimeknights.mantle.client.book.structure.level.TemplateLevel;
 import slimeknights.mantle.client.render.MantleRenderTypes;
 
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * Renders a book structure preview into its own texture, which the GUI then blits.
  * 1.21.8: replaces the immediate 3D drawing {@link slimeknights.mantle.client.screen.book.element.StructureElement} did inside the GUI.
  * Registered for {@link StructureRenderState} in {@link slimeknights.mantle.client.ClientEvents}; NeoForge pools one renderer per state on screen.
+ * <p>
+ * Each renderer owns a color and depth texture of {@code (x1 - x0) * guiScale} by {@code (y1 - y0) * guiScale} pixels, so large structures
+ * at a high GUI scale allocate large textures.
  */
 public class StructurePiPRenderer extends PictureInPictureRenderer<StructureRenderState> {
-  /** Last time a render error was logged, to avoid logging every frame */
+  /** Position highlighted with the red overlay */
+  private static final BlockPos HIGHLIGHT_POS = new BlockPos(1, 1, 1);
+  /**
+   * Last time a render error was logged, to avoid logging every frame.
+   * This is a single global limit shared by all structures, so while one structure keeps failing, errors from others may be skipped.
+   */
   private static long lastPrintedErrorTimeMs = -1;
 
   public StructurePiPRenderer(MultiBufferSource.BufferSource bufferSource) {
@@ -72,6 +82,8 @@ public class StructurePiPRenderer extends PictureInPictureRenderer<StructureRend
 
       BlockRenderDispatcher blockRender = minecraft.getBlockRenderer();
       VertexConsumer buffer = this.bufferSource.getBuffer(MantleRenderTypes.TRANSLUCENT_FULLBRIGHT);
+      // every chunk layer goes into the single fullbright translucent buffer
+      Function<ChunkSectionLayer, VertexConsumer> bufferLookup = layer -> buffer;
       for (int h = 0; h < structureHeight; h++) {
         for (int l = 0; l < structureLength; l++) {
           for (int w = 0; w < structureWidth; w++) {
@@ -83,16 +95,15 @@ public class StructurePiPRenderer extends PictureInPictureRenderer<StructureRend
               poseStack.translate(l, h, w);
 
               int overlay;
-              if (pos.equals(new BlockPos(1, 1, 1)))
+              if (pos.equals(HIGHLIGHT_POS))
                 overlay = OverlayTexture.pack(0, true);
               else
                 overlay = OverlayTexture.NO_OVERLAY;
 
-              // block models collect parts against the level (block entity data is read through TemplateLevel#getModelData);
-              // every part goes into the single fullbright translucent buffer
+              // block models collect parts against the level (block entity data is read through TemplateLevel#getModelData)
               level.random.setSeed(blockState.getSeed(pos));
               List<BlockModelPart> parts = blockRender.getBlockModel(blockState).collectParts(level, pos, blockState, level.random);
-              blockRender.getModelRenderer().tesselateBlock(level, parts, blockState, pos, poseStack, layer -> buffer, false, overlay);
+              blockRender.getModelRenderer().tesselateBlock(level, parts, blockState, pos, poseStack, bufferLookup, false, overlay);
 
               poseStack.popPose();
             }

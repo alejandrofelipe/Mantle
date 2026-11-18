@@ -23,7 +23,8 @@ import javax.annotation.Nullable;
  * @param y1           Bottom edge of the area
  * @param scale        Size of a block in screen GUI units
  * @param scissorArea  Scissor in effect when the state was submitted
- * @param bounds       Visible part of the area, used by the GUI to layer the blit
+ * @param bounds       Visible part of the area, used by the GUI to layer the blit. Derived from the area and scissor through
+ *                     {@link PictureInPictureRenderState#getBounds}, as the vanilla states do; use the constructor without it
  */
 public record StructureRenderState(
   TemplateLevel level,

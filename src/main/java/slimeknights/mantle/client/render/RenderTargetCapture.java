@@ -1,12 +1,16 @@
 package slimeknights.mantle.client.render;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuFence;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.CommandEncoder;
 import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTexture;
+import org.lwjgl.opengl.GL11;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * Synchronous replacement for {@link net.minecraft.client.Screenshot#takeScreenshot(RenderTarget, java.util.function.Consumer)}.
@@ -14,6 +18,10 @@ import com.mojang.blaze3d.textures.GpuTexture;
  * frame, and forces every pixel opaque. Callers that must have the image right away (book export, uitest captures) use this instead.
  */
 public class RenderTargetCapture {
+  /** Upper bound on waiting for the GPU copy, so a lost fence fails the capture instead of hanging the client. */
+  private static final long FENCE_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(10);
+  private static final long FENCE_POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(100);
+
   private RenderTargetCapture() {}
 
   /**
@@ -40,8 +48,11 @@ public class RenderTargetCapture {
     GpuDevice device = RenderSystem.getDevice();
     CommandEncoder encoder = device.createCommandEncoder();
     try (GpuBuffer buffer = device.createBuffer(() -> "Mantle capture buffer", GpuBuffer.USAGE_COPY_DST | GpuBuffer.USAGE_MAP_READ, width * height * pixelSize)) {
-      // the fenced task is not needed: mapping the buffer for reading below waits for the copy to finish
       encoder.copyTextureToBuffer(texture, buffer, 0, () -> {}, 0);
+      // the copy only queues a read into the buffer, and mapping does not wait for it: with GL_ARB_buffer_storage the buffer is
+      // persistently mapped at creation and mapBuffer just slices that pointer. Reading right away returns whatever the driver
+      // left in that memory (often the previous capture, or black), so block until the GPU passes a fence placed after the copy
+      awaitGpu(encoder);
       try (GpuBuffer.MappedView view = encoder.mapBuffer(buffer, true, false)) {
         NativeImage image = new NativeImage(width, height, false);
         try {
@@ -57,6 +68,20 @@ public class RenderTargetCapture {
           // caller only owns the image once it is returned
           image.close();
           throw e;
+        }
+      }
+    }
+  }
+
+  /** Blocks until every GPU command queued so far, including the copy, has finished. */
+  private static void awaitGpu(CommandEncoder encoder) {
+    try (GpuFence fence = encoder.createFence()) {
+      // the fence wait does not flush, so submit the queued commands or it may never signal
+      GL11.glFlush();
+      long deadline = System.nanoTime() + FENCE_TIMEOUT_NANOS;
+      while (!fence.awaitCompletion(FENCE_POLL_NANOS)) {
+        if (System.nanoTime() - deadline > 0) {
+          throw new IllegalStateException("Timed out waiting for the GPU to finish copying the framebuffer");
         }
       }
     }

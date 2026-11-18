@@ -1,6 +1,7 @@
 package slimeknights.mantle.client.uitest;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.MouseHandler;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.commands.arguments.EntityAnchorArgument.Anchor;
 import net.minecraft.core.BlockPos;
@@ -11,6 +12,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
+import java.lang.reflect.Field;
 import java.util.Objects;
 
 /** Helpers handed to scenarios; client-thread unless noted. */
@@ -45,5 +47,22 @@ public record UiTestContext(Minecraft mc) {
   /** Aims the player camera at a position (for in-world captures). */
   public void lookAt(BlockPos pos) {
     player().lookAt(Anchor.EYES, Vec3.atCenterOf(pos));
+  }
+
+  /**
+   * Moves the GUI mouse position to the top left corner of the window. Screens open with the cursor centered, where it
+   * shows hover tooltips over whatever sits in the middle of the capture. Sets the handler's position directly rather than
+   * moving the OS cursor, which GLFW ignores while the window is unfocused.
+   */
+  public void parkMouse() {
+    try {
+      for (String name : new String[] {"xpos", "ypos"}) {
+        Field field = MouseHandler.class.getDeclaredField(name);
+        field.setAccessible(true);
+        field.setDouble(mc.mouseHandler, 0);
+      }
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("uitest: failed to park the mouse", e);
+    }
   }
 }

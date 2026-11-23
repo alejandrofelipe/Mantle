@@ -295,8 +295,10 @@ public abstract class FluidIngredient implements IAmLoadable {
 
     @Override
     public List<FluidStack> getAllFluids() {
+      // the network list, so keep the flowing fluids: the display filter of getFluids() would drop the flowing fluids
+      // a decoded tag match carries, so the client copy would no longer match them nor encode like the server's
       return ingredients.stream()
-                        .flatMap(ingredient -> ingredient.getFluids().stream())
+                        .flatMap(ingredient -> ingredient.getAllFluids().stream())
                         .collect(Collectors.toList());
     }
   }

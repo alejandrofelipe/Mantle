@@ -435,8 +435,6 @@ public class BookScreen extends Screen {
 
   @Override
   public boolean keyPressed(KeyEvent event) {
-    super.keyPressed(event);
-
     switch (event.key()) {
       case GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_A -> {
         previousPage();

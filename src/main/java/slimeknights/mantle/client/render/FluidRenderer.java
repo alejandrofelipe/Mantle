@@ -365,7 +365,10 @@ public class FluidRenderer {
    * @param light     Quad lighting from TER
    * @param cube      Fluid cuboid instance
    * @param flipGas   If true, flips gas cubes
+   * @deprecated immediate-mode only; block entity renderers must use {@link #submitScaledCuboid} from {@code submit}
+   * since 1.21.9 (their buffers belong to the feature dispatcher)
    */
+  @Deprecated
   public static void renderScaledCuboid(PoseStack matrices, MultiBufferSource buffer, FluidCuboid cube, FluidStack fluid, float offset, int capacity, int light, boolean flipGas) {
     // nothing to render
     if (fluid.isEmpty() || capacity <= 0) {

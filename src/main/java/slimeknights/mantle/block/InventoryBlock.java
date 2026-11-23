@@ -18,11 +18,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
-import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.items.IItemHandler;
 import slimeknights.mantle.block.entity.INameableMenuProvider;
 import slimeknights.mantle.block.entity.MantleBlockEntity;
 import slimeknights.mantle.inventory.BaseContainerMenu;
+import slimeknights.mantle.transfer.TransferHelper;
 
 import javax.annotation.Nullable;
 
@@ -111,7 +111,7 @@ public abstract class InventoryBlock extends Block implements EntityBlock {
    */
   public void preRemoveSideEffects(BlockState state, Level level, BlockPos pos, BlockEntity blockEntity) {
     // the level already holds the new state, so pass the old state and block entity to find the right capability
-    IItemHandler inventory = level.getCapability(Capabilities.ItemHandler.BLOCK, pos, state, blockEntity, null);
+    IItemHandler inventory = TransferHelper.getItemHandler(level, pos, state, blockEntity, null);
     if (inventory != null) {
       dropInventoryItems(state, level, pos, inventory);
     }

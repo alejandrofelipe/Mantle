@@ -100,7 +100,7 @@ public class ContainerFoodItem extends Item {
    * <p>
    * The fluid handler capability is no longer exposed via {@code initCapabilities}; register it centrally on
    * {@code RegisterCapabilitiesEvent} in stage 7 using {@link #getFluid()}:
-   * {@code event.registerItem(Capabilities.FluidHandler.ITEM, (stack, ctx) -> new ConstantFluidContainerWrapper(item.getFluid().get(), stack), item)}
+   * {@code event.registerItem(Capabilities.Fluid.ITEM, (stack, access) -> new ConstantFluidContainerWrapper(item.getFluid().get(), access), item)}
    */
   public static class FluidContainerFoodItem extends ContainerFoodItem {
     /** Supplier for the contained fluid, exposed for central capability registration in stage 7 */

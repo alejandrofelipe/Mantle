@@ -21,11 +21,11 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.templates.EmptyFluidHandler;
 import slimeknights.mantle.Mantle;
+import slimeknights.mantle.transfer.TransferHelper;
 import slimeknights.mantle.util.TranslationHelper;
 
 import javax.annotation.Nullable;
@@ -71,7 +71,7 @@ public class GaugeBlock extends Block {
     if (!world.isClientSide()) {
       Direction side = state.getValue(FACING);
       BlockPos neighbor = pos.relative(side.getOpposite());
-      IFluidHandler handler = world.getCapability(Capabilities.FluidHandler.BLOCK, neighbor, side);
+      IFluidHandler handler = TransferHelper.getFluidHandler(world, neighbor, side);
       if (handler == null) {
         handler = EmptyFluidHandler.INSTANCE;
       }
@@ -105,7 +105,7 @@ public class GaugeBlock extends Block {
     Direction direction = state.getValue(FACING);
     BlockPos neighbor = pos.relative(direction.getOpposite());
     if (world instanceof Level level) {
-      return level.getCapability(Capabilities.FluidHandler.BLOCK, neighbor, direction) != null;
+      return TransferHelper.hasFluidHandler(level, neighbor, direction);
     }
     return false;
   }

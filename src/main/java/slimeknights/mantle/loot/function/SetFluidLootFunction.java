@@ -7,11 +7,11 @@ import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.functions.LootItemConditionalFunction;
 import net.minecraft.world.level.storage.loot.functions.LootItemFunctionType;
 import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
-import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction;
 import slimeknights.mantle.loot.MantleLoot;
+import slimeknights.mantle.transfer.TransferHelper;
 
 import java.util.List;
 
@@ -33,9 +33,10 @@ public class SetFluidLootFunction extends LootItemConditionalFunction {
 
   @Override
   protected ItemStack run(ItemStack stack, LootContext context) {
-    IFluidHandlerItem handler = stack.getCapability(Capabilities.FluidHandler.ITEM);
+    // PORT 1.21.10: the bridge works on a copy and its amounts are totals over the stack, so fill each item with the fluid
+    IFluidHandlerItem handler = TransferHelper.getFluidHandler(stack);
     if (handler != null) {
-      handler.fill(fluid.copy(), FluidAction.EXECUTE);
+      handler.fill(fluid.copyWithAmount(fluid.getAmount() * stack.getCount()), FluidAction.EXECUTE);
       return handler.getContainer();
     }
     return stack;

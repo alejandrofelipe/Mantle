@@ -135,13 +135,14 @@ public class Mantle {
   private void registerCapabilities(RegisterCapabilitiesEvent event) {
     // entity capability: per-player offhand cooldown tracker (registered for EntityType.PLAYER)
     OffhandCooldownTracker.register(event);
-    // NOTE (item FluidHandler.ITEM caps): ContainerFoodItem.FluidContainerFoodItem and ConstantFluidContainerWrapper
+    // NOTE (item Fluid.ITEM caps): ContainerFoodItem.FluidContainerFoodItem and ConstantFluidContainerWrapper
     // expose fluid handlers, but Mantle itself instantiates no concrete fluid-container item, so there is nothing to
     // register here. Downstream mods (e.g. Tinkers) register their own items via
-    // event.registerItem(Capabilities.FluidHandler.ITEM, (stack, ctx) -> new ConstantFluidContainerWrapper(...), item).
+    // event.registerItem(Capabilities.Fluid.ITEM, (stack, access) -> new ConstantFluidContainerWrapper(fluid, access), item).
     // NOTE (block-entity item handler): InventoryBlockEntity is abstract and Mantle registers no concrete BlockEntityType
-    // for it, so there is no Capabilities.ItemHandler.BLOCK registration to perform here. The sign block entity types
-    // (MantleRegistrations.SIGN/HANGING_SIGN) expose no handlers either.
+    // for it, so there is no Capabilities.Item.BLOCK registration to perform here; subclasses register
+    // InventoryBlockEntity#getItemHandler(Direction). The sign block entity types (MantleRegistrations.SIGN/HANGING_SIGN)
+    // expose no handlers either.
   }
 
   private void commonSetup(final FMLCommonSetupEvent event) {

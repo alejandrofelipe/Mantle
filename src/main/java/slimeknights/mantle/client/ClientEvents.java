@@ -38,7 +38,6 @@ import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -71,6 +70,7 @@ import slimeknights.mantle.fluid.texture.FluidTextureManager;
 import slimeknights.mantle.fluid.tooltip.FluidTooltipHandler;
 import slimeknights.mantle.registration.MantleRegistrations;
 import slimeknights.mantle.registration.RegistrationHelper;
+import slimeknights.mantle.transfer.TransferHelper;
 import slimeknights.mantle.util.OffhandCooldownTracker;
 import slimeknights.mantle.util.RegistryHelper;
 
@@ -277,7 +277,7 @@ public class ClientEvents {
       return;
     }
     // block entity must have a fluid handler
-    IFluidHandler handler = minecraft.level.getCapability(Capabilities.FluidHandler.BLOCK, gaugeContainer.getBlockPos(), null, gaugeContainer, side);
+    IFluidHandler handler = TransferHelper.getFluidHandler(minecraft.level, gaugeContainer.getBlockPos(), null, gaugeContainer, side);
     if (handler == null) {
       handler = EmptyFluidHandler.INSTANCE;
     }

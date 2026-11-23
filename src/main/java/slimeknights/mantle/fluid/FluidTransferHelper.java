@@ -20,7 +20,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.BlockHitResult;
-import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.common.SoundAction;
 import net.neoforged.neoforge.common.SoundActions;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -33,6 +32,7 @@ import slimeknights.mantle.fluid.transfer.FluidContainerTransferManager;
 import slimeknights.mantle.fluid.transfer.IFluidContainerTransfer;
 import slimeknights.mantle.fluid.transfer.IFluidContainerTransfer.TransferDirection;
 import slimeknights.mantle.fluid.transfer.IFluidContainerTransfer.TransferResult;
+import slimeknights.mantle.transfer.TransferHelper;
 
 import javax.annotation.Nullable;
 
@@ -137,7 +137,7 @@ public class FluidTransferHelper {
   @Deprecated(forRemoval = true)
   public static boolean interactWithBucket(Level world, BlockPos pos, Player player, InteractionHand hand, Direction hit, Direction offset) {
     if (player.getItemInHand(hand).getItem() instanceof BucketItem) {
-      IFluidHandler teCapability = world.getCapability(Capabilities.FluidHandler.BLOCK, pos, hit);
+      IFluidHandler teCapability = TransferHelper.getFluidHandler(world, pos, hit);
       if (teCapability != null) {
         return interactWithFilledBucket(world, pos, teCapability, player, hand, offset).hasContainer();
       }
@@ -212,7 +212,7 @@ public class FluidTransferHelper {
   public static FluidInteractionResult interactWithContainer(Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
     if (!player.getItemInHand(hand).isEmpty()) {
       // block must have a capability
-      IFluidHandler teCapability = world.getCapability(Capabilities.FluidHandler.BLOCK, pos, hit.getDirection());
+      IFluidHandler teCapability = TransferHelper.getFluidHandler(world, pos, hit.getDirection());
       if (teCapability != null) {
         return interactWithContainer(world, pos, teCapability, player, hand);
       }
@@ -256,7 +256,7 @@ public class FluidTransferHelper {
 
     // if the item has a capability, do a direct transfer
     ItemStack copy = stack.copyWithCount(1);
-    IFluidHandlerItem itemHandler = copy.getCapability(Capabilities.FluidHandler.ITEM);
+    IFluidHandlerItem itemHandler = TransferHelper.getFluidHandler(copy);
     if (itemHandler != null) {
       FluidInteractionResult result = FluidInteractionResult.CONTAINER;
       if (!world.isClientSide()) {
@@ -313,7 +313,7 @@ public class FluidTransferHelper {
    */
   public static boolean interactWithTank(Level world, BlockPos pos, Player player, InteractionHand hand, Direction hit, Direction offset) {
     if (!player.getItemInHand(hand).isEmpty()) {
-      IFluidHandler handler = world.getCapability(Capabilities.FluidHandler.BLOCK, pos, hit);
+      IFluidHandler handler = TransferHelper.getFluidHandler(world, pos, hit);
       if (handler != null) {
         return interactWithContainer(world, pos, handler, player, hand).hasContainer()
           || interactWithFilledBucket(world, pos, handler, player, hand, offset).hasContainer();
@@ -360,7 +360,7 @@ public class FluidTransferHelper {
 
       // if the item has a capability, do a direct transfer
       ItemStack copy = stack.copyWithCount(1);
-      IFluidHandlerItem itemHandler = copy.getCapability(Capabilities.FluidHandler.ITEM);
+      IFluidHandlerItem itemHandler = TransferHelper.getFluidHandler(copy);
       if (itemHandler != null) {
         // first, try filling the TE from the item
         FluidStack transferred = FluidStack.EMPTY;
@@ -429,7 +429,7 @@ public class FluidTransferHelper {
 
       // if the item has a capability, do a direct transfer
       ItemStack copy = stack.copyWithCount(1);
-      IFluidHandlerItem itemHandler = copy.getCapability(Capabilities.FluidHandler.ITEM);
+      IFluidHandlerItem itemHandler = TransferHelper.getFluidHandler(copy);
       if (itemHandler != null) {
         // first, try filling the TE from the item
         FluidStack transferred = tryTransfer(teHandler, itemHandler, fluid.copy());

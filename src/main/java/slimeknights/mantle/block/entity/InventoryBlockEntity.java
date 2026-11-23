@@ -1,6 +1,5 @@
 package slimeknights.mantle.block.entity;
 
-import lombok.Getter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.NonNullList;
@@ -17,9 +16,9 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
-import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.IItemHandlerModifiable;
-import net.neoforged.neoforge.items.wrapper.InvWrapper;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.neoforged.neoforge.transfer.item.VanillaContainerWrapper;
 import slimeknights.mantle.util.ItemStackList;
 
 import javax.annotation.Nullable;
@@ -34,8 +33,13 @@ public abstract class InventoryBlockEntity extends NameableBlockEntity implement
   /** If true, the inventory size is saved to NBT, false means you are responsible for serializing it if it changes */
   private final boolean saveSizeToNBT;
   protected int stackSizeLimit;
-  @Getter
-  protected IItemHandlerModifiable itemHandler;
+  /**
+   * Item handler exposed by {@link #getItemHandler(Direction)}, null to expose NeoForge's {@link VanillaContainerWrapper} of this container.
+   * Subclasses may assign their own native handler in the constructor.
+   * PORT 1.21.10: was a legacy {@code IItemHandlerModifiable} defaulting to an {@code InvWrapper}; registered handlers are native now.
+   */
+  @Nullable
+  protected ResourceHandler<ItemResource> itemHandler;
 
   /**
    * @param name Localization String for the inventory title. Can be overridden through setCustomName
@@ -52,17 +56,26 @@ public abstract class InventoryBlockEntity extends NameableBlockEntity implement
     this.saveSizeToNBT = saveSizeToNBT;
     this.inventory = NonNullList.withSize(inventorySize, ItemStack.EMPTY);
     this.stackSizeLimit = maxStackSize;
-    this.itemHandler = new InvWrapper(this);
   }
 
   /**
-   * Gets the item handler capability for this block entity. Registered centrally via {@code RegisterCapabilitiesEvent}.
+   * Gets the native item handler of this block entity.
+   * @return  {@link #itemHandler} if set, otherwise NeoForge's transactional wrapper of this container
+   */
+  public ResourceHandler<ItemResource> getItemHandler() {
+    // NeoForge caches the wrapper per container, and of() refreshes its size after a resize
+    return this.itemHandler != null ? this.itemHandler : VanillaContainerWrapper.of(this);
+  }
+
+  /**
+   * Gets the item handler capability for this block entity. Registered centrally via {@code RegisterCapabilitiesEvent} on
+   * {@link net.neoforged.neoforge.capabilities.Capabilities.Item#BLOCK}.
    * @param side  Side requesting the handler, unused as the same handler is exposed on all sides
-   * @return  Item handler, never null
+   * @return  Item handler, null for no handler on that side
    */
   @Nullable
-  public IItemHandler getItemHandler(@Nullable Direction side) {
-    return this.itemHandler;
+  public ResourceHandler<ItemResource> getItemHandler(@Nullable Direction side) {
+    return this.getItemHandler();
   }
 
   /* Inventory management */

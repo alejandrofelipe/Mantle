@@ -6,10 +6,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
+import net.minecraft.core.particles.ExplosionParticleInfo;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.random.WeightedList;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -23,6 +25,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.FuelValues;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.level.chunk.ChunkSource;
 import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 import net.minecraft.world.level.entity.LevelEntityGetter;
@@ -34,6 +37,7 @@ import net.neoforged.neoforge.entity.PartEntity;
 import net.neoforged.neoforge.model.data.ModelData;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
+import net.minecraft.world.level.storage.LevelData.RespawnData;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.ticks.BlackholeTickAccess;
@@ -56,6 +60,7 @@ public class TemplateLevel extends Level {
   private final Map<MapId, MapItemSavedData> maps = new HashMap<>();
   private final Scoreboard scoreboard = new Scoreboard();
   private final net.minecraft.world.TickRateManager tickRateManager = new net.minecraft.world.TickRateManager();
+  private final WorldBorder worldBorder = new WorldBorder();
   private final TemplateChunkSource chunkSource;
 
   public TemplateLevel(List<StructureBlockInfo> blocks, Predicate<BlockPos> shouldShow) {
@@ -122,7 +127,25 @@ public class TemplateLevel extends Level {
   }
 
   @Override
-  public void explode(@Nullable Entity entity, @Nullable DamageSource damageSource, @Nullable ExplosionDamageCalculator calculator, double x, double y, double z, float radius, boolean fire, Level.ExplosionInteraction interaction, ParticleOptions smallParticle, ParticleOptions largeParticle, Holder<SoundEvent> sound) {}
+  public void explode(@Nullable Entity entity, @Nullable DamageSource damageSource, @Nullable ExplosionDamageCalculator calculator, double x, double y, double z, float radius, boolean fire, Level.ExplosionInteraction interaction, ParticleOptions smallParticle, ParticleOptions largeParticle, WeightedList<ExplosionParticleInfo> blockParticles, Holder<SoundEvent> sound) {}
+
+  /** 1.21.9: the world border moved off Level into the client/server levels */
+  @Nonnull
+  @Override
+  public WorldBorder getWorldBorder() {
+    return this.worldBorder;
+  }
+
+  // 1.21.9: spawn position moved from the level data API to Level#get/setRespawnData
+  @Override
+  public void setRespawnData(RespawnData respawnData) {
+    this.levelData.setSpawn(respawnData);
+  }
+
+  @Override
+  public RespawnData getRespawnData() {
+    return this.levelData.getRespawnData();
+  }
 
   @Nonnull
   @Override

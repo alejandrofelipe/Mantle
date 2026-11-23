@@ -10,7 +10,8 @@ import java.util.concurrent.Executor;
 /** Same as {@link ISafeManagerReloadListener}, but reloads earlier. Needed to work with some parts of models. */
 public interface IEarlySafeManagerReloadListener extends PreparableReloadListener {
   @Override
-  default CompletableFuture<Void> reload(PreparationBarrier stage, ResourceManager resourceManager, Executor backgroundExecutor, Executor gameExecutor) {
+  default CompletableFuture<Void> reload(SharedState sharedState, Executor backgroundExecutor, PreparationBarrier stage, Executor gameExecutor) {
+    ResourceManager resourceManager = sharedState.resourceManager();
     return CompletableFuture.runAsync(() -> {
       if (!ModLoader.hasErrors()) {
         onReloadSafe(resourceManager);

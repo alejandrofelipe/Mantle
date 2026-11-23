@@ -53,7 +53,7 @@ public class EntityTypeDeferredRegister extends DeferredRegisterWrapper<EntityTy
    */
   public <T extends Mob> EntityObject<T> registerWithEgg(String name, Supplier<EntityType.Builder<T>> sup, int primary, int secondary) {
     DeferredHolder<EntityType<?>, EntityType<T>> object = register(name, sup);
-    // 1.21.4 dropped DeferredSpawnEggItem and spawn-egg colors; vanilla SpawnEggItem resolves the type at construction (eggs register after entity types)
-    return new EntityObject<>(object, itemRegistry.register(name + "_spawn_egg", () -> new SpawnEggItem(object.get(), new Item.Properties().setId(ResourceKey.create(Registries.ITEM, resource(name + "_spawn_egg"))))));
+    // 1.21.4 dropped DeferredSpawnEggItem and spawn-egg colors; 1.21.9 moved the entity type onto the ENTITY_DATA component via Properties#spawnEgg (eggs register after entity types)
+    return new EntityObject<>(object, itemRegistry.register(name + "_spawn_egg", () -> new SpawnEggItem(new Item.Properties().spawnEgg(object.get()).setId(ResourceKey.create(Registries.ITEM, resource(name + "_spawn_egg"))))));
   }
 }

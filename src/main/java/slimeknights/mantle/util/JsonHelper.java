@@ -326,7 +326,7 @@ public class JsonHelper {
     if (targetedPlayer != null) {
       // a joining player receives this event during placeNewPlayer, before the connection is ready for play-phase
       // payloads ("may not be sent to the client"); defer to the next server tick when the player is fully in play
-      MinecraftServer server = targetedPlayer.getServer();
+      MinecraftServer server = targetedPlayer.level().getServer(); // 1.21.9: Entity#getServer removed
       if (server != null) {
         server.execute(() -> sendPackets(network, targetedPlayer, packets));
       } else {

@@ -30,7 +30,7 @@ public class BurningLiquidBlock extends LiquidBlock {
 
   @SuppressWarnings("deprecation")  // useless annotation on block methods
   @Override
-  public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity, InsideBlockEffectApplier effectApplier) {
+  public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity, InsideBlockEffectApplier effectApplier, boolean intersects) {
     if (!entity.fireImmune() && entity.getFluidTypeHeight(this.fluid.getFluidType()) > 0) {
       // 1.21.5: inside-block effects are queued on the applier so they run in vanilla order (before any extinguish), like lava
       effectApplier.runAfter(InsideBlockEffectType.LAVA_IGNITE, target -> {

@@ -9,6 +9,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.ItemStackWithSlot;
 import net.minecraft.world.Nameable;
+import net.minecraft.world.entity.ContainerUser;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
@@ -192,10 +193,10 @@ public abstract class InventoryBlockEntity extends NameableBlockEntity implement
   }
 
   @Override
-  public void startOpen(Player player) {}
+  public void startOpen(ContainerUser user) {}
 
   @Override
-  public void stopOpen(Player player) {}
+  public void stopOpen(ContainerUser user) {}
 
   /* NBT */
 

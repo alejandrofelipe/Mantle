@@ -277,7 +277,7 @@ public class ItemRegistryAdapter extends EnumRegistryAdapter<Item> {
    * @return  Spawn egg item instance
    */
   public SpawnEggItem registerSpawnEgg(Supplier<? extends EntityType<? extends Mob>> type, int primary, int secondary, String baseName) {
-    // 1.21.4 dropped DeferredSpawnEggItem and spawn-egg colors; vanilla SpawnEggItem resolves the type at construction
-    return register(new SpawnEggItem(type.get(), new Properties().setId(ResourceKey.create(Registries.ITEM, getResource(baseName + "_spawn_egg")))), baseName + "_spawn_egg");
+    // 1.21.4 dropped DeferredSpawnEggItem and spawn-egg colors; 1.21.9 moved the entity type onto the ENTITY_DATA component (Properties#spawnEgg)
+    return register(new SpawnEggItem(new Properties().spawnEgg(type.get()).setId(ResourceKey.create(Registries.ITEM, getResource(baseName + "_spawn_egg")))), baseName + "_spawn_egg");
   }
 }

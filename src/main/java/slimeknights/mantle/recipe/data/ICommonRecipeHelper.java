@@ -305,7 +305,7 @@ public interface ICommonRecipeHelper extends IRecipeHelper {
     ShapedRecipeBuilder.shaped(itemLookup(), RecipeCategory.DECORATIONS, wood.getHangingSign(), 6)
                        .group("hanging_sign")
                        .define('#', wood.getStrippedLog())
-                       .define('X', Items.CHAIN)
+                       .define('X', Items.IRON_CHAIN) // 1.21.9: CHAIN renamed (copper chains added)
                        .pattern("X X").pattern("###").pattern("###")
                        .unlockedBy("has_stripped_logs", has(wood.getStrippedLog()))
                        .save(consumer, recipeKey(location(folder + "hanging_sign")));

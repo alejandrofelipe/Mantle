@@ -14,7 +14,8 @@ import java.util.concurrent.Executor;
  */
 public interface IEarlyReloadListener extends PreparableReloadListener {
   @Override
-  default CompletableFuture<Void> reload(PreparationBarrier stage, ResourceManager resourceManager, Executor backgroundExecutor, Executor gameExecutor) {
+  default CompletableFuture<Void> reload(SharedState sharedState, Executor backgroundExecutor, PreparationBarrier stage, Executor gameExecutor) {
+    ResourceManager resourceManager = sharedState.resourceManager();
     return CompletableFuture.runAsync(() -> {
       this.onResourceManagerReload(resourceManager);
     }, backgroundExecutor).thenCompose(stage::wait);

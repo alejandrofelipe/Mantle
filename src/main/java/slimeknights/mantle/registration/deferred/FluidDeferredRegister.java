@@ -62,7 +62,7 @@ public class FluidDeferredRegister extends DeferredRegisterWrapper<Fluid> {
     itemRegister.register(bus);
     // 1.21.4: fluid client extensions moved from FluidType.initializeClient to RegisterClientExtensionsEvent; register them
     // here where the fluid types were registered. Guarded so the client-only class never loads on a dedicated server.
-    if (FMLEnvironment.dist == Dist.CLIENT) {
+    if (FMLEnvironment.getDist() == Dist.CLIENT) {
       slimeknights.mantle.fluid.texture.MantleClientFluidTypes.registerClientExtensions(bus, fluidTypeRegister);
     }
   }

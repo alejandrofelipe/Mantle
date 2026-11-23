@@ -56,13 +56,26 @@ public record UiTestContext(Minecraft mc) {
    */
   public void parkMouse() {
     try {
-      for (String name : new String[] {"xpos", "ypos"}) {
+      MouseFields.X.setDouble(mc.mouseHandler, 0);
+      MouseFields.Y.setDouble(mc.mouseHandler, 0);
+    } catch (IllegalAccessException e) {
+      throw new IllegalStateException("uitest: failed to park the mouse", e);
+    }
+  }
+
+  /** {@link MouseHandler} position fields, resolved once on first use (scenarios may park the mouse every tick). */
+  private static final class MouseFields {
+    private static final Field X = field("xpos");
+    private static final Field Y = field("ypos");
+
+    private static Field field(String name) {
+      try {
         Field field = MouseHandler.class.getDeclaredField(name);
         field.setAccessible(true);
-        field.setDouble(mc.mouseHandler, 0);
+        return field;
+      } catch (ReflectiveOperationException e) {
+        throw new IllegalStateException("uitest: MouseHandler has no field " + name, e);
       }
-    } catch (ReflectiveOperationException e) {
-      throw new IllegalStateException("uitest: failed to park the mouse", e);
     }
   }
 }

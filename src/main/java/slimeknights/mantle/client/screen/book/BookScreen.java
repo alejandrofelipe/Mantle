@@ -9,6 +9,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.font.FontManager;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.multiplayer.ClientAdvancements;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
@@ -432,10 +434,10 @@ public class BookScreen extends Screen {
   }
 
   @Override
-  public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-    super.keyPressed(keyCode, scanCode, modifiers);
+  public boolean keyPressed(KeyEvent event) {
+    super.keyPressed(event);
 
-    switch (keyCode) {
+    switch (event.key()) {
       case GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_A -> {
         previousPage();
         return true;
@@ -450,7 +452,7 @@ public class BookScreen extends Screen {
       }
     }
 
-    return super.keyPressed(keyCode, scanCode, modifiers);
+    return super.keyPressed(event);
   }
 
   @Override
@@ -467,7 +469,8 @@ public class BookScreen extends Screen {
   }
 
   @Override
-  public boolean mouseClicked(double originalMouseX, double originalMouseY, int mouseButton) {
+  public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+    int mouseButton = event.button();
     boolean right = false;
 
     double mouseX = this.getMouseX(false);
@@ -491,11 +494,12 @@ public class BookScreen extends Screen {
       }
     }
 
-    return super.mouseClicked(originalMouseX, originalMouseY, mouseButton);
+    return super.mouseClicked(event, doubleClick);
   }
 
   @Override
-  public boolean mouseReleased(double originalMouseX, double originalMouseY, int mouseButton) {
+  public boolean mouseReleased(MouseButtonEvent event) {
+    int mouseButton = event.button();
     boolean right = false;
     double mouseX = this.getMouseX(false);
     double mouseY = this.getMouseY();
@@ -514,14 +518,15 @@ public class BookScreen extends Screen {
     lastClick = null;
     lastDrag = null;
 
-    return super.mouseReleased(originalMouseX, originalMouseY, mouseButton);
+    return super.mouseReleased(event);
   }
 
   @Override
-  public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+  public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+    int button = event.button();
     boolean right = false;
-    mouseX = this.getMouseX(false);
-    mouseY = this.getMouseY();
+    double mouseX = this.getMouseX(false);
+    double mouseY = this.getMouseY();
 
     if (mouseX > PAGE_WIDTH + (PAGE_MARGIN + PAGE_PADDING_LEFT) / PAGE_SCALE) {
       mouseX = this.getMouseX(true);

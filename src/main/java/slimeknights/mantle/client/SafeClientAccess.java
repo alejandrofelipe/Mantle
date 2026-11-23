@@ -1,7 +1,6 @@
 package slimeknights.mantle.client;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -57,13 +56,15 @@ public class SafeClientAccess {
   private static class ClientOnly {
     /** Gets the currently pressed key modifier for tooltips */
     public static TooltipKey getPressedKey() {
-      if (Screen.hasShiftDown()) {
+      // 1.21.9: the static Screen modifier checks moved to Minecraft instance methods
+      Minecraft minecraft = Minecraft.getInstance();
+      if (minecraft.hasShiftDown()) {
         return TooltipKey.SHIFT;
       }
-      if (Screen.hasControlDown()) {
+      if (minecraft.hasControlDown()) {
         return TooltipKey.CONTROL;
       }
-      if (Screen.hasAltDown()) {
+      if (minecraft.hasAltDown()) {
         return TooltipKey.ALT;
       }
       return TooltipKey.NORMAL;

@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
@@ -254,30 +255,32 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
     return this.isHovering(slotIn.x, slotIn.y, 16, 16, mouseX, mouseY);
   }
 
+  // 1.21.9: vanilla input is event based; the module callbacks keep their (x, y, button) signatures
   @Override
-  public boolean mouseClicked(double mouseX, double mouseY, int mouseButton) {
-    ModuleScreen<?,?> module = this.getModuleForPoint(mouseX, mouseY);
+  public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+    ModuleScreen<?,?> module = this.getModuleForPoint(event.x(), event.y());
 
     if (module != null) {
-      if (module.handleMouseClicked(mouseX, mouseY, mouseButton)) {
+      if (module.handleMouseClicked(event.x(), event.y(), event.button())) {
         return false;
       }
     }
 
-    return super.mouseClicked(mouseX, mouseY, mouseButton);
+    return super.mouseClicked(event, doubleClick);
   }
 
   @Override
-  public boolean mouseDragged(double mouseX, double mouseY, int clickedMouseButton, double timeSinceLastClick, double unkowwn) {
-    ModuleScreen<?,?> module = this.getModuleForPoint(mouseX, mouseY);
+  public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+    ModuleScreen<?,?> module = this.getModuleForPoint(event.x(), event.y());
 
     if (module != null) {
-      if (module.handleMouseClickMove(mouseX, mouseY, clickedMouseButton, timeSinceLastClick)) {
+      // the module parameter named timeSinceLastClick always received the horizontal drag
+      if (module.handleMouseClickMove(event.x(), event.y(), event.button(), dragX)) {
         return false;
       }
     }
 
-    return super.mouseDragged(mouseX, mouseY, clickedMouseButton, timeSinceLastClick, unkowwn);
+    return super.mouseDragged(event, dragX, dragY);
   }
 
   @Override
@@ -294,16 +297,16 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
   }
 
   @Override
-  public boolean mouseReleased(double mouseX, double mouseY, int state) {
-    ModuleScreen<?,?> module = this.getModuleForPoint(mouseX, mouseY);
+  public boolean mouseReleased(MouseButtonEvent event) {
+    ModuleScreen<?,?> module = this.getModuleForPoint(event.x(), event.y());
 
     if (module != null) {
-      if (module.handleMouseReleased(mouseX, mouseY, state)) {
+      if (module.handleMouseReleased(event.x(), event.y(), event.button())) {
         return false;
       }
     }
 
-    return super.mouseReleased(mouseX, mouseY, state);
+    return super.mouseReleased(event);
   }
 
   @Nullable

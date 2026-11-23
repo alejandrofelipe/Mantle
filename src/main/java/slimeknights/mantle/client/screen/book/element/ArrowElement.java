@@ -3,6 +3,7 @@ package slimeknights.mantle.client.screen.book.element;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button.OnPress;
+import net.minecraft.client.input.MouseButtonInfo;
 import slimeknights.mantle.client.screen.book.ArrowButton;
 
 public class ArrowElement extends ButtonElement {
@@ -23,7 +24,8 @@ public class ArrowElement extends ButtonElement {
   @Override
   public void mouseClicked(double mouseX, double mouseY, int mouseButton) {
     if (this.button != null && this.isHovered(mouseX, mouseY)) {
-      this.button.onPress();
+      // 1.21.9: onPress takes the input; Button ignores it, so pass the clicked button without modifiers
+      this.button.onPress(new MouseButtonInfo(mouseButton, 0));
     }
   }
 

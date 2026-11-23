@@ -19,6 +19,9 @@ How to use each Mantle subsystem from a consuming mod:
 ## Migration
 
 - [1.20 → 1.21.1 migration guide](migration/1.20-to-1.21.1.md) — every API change between MC 1.20.1/Forge and MC 1.21.1/NeoForge, before → after, organized by subsystem. Read this to port a Mantle-dependent mod.
+- [1.21.1 → 1.21.4 gotchas](migration/1.21.1-to-1.21.4.md) — roadmap M1 (1.21.2/1.21.3 folded in): recipes as a datapack registry, item/block `setId`, the item model rewrite.
+- [1.21.4 → 1.21.5 gotchas](migration/1.21.4-to-1.21.5.md) — roadmap M3: `BakedModel` removed, block-state-level dynamic models, `RenderPipeline`, NBT `Optional` getters, gametest framework.
+- [1.21.5 → 1.21.8 gotchas](migration/1.21.5-to-1.21.8.md) — roadmap M4 (1.21.6/1.21.7 folded in): deferred GUI rendering and picture-in-picture, GUI item model identity, `ValueInput`/`ValueOutput`, UBO shaders and fog, Mantle API changes for downstream mods.
 
 ## Build & commands
 

@@ -18,6 +18,9 @@
   [books](docs/api/books.md) ·
   [utilities](docs/api/utilities.md)
 - **[1.20 → 1.21.1 migration guide](docs/migration/1.20-to-1.21.1.md)** — every API change, before → after, for porting a Mantle-dependent mod.
+- **Version-to-version gotchas** — [1.21.1 → 1.21.4](docs/migration/1.21.1-to-1.21.4.md) ·
+  [1.21.4 → 1.21.5](docs/migration/1.21.4-to-1.21.5.md) ·
+  [1.21.5 → 1.21.8](docs/migration/1.21.5-to-1.21.8.md) (includes the Mantle API changes for downstream mods).
 
 ## Build from source
 

@@ -4,6 +4,8 @@ import slimeknights.mantle.data.loadable.Loadable;
 import slimeknights.mantle.data.loadable.field.LoadableField;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -15,9 +17,13 @@ public class SetLoadable<T> extends CollectionLoadable<T,Set<T>> {
     super(base, minSize);
   }
 
+  /**
+   * Keeps the parse order: {@link Set#copyOf} iterates in a per-JVM random order, so a set decoded from the network could
+   * re-encode differently than it was sent.
+   */
   @Override
   protected Set<T> build(Collection<T> builder) {
-    return Set.copyOf(builder);
+    return Collections.unmodifiableSet(new LinkedHashSet<>(builder));
   }
 
   /** Creates a map from this collection using the given getter to find values for the map */

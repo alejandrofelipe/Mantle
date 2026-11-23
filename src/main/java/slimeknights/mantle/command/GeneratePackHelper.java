@@ -11,7 +11,6 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection;
-import net.minecraft.util.InclusiveRange;
 import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.common.conditions.ICondition;
@@ -107,8 +106,9 @@ public class GeneratePackHelper {
   public static void saveMcmeta(Path folder, PackType packType, String description) {
     Path path = folder.resolve("pack.mcmeta");
     JsonObject meta = new JsonObject();
-    // 1.21.9: pack formats gained a minor version and pack.mcmeta declares min_format/max_format; encode with the vanilla codec
-    PackMetadataSection pack = new PackMetadataSection(Component.literal(description), new InclusiveRange<>(SharedConstants.getCurrentVersion().packVersion(packType)));
+    // 1.21.9: pack formats gained a minor version and pack.mcmeta declares min_format/max_format; encode with the vanilla codec.
+    // Like vanilla's /datapack create, accept every minor version of the current major format so minor bumps keep loading the pack.
+    PackMetadataSection pack = new PackMetadataSection(Component.literal(description), SharedConstants.getCurrentVersion().packVersion(packType).minorRange());
     meta.add("pack", PackMetadataSection.forPackType(packType).codec().encodeStart(JsonOps.INSTANCE, pack).getOrThrow());
     saveJson(meta, path);
   }

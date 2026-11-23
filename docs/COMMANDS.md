@@ -370,7 +370,9 @@ missing.
 
 **Adding a scenario:** implement `slimeknights.mantle.client.uitest.UiTestScenario` — driven by the suite
 through `id` → `prepare` → `prepareSettleTicks` (wait) → `open` → `settleTicks` (wait) → capture
-(screenshot) → `close` — and call `UiTestScenarios.register(...)` during client setup, gated on
+(screenshot) → `close` → `cleanup` (`close` runs only after a successful capture, so assert there; `cleanup` runs on
+every exit path — success, a failing phase, a timeout — so unregister listeners and restore screens, window size and
+game mode there) — and call `UiTestScenarios.register(...)` during client setup, gated on
 `UiTestScenarios.isActive()`; see `slimeknights.tconstruct.client.uitest.TinkerUiTestScenarios` as the
 template. Registration must happen before world load — the suite snapshots the registry at world load.
 Screens open with the cursor centered, so hover tooltips can cover the capture: call `UiTestContext#parkMouse()` (top

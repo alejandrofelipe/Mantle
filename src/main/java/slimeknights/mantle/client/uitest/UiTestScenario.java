@@ -23,8 +23,15 @@ public interface UiTestScenario {
     return 20;
   }
 
-  /** Restore state; default closes any open screen. */
+  /** Restore state; default closes any open screen. Runs only after a successful capture, see {@link #cleanup}. */
   default void close(UiTestContext ctx) {
     ctx.mc().setScreen(null);
   }
+
+  /**
+   * Teardown that runs once on every exit path of the scenario: after {@link #close} on success, and after a failing phase,
+   * a scenario timeout or the suite timeout. Unregister listeners and restore global state here so a failure can't leak
+   * them into the following scenarios.
+   */
+  default void cleanup(UiTestContext ctx) {}
 }

@@ -184,6 +184,9 @@ public class UiTestSuite {
     scenarioTicks++;
     if (suiteTicks > SUITE_TIMEOUT_TICKS && phase != Phase.FINISH) {
       results.put("suite", "fail: suite timeout");
+      if (phase == Phase.PREPARE_SETTLE || phase == Phase.SETTLE) {
+        cleanupScenario(mc); // the scenario in progress never reaches endScenario
+      }
       enter(Phase.FINISH);
     }
 
@@ -292,8 +295,7 @@ public class UiTestSuite {
     if (!runGuarded(mc, "close", () -> current().close(new UiTestContext(mc)))) {
       return;
     }
-    index++;
-    startScenario(mc);
+    endScenario(mc);
   }
 
   /**
@@ -306,19 +308,43 @@ public class UiTestSuite {
       work.run();
       return true;
     } catch (Throwable t) {
-      Mantle.logger.error("uitest: {} failed during {}", current().id(), stage, t);
-      results.put(current().id().toString(), "fail: " + stage + ": " + t);
-      index++;
-      startScenario(mc);
+      recordFailure(stage, t);
+      endScenario(mc);
       return false;
     }
+  }
+
+  private void recordFailure(String stage, Throwable t) {
+    Mantle.logger.error("uitest: {} failed during {}", current().id(), stage, t);
+    results.put(current().id().toString(), "fail: " + stage + ": " + t);
+  }
+
+  /** Runs the current scenario's {@link UiTestScenario#cleanup}, the one teardown every exit path goes through. */
+  private void cleanupScenario(Minecraft mc) {
+    try {
+      current().cleanup(new UiTestContext(mc));
+    } catch (Throwable t) {
+      // keep an earlier failure as the recorded cause, but never let a broken cleanup pass as ok
+      String id = current().id().toString();
+      if (!results.getOrDefault(id, "ok").startsWith("fail")) {
+        recordFailure("cleanup", t);
+      } else {
+        Mantle.logger.error("uitest: {} failed during cleanup", id, t);
+      }
+    }
+  }
+
+  /** Ends the current scenario on any path (success, failed phase, timeout): cleans up, then starts the next one. */
+  private void endScenario(Minecraft mc) {
+    cleanupScenario(mc);
+    index++;
+    startScenario(mc);
   }
 
   private boolean scenarioTimedOut(Minecraft mc) {
     if (scenarioTicks > SCENARIO_TIMEOUT_TICKS) {
       results.put(current().id().toString(), "fail: timeout");
-      index++;
-      startScenario(mc);
+      endScenario(mc);
       return true;
     }
     return false;

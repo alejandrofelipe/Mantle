@@ -5,6 +5,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Container;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.MenuProvider;
@@ -110,11 +111,28 @@ public abstract class InventoryBlock extends Block implements EntityBlock {
    * @param blockEntity  Block entity being removed
    */
   public void preRemoveSideEffects(BlockState state, Level level, BlockPos pos, BlockEntity blockEntity) {
+    // PORT 1.21.10: the bridged capability hands out copies of the stacks, so dropping through it would leave the items in the
+    // block entity; containers drop straight from their contents, which empties them as they drop
+    if (blockEntity instanceof Container container) {
+      dropContainerItems(state, level, pos, container);
+      return;
+    }
     // the level already holds the new state, so pass the old state and block entity to find the right capability
     IItemHandler inventory = TransferHelper.getLegacyItemHandler(level, pos, state, blockEntity, null);
     if (inventory != null) {
       dropInventoryItems(state, level, pos, inventory);
     }
+  }
+
+  /**
+   * Called when the block is replaced to drop the items of a block entity that is a {@link Container}, emptying it.
+   * @param state      Block state
+   * @param level      Level instance
+   * @param pos        Block position
+   * @param container  Block entity inventory
+   */
+  protected void dropContainerItems(BlockState state, Level level, BlockPos pos, Container container) {
+    Containers.dropContents(level, pos, container);
   }
 
   @Override
@@ -124,7 +142,9 @@ public abstract class InventoryBlock extends Block implements EntityBlock {
   }
 
   /**
-   * Called when the block is replaced to drop contained items.
+   * Called when the block is replaced to drop contained items, for block entities that are not a {@link Container}
+   * (those use {@link #dropContainerItems(BlockState, Level, BlockPos, Container)}).
+   * Note a bridged capability returns copies from {@code getStackInSlot}, so the dropped items are not removed from it.
    * @param state       Block state
    * @param worldIn     Tile world
    * @param pos         Tile position

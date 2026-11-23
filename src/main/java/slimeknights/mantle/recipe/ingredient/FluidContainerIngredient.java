@@ -67,9 +67,9 @@ public class FluidContainerIngredient implements ICustomIngredient {
     if (stack == null || stack.isEmpty()) {
       return false;
     }
-    // first, must have a fluid capability. PORT 1.21.10: the bridge works on a copy of a single item (amounts are totals over the stack),
+    // first, must have a fluid capability. PORT 1.21.10: the bridge works on a one-item copy,
     // so the same handler can be drained below without touching the passed stack
-    IFluidHandlerItem cap = TransferHelper.getFluidHandler(stack.copyWithCount(1));
+    IFluidHandlerItem cap = TransferHelper.getLegacyFluidHandler(stack);
     if (cap == null || cap.getTanks() != 1) {
       return false;
     }

@@ -176,7 +176,7 @@ public class TagsForCommand {
   private static int heldFluid(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
     CommandSourceStack source = context.getSource();
     ItemStack stack = source.getPlayerOrException().getMainHandItem();
-    IFluidHandlerItem handler = TransferHelper.getFluidHandler(stack.copyWithCount(1));
+    IFluidHandlerItem handler = TransferHelper.getLegacyFluidHandler(stack);
     if (handler != null && handler.getTanks() > 0) {
       FluidStack fluidStack = handler.getFluidInTank(0);
       if (!fluidStack.isEmpty()) {

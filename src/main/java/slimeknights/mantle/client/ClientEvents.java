@@ -277,7 +277,7 @@ public class ClientEvents {
       return;
     }
     // block entity must have a fluid handler
-    IFluidHandler handler = TransferHelper.getFluidHandler(minecraft.level, gaugeContainer.getBlockPos(), null, gaugeContainer, side);
+    IFluidHandler handler = TransferHelper.getLegacyFluidHandler(minecraft.level, gaugeContainer.getBlockPos(), null, gaugeContainer, side);
     if (handler == null) {
       handler = EmptyFluidHandler.INSTANCE;
     }

@@ -33,8 +33,8 @@ public class SetFluidLootFunction extends LootItemConditionalFunction {
 
   @Override
   protected ItemStack run(ItemStack stack, LootContext context) {
-    // PORT 1.21.10: the bridge works on a copy and its amounts are totals over the stack, so fill each item with the fluid
-    IFluidHandlerItem handler = TransferHelper.getFluidHandler(stack);
+    // PORT 1.21.10: fill every item of the stack; the whole-stack bridge works on a copy and splits the fill between the items
+    IFluidHandlerItem handler = TransferHelper.getLegacyFluidHandlerForWholeStack(stack);
     if (handler != null) {
       handler.fill(fluid.copyWithAmount(fluid.getAmount() * stack.getCount()), FluidAction.EXECUTE);
       return handler.getContainer();

@@ -71,7 +71,7 @@ public class GaugeBlock extends Block {
     if (!world.isClientSide()) {
       Direction side = state.getValue(FACING);
       BlockPos neighbor = pos.relative(side.getOpposite());
-      IFluidHandler handler = TransferHelper.getFluidHandler(world, neighbor, side);
+      IFluidHandler handler = TransferHelper.getLegacyFluidHandler(world, neighbor, side);
       if (handler == null) {
         handler = EmptyFluidHandler.INSTANCE;
       }

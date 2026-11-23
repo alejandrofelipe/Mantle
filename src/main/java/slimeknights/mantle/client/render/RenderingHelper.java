@@ -3,17 +3,23 @@ package slimeknights.mantle.client.render;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.item.ItemModelResolver;
+import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import org.joml.Vector3f;
+
+import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 
 @SuppressWarnings("WeakerAccess")
 public class RenderingHelper {
@@ -54,14 +60,32 @@ public class RenderingHelper {
   /* Items */
 
   /**
-   * Renders a single item in a TESR
-   * @param matrices    Matrix stack inst ance
-   * @param buffer      Buffer instance
-   * @param item        Item to render
+   * Resolves an item for {@link #submitItem(PoseStack, SubmitNodeCollector, ItemStackRenderState, RenderItem, int)}. Call during render state extraction.
+   * 1.21.9: replaces the item half of the old {@code renderItem}, as {@code ItemRenderer.renderStatic} is gone.
+   * @param resolver    Item model resolver, from the block entity renderer context
+   * @param state       Item state to fill, cleared if the item is hidden or empty
+   * @param item        Item to display
+   * @param renderItem  Render item for the display context
+   * @param level       Level for item model properties
+   */
+  public static void extractItem(ItemModelResolver resolver, ItemStackRenderState state, ItemStack item, RenderItem renderItem, @Nullable Level level) {
+    if (renderItem.isHidden()) {
+      state.clear();
+    } else {
+      // seed 0 matches the old renderStatic call
+      resolver.updateForTopItem(state, item, renderItem.getTransform(), level, null, 0);
+    }
+  }
+
+  /**
+   * Submits a single item resolved by {@link #extractItem(ItemModelResolver, ItemStackRenderState, ItemStack, RenderItem, Level)} in a block entity renderer
+   * @param matrices    Matrix stack instance
+   * @param collector   Node collector
+   * @param item        Resolved item
    * @param renderItem  Render item for render information
    * @param light       Model light
    */
-  public static void renderItem(PoseStack matrices, MultiBufferSource buffer, ItemStack item, RenderItem renderItem, int light) {
+  public static void submitItem(PoseStack matrices, SubmitNodeCollector collector, ItemStackRenderState item, RenderItem renderItem, int light) {
     // if the item says skip, skip
     if (renderItem.isHidden()) return;
     // if no stack, skip
@@ -86,37 +110,53 @@ public class RenderingHelper {
       matrices.mulPose(Axis.YP.rotationDegrees(y));
     }
 
-    // render the actual item
-    Minecraft.getInstance().getItemRenderer().renderStatic(item, renderItem.getTransform(), light, OverlayTexture.NO_OVERLAY, matrices, buffer, Minecraft.getInstance().level, 0);
+    // submit the actual item
+    item.submit(matrices, collector, light, OverlayTexture.NO_OVERLAY, 0);
     matrices.popPose();
   }
 
+
+  /* Faucet fluids */
+
   /**
-   * Renders faucet fluids at the relevant location
-   * @param world       World instance
-   * @param pos         Base position
-   * @param direction   Direction to render
-   * @param matrices    Matrix instance
-   * @param buffer      Builder instance
-   * @param still       Still fluid texture
-   * @param flowing     Flowing fluid texture
-   * @param color       Color to tint fluid
-   * @param light       Fluid light value
+   * Finds the faucet fluid cuboids below the given position. Call during render state extraction, as it reads the level.
+   * 1.21.9: replaces the level half of the old {@code renderFaucetFluids}.
+   * @param world      World instance
+   * @param pos        Base position
+   * @param direction  Direction to render
+   * @return  Cuboids per block below the position: element {@code i} is drawn {@code i + 1} blocks below {@code pos}
    */
-  public static void renderFaucetFluids(LevelAccessor world, BlockPos pos, Direction direction, PoseStack matrices, VertexConsumer buffer, TextureAtlasSprite still, TextureAtlasSprite flowing, int color, int light) {
+  public static List<List<FluidCuboid>> getFaucetFluids(LevelAccessor world, BlockPos pos, Direction direction) {
+    List<List<FluidCuboid>> fluids = new ArrayList<>();
     int i = 0;
     FaucetFluid faucetFluid;
     do {
       // get the faucet data for the block
       i++;
       faucetFluid = FaucetFluid.REGISTRY.get(world.getBlockState(pos.below(i)));
-      // render all down cubes with the given offset
-      matrices.pushPose();
-      matrices.translate(0, -i, 0);
-      for (FluidCuboid cube : faucetFluid.getFluids(direction)) {
-        FluidRenderer.renderCuboid(matrices, buffer, cube, still, flowing, cube.getFromScaled(), cube.getToScaled(), color, light, false);
-      }
-      matrices.popPose();
+      fluids.add(faucetFluid.getFluids(direction));
     } while (faucetFluid.isContinued());
+    return fluids;
+  }
+
+  /**
+   * Renders faucet fluids found by {@link #getFaucetFluids(LevelAccessor, BlockPos, Direction)}, typically inside {@link SubmitNodeCollector#submitCustomGeometry}
+   * @param pose        Pose instance, not modified
+   * @param buffer      Builder instance
+   * @param fluids      Cuboids per block below, from {@link #getFaucetFluids(LevelAccessor, BlockPos, Direction)}
+   * @param still       Still fluid texture
+   * @param flowing     Flowing fluid texture
+   * @param color       Color to tint fluid
+   * @param light       Fluid light value
+   */
+  public static void renderFaucetFluids(PoseStack.Pose pose, VertexConsumer buffer, List<List<FluidCuboid>> fluids, TextureAtlasSprite still, TextureAtlasSprite flowing, int color, int light) {
+    for (int i = 0; i < fluids.size(); i++) {
+      // render all down cubes with the given offset
+      PoseStack.Pose offset = pose.copy();
+      offset.translate(0, -(i + 1), 0);
+      for (FluidCuboid cube : fluids.get(i)) {
+        FluidRenderer.renderCuboid(offset, buffer, cube, still, flowing, cube.getFromScaled(), cube.getToScaled(), color, light, false);
+      }
+    }
   }
 }

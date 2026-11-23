@@ -220,7 +220,7 @@ public class ClientEvents {
         }
         break;
       case HOTBAR:
-        if (isHotbar && minecraft.cameraEntity == minecraft.player) {
+        if (isHotbar && minecraft.getCameraEntity() == minecraft.player) {
           int centerWidth = minecraft.getWindow().getGuiScaledWidth() / 2;
           int y = minecraft.getWindow().getGuiScaledHeight() - 20;
           int x;

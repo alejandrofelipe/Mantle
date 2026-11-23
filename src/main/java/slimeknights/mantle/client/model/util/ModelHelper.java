@@ -181,7 +181,7 @@ public class ModelHelper {
   /** Checks if any of the quads uses an animated sprite, matching vanilla's {@code BlockModelWrapper} constructor. Call once per baked variant, not per render. */
   public static boolean hasAnimatedSprite(List<BakedQuad> quads) {
     for (BakedQuad quad : quads) {
-      if (quad.sprite().isAnimated()) {
+      if (quad.sprite().contents().isAnimated()) {
         return true;
       }
     }

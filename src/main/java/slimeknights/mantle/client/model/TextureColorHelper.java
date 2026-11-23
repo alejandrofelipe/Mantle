@@ -7,8 +7,8 @@ import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.client.renderer.texture.SpriteContents;
-import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.data.AtlasIds;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.util.RandomSource;
@@ -81,7 +81,7 @@ public class TextureColorHelper {
   /** Getter mapping a block sprite texture to a single average color */
   private static final ToIntFunction<ResourceLocation> COMPUTE_SPRITE_COLOR = key -> {
     Minecraft mc = Minecraft.getInstance();
-    TextureAtlasSprite sprite = mc.getModelManager().getAtlas(TextureAtlas.LOCATION_BLOCKS).getSprite(key);
+    TextureAtlasSprite sprite = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).getSprite(key);
     //noinspection ConstantValue  eh, its better to be safe
     if (sprite == null || sprite.contents().name() == MissingTextureAtlasSprite.getLocation()) {
       return -1;

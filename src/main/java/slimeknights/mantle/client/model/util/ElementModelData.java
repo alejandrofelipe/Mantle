@@ -1,5 +1,6 @@
 package slimeknights.mantle.client.model.util;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BlockElement;
 import net.minecraft.client.renderer.block.model.SimpleModelWrapper;
@@ -8,6 +9,7 @@ import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.Material;
+import net.minecraft.client.resources.model.MaterialSet;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ModelDebugName;
 import net.minecraft.client.resources.model.ModelState;
@@ -29,7 +31,7 @@ import java.util.function.Function;
  * <p>
  * 1.21.5: replaces the {@code BakedModel} + {@code DynamicBakedWrapper} + {@code bakeReplaced} pattern. A {@link ModelBaker}
  * only exists during model baking, while dynamic models (retextured blocks, tanks, material blocks) only know their
- * textures at render time, so they keep this record and rebake quads lazily, typically with {@link Material#sprite()}
+ * textures at render time, so they keep this record and rebake quads lazily, typically with the atlas manager ({@link MaterialSet#get(Material)})
  * through {@link #runtimeSprites(Map)}, caching the result per texture.
  *
  * @param elements             Elements to bake, including elements inherited from parents
@@ -91,15 +93,19 @@ public record ElementModelData(List<BlockElement> elements, List<ColorData> colo
     return SimpleBlockModel.spriteLookup(textures, baker.sprites(), name);
   }
 
-  /** Sprite lookup at runtime with the given texture replacements, using the block atlas through {@link Material#sprite()} */
+  /**
+   * Sprite lookup at runtime with the given texture replacements, through the atlas manager.
+   * 1.21.9: {@code Material#sprite()} is gone; {@link net.minecraft.client.resources.model.AtlasManager} is the runtime {@link MaterialSet}
+   * holding every stitched sprite (missing sprite for unknown textures, like the old atlas lookup).
+   */
   public Function<String,TextureAtlasSprite> runtimeSprites(Map<String,Material> replacements) {
-    return SimpleBlockModel.spriteLookup(textures, replacements, Material::sprite);
+    return SimpleBlockModel.spriteLookup(textures, replacements, Minecraft.getInstance().getAtlasManager()::get);
   }
 
   /** Gets the particle for the given replacements, falling back to the default particle */
   public TextureAtlasSprite particle(Map<String,Material> replacements) {
     Material particle = replacements.get("particle");
-    return particle != null ? particle.sprite() : this.particle;
+    return particle != null ? Minecraft.getInstance().getAtlasManager().get(particle) : this.particle;
   }
 
 

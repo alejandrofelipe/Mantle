@@ -1,14 +1,17 @@
 package slimeknights.mantle.client.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
+import net.minecraft.client.renderer.item.ItemModelResolver;
+import net.minecraft.client.renderer.state.CameraRenderState;
 import net.minecraft.world.Container;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
+import javax.annotation.Nullable;
 import java.util.List;
 
 /**
@@ -16,29 +19,36 @@ import java.util.List;
  * @deprecated use {@link InventoryBlockEntityRenderer} for the new render item registry.
  */
 @Deprecated(forRemoval = true)
-public class InventoryTileEntityRenderer<T extends BlockEntity & Container> implements BlockEntityRenderer<T> {
-  public InventoryTileEntityRenderer(BlockEntityRendererProvider.Context context) {}
+public class InventoryTileEntityRenderer<T extends BlockEntity & Container> implements BlockEntityRenderer<T, InventoryRenderState> {
+  protected final ItemModelResolver itemModelResolver;
+
+  public InventoryTileEntityRenderer(BlockEntityRendererProvider.Context context) {
+    this.itemModelResolver = context.itemModelResolver();
+  }
 
   @Override
-  public void render(T inventory, float partialTicks, PoseStack matrices, MultiBufferSource buffer, int light, int combinedOverlayIn, Vec3 cameraPos) {
-    if (inventory.isEmpty()) return;
+  public InventoryRenderState createRenderState() {
+    return new InventoryRenderState();
+  }
 
-    // first, find the model for item display locations
-    BlockState state = inventory.getBlockState();
-    List<RenderItem> renderItems = RenderItem.REGISTRY.get(state.getBlock(), List.of());
-    if (!renderItems.isEmpty()) {
-      // if the block is rotatable, rotate item display
-      boolean isRotated = RenderingHelper.applyRotation(matrices, state);
+  @Override
+  public void extractRenderState(T inventory, InventoryRenderState state, float partialTicks, Vec3 cameraPos, @Nullable ModelFeatureRenderer.CrumblingOverlay breakProgress) {
+    BlockEntityRenderer.super.extractRenderState(inventory, state, partialTicks, cameraPos, breakProgress);
+    if (!inventory.isEmpty()) {
+      state.extractItems(itemModelResolver, RenderItem.REGISTRY.get(state.blockState.getBlock(), List.of()), inventory::getItem, inventory.getLevel());
+    }
+  }
 
-      // render items
-      for (int i = 0; i < renderItems.size(); i++) {
-        RenderingHelper.renderItem(matrices, buffer, inventory.getItem(i), renderItems.get(i), light);
-      }
+  @Override
+  public void submit(InventoryRenderState state, PoseStack matrices, SubmitNodeCollector collector, CameraRenderState camera) {
+    if (state.isEmpty()) return;
 
-      // pop back rotation
-      if (isRotated) {
-        matrices.popPose();
-      }
+    // if the block is rotatable, rotate item display
+    boolean isRotated = RenderingHelper.applyRotation(matrices, state.blockState);
+    state.submitItems(matrices, collector);
+    // pop back rotation
+    if (isRotated) {
+      matrices.popPose();
     }
   }
 }

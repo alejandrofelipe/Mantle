@@ -1,6 +1,6 @@
 # Mantle Documentation
 
-Documentation for **Mantle** on **Minecraft 1.21.1 / NeoForge 21.1.234** (the `alejandrofelipe` fork). Mantle is the shared library that SlimeKnights-style mods (e.g. Tinkers' Construct) build on.
+Documentation for **Mantle** on **Minecraft 1.21.8 / NeoForge 21.8.57** (the `alejandrofelipe` fork, branch `1.21.8`; the API guides were written for 1.21.1 — see the version-to-version gotchas below for what changed since). Mantle is the shared library that SlimeKnights-style mods (e.g. Tinkers' Construct) build on.
 
 ## API guides
 

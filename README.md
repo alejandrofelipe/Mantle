@@ -1,8 +1,8 @@
 ![Mantle logo](https://raw.github.com/SlimeKnights/Mantle/master/src/main/resources/Mantle.png)
 # Mantle
-**Shared library for NeoForge mods — Minecraft 1.21.1 / NeoForge 21.1.234**
+**Shared library for NeoForge mods — Minecraft 1.21.8 / NeoForge 21.8.57** (branch `1.21.8`; earlier versions live on the `1.21.1`, `1.21.3` (MC 1.21.4) and `1.21.5` branches)
 
-> This is the [`alejandrofelipe`](https://github.com/alejandrofelipe/Mantle) fork, ported to **MC 1.21.1 / NeoForge** from the [SlimeKnights](https://github.com/SlimeKnights/Mantle) 1.20.1/Forge original. It provides the shared code (registration helpers, a JSON/network serialization framework, fluids, recipes, a book system, and more) that mods like Tinkers' Construct build on.
+> This is the [`alejandrofelipe`](https://github.com/alejandrofelipe/Mantle) fork, ported to **MC 1.21.x / NeoForge** from the [SlimeKnights](https://github.com/SlimeKnights/Mantle) 1.20.1/Forge original. It provides the shared code (registration helpers, a JSON/network serialization framework, fluids, recipes, a book system, and more) that mods like Tinkers' Construct build on.
 
 ## Documentation
 
@@ -24,7 +24,7 @@
 
 ## Build from source
 
-Requires **JDK 21** (Minecraft 1.21.1). The build toolchain is **NeoGradle 7.1.38 / Gradle 9.2.1**.
+Requires **JDK 21** (Minecraft 1.21.8). The build toolchain is **NeoGradle 7.1.39 / Gradle 9.2.1**.
 
 ```bash
 ./gradlew build        # compiles + builds the jar
@@ -42,19 +42,19 @@ This fork is not published to a public Maven repository. To depend on it, build 
 // Option A: publish to your local Maven (~/.m2) and depend on it
 //   ./gradlew publishToMavenLocal
 repositories { mavenLocal() }
-dependencies { implementation "slimeknights.mantle:Mantle:1.21.1-<version>" }
+dependencies { implementation "slimeknights.mantle:Mantle:1.21.8-<version>" }
 
-// Option B: JitPack (point at this fork + the 1.21.1 branch/commit)
+// Option B: JitPack (point at this fork + the 1.21.8 branch/commit)
 repositories { maven { url = 'https://jitpack.io' } }
-dependencies { implementation "com.github.alejandrofelipe:Mantle:1.21.1-SNAPSHOT" }
+dependencies { implementation "com.github.alejandrofelipe:Mantle:1.21.8-SNAPSHOT" }
 ```
 
 ## Issue reporting
 
 Please include:
 
-- Minecraft version (1.21.1)
-- NeoForge version (e.g. 21.1.234)
+- Minecraft version (e.g. 1.21.8)
+- NeoForge version (e.g. 21.8.57)
 - Mantle version
 - Versions of any Mantle-dependent or potentially related mods
 - For crashes: steps to reproduce and the `logs/latest.log` (and the crash report from `crash-reports/`)

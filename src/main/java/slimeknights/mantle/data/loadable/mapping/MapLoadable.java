@@ -10,7 +10,8 @@ import slimeknights.mantle.data.loadable.field.LoadableField;
 import slimeknights.mantle.data.loadable.primitive.StringLoadable;
 import slimeknights.mantle.util.typed.TypedMap;
 
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Function;
@@ -37,14 +38,17 @@ public class MapLoadable<K, V> implements Loadable<Map<K,V>> {
     this.minSize = minSize;
   }
 
-  /** Builds the final map, given the passed mutable map. */
+  /**
+   * Builds the final map, given the passed mutable map. Keeps the parse order: {@link Map#copyOf} iterates in a per-JVM
+   * random order, so a map decoded from the network could re-encode differently than it was sent.
+   */
   protected Map<K,V> build(Map<K,V> builder) {
-    return Map.copyOf(builder);
+    return Collections.unmodifiableMap(builder);
   }
 
   /** Creates a new builder instance for the given expected size */
   protected Map<K,V> createBuilder(int size) {
-    return new HashMap<>(size);
+    return new LinkedHashMap<>(size);
   }
 
   @Override

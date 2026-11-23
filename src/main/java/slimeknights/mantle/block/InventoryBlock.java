@@ -63,7 +63,7 @@ public abstract class InventoryBlock extends Block implements EntityBlock {
     if (player.isSuppressingBounce()) {
       return InteractionResult.PASS;
     }
-    if (!world.isClientSide) {
+    if (!world.isClientSide()) {
       return this.openGui(player, world, pos) ? InteractionResult.SUCCESS : InteractionResult.PASS;
     }
     return InteractionResult.SUCCESS;

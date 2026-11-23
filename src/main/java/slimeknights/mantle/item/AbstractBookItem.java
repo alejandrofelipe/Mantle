@@ -77,7 +77,7 @@ public abstract class AbstractBookItem extends LecternBookItem {
   @Override
   public InteractionResult use(Level world, Player player, InteractionHand hand) {
     ItemStack stack = player.getItemInHand(hand);
-    if (world.isClientSide) {
+    if (world.isClientSide()) {
       openScreen(player, hand, stack);
     }
     return InteractionResult.SUCCESS;
@@ -92,7 +92,7 @@ public abstract class AbstractBookItem extends LecternBookItem {
   public boolean overrideOtherStackedOnMe(ItemStack stack, ItemStack held, Slot slot, ClickAction action, Player player, SlotAccess access) {
     // on right-clicking the book with empty held, if this container allows we close and reopen the book page
     if (action == ClickAction.SECONDARY && held.isEmpty() && slot.container == player.getInventory() && slot.allowModification(player) && isValidContainer(player.containerMenu)) {
-      if (player.level().isClientSide) {
+      if (player.level().isClientSide()) {
         player.containerMenu.resumeRemoteUpdates();
         player.closeContainer();
         openScreen(player, slot.getSlotIndex(), stack);

@@ -182,7 +182,7 @@ public final class RetexturedHelper {
   public static void onTextureUpdated(BlockEntity self) {
     // update the texture in BE data
     Level level = self.getLevel();
-    if (level != null && level.isClientSide) {
+    if (level != null && level.isClientSide()) {
       self.requestModelDataUpdate();
       BlockState state = self.getBlockState();
       level.sendBlockUpdated(self.getBlockPos(), state, state, 0);

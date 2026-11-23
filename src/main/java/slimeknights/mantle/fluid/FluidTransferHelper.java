@@ -160,7 +160,7 @@ public class FluidTransferHelper {
     if (held.getItem() instanceof BucketItem bucket) {
       Fluid fluid = bucket.content;
       if (fluid != Fluids.EMPTY) {
-        if (!world.isClientSide) {
+        if (!world.isClientSide()) {
           FluidStack fluidStack = new FluidStack(bucket.content, FluidType.BUCKET_VOLUME);
           // must empty the whole bucket
           if (handler.fill(fluidStack, FluidAction.SIMULATE) == FluidType.BUCKET_VOLUME) {
@@ -235,7 +235,7 @@ public class FluidTransferHelper {
     ItemStack stack = player.getItemInHand(hand);
     if (FluidContainerTransferManager.INSTANCE.mayHaveTransfer(stack)) {
       // only actually transfer on the serverside, client just has items
-      if (!world.isClientSide) {
+      if (!world.isClientSide()) {
         FluidStack currentFluid = teHandler.drain(Integer.MAX_VALUE, FluidAction.SIMULATE);
         IFluidContainerTransfer transfer = FluidContainerTransferManager.INSTANCE.getTransfer(stack, currentFluid);
         if (transfer != null) {
@@ -259,7 +259,7 @@ public class FluidTransferHelper {
     IFluidHandlerItem itemHandler = copy.getCapability(Capabilities.FluidHandler.ITEM);
     if (itemHandler != null) {
       FluidInteractionResult result = FluidInteractionResult.CONTAINER;
-      if (!world.isClientSide) {
+      if (!world.isClientSide()) {
         // first, try filling the TE from the item
         FluidStack transferred = tryTransfer(itemHandler, teHandler, Integer.MAX_VALUE);
         if (!transferred.isEmpty()) {
@@ -460,7 +460,7 @@ public class FluidTransferHelper {
   /** Plays sound only to the targeted player. Works by sending a targeted packet to server players, or a local packet to client. */
   @SuppressWarnings("deprecation")
   public static void playUISound(Player player, SoundEvent sound) {
-    if (player.level().isClientSide) {
+    if (player.level().isClientSide()) {
       player.playSound(sound);
     } else if (player instanceof ServerPlayer serverPlayer) {
       serverPlayer.connection.send(new ClientboundSoundPacket(BuiltInRegistries.SOUND_EVENT.wrapAsHolder(sound), player.getSoundSource(), player.getX(), player.getY(), player.getZ(), 1, 1, player.getRandom().nextLong()));

@@ -43,7 +43,7 @@ public class CombatHelper {
   /** Gets the item stack in the main hand that contributes to attributes. Exposed for benefit of Tinkers' Construct which can optimize these methods for its tools. */
   public static ItemStack getMainhandAttributeStack(LivingEntity entity) {
     // clientside does not use last item stack, so our best choice is the mainhand stack
-    if (entity.level().isClientSide) {
+    if (entity.level().isClientSide()) {
       return entity.getMainHandItem();
     }
     // serverside, the original used LivingEntity#getLastHandItem for attribute-accurate values, but that method is now

@@ -87,6 +87,28 @@ public final class TransferHelper {
   }
 
 
+  /* Transactions */
+
+  /**
+   * Opens a transaction nested in the transaction currently open on this thread, or a root transaction if none is open.
+   * Lets code that may run inside a transaction it was not handed (e.g. recipe matching started from a native fill) query native handlers safely.
+   * Only use it for changes to isolated copies (such as a one-item {@link ItemStacksResourceHandler}), as committing a nested transaction
+   * leaves the final outcome to the outer transaction; close it without committing to discard the changes.
+   */
+  @SuppressWarnings("deprecation")  // getCurrentOpenedTransaction is the only way to nest into a transaction we were not handed
+  public static Transaction openNestedOrRoot() {
+    if (isTransactionOpen()) {
+      return Transaction.open(Transaction.getCurrentOpenedTransaction());
+    }
+    return Transaction.openRoot();
+  }
+
+  /** Checks if a transaction is open on this thread, in which case the legacy lookups below must not be used */
+  public static boolean isTransactionOpen() {
+    return Transaction.getLifecycle() == Transaction.Lifecycle.OPEN;
+  }
+
+
   /* Legacy bridges */
 
   /** Throws if a transaction is open on this thread, as the legacy adapters open root transactions */

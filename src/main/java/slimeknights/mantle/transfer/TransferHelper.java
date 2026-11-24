@@ -97,22 +97,39 @@ public final class TransferHelper {
    */
   @SuppressWarnings("deprecation")  // getCurrentOpenedTransaction is the only way to nest into a transaction we were not handed
   public static Transaction openNestedOrRoot() {
+    checkNotClosing("openNestedOrRoot");
     if (isTransactionOpen()) {
       return Transaction.open(Transaction.getCurrentOpenedTransaction());
     }
     return Transaction.openRoot();
   }
 
-  /** Checks if a transaction is open on this thread, in which case the legacy lookups below must not be used */
+  /**
+   * Checks if a transaction is open on this thread, in which case the legacy lookups below must not be used.
+   * <p>
+   * Returns false while a transaction is {@linkplain Transaction.Lifecycle#CLOSING closing} (inside a journal's revert or release callback),
+   * but no transaction can be opened then: {@link Transaction#openRoot()} throws, and so do {@link #openNestedOrRoot()}, the legacy lookups below
+   * and the legacy adapters. Code reachable from journal callbacks must only restore its own state, never query handlers. During
+   * {@linkplain Transaction.Lifecycle#ROOT_CLOSING root commit callbacks} it also returns false, and opening a new root transaction is allowed there.
+   */
   public static boolean isTransactionOpen() {
     return Transaction.getLifecycle() == Transaction.Lifecycle.OPEN;
+  }
+
+  /** Throws a descriptive exception if a transaction is closing on this thread, where no transaction can be opened */
+  private static void checkNotClosing(String method) {
+    if (Transaction.getLifecycle() == Transaction.Lifecycle.CLOSING) {
+      throw new IllegalStateException("TransferHelper." + method + " was called while a transaction is closing on this thread (e.g. from a journal's "
+                                      + "revert callback), where no transaction can be opened. Journal callbacks must only restore their own state.");
+    }
   }
 
 
   /* Legacy bridges */
 
-  /** Throws if a transaction is open on this thread, as the legacy adapters open root transactions */
+  /** Throws if a transaction is open or closing on this thread, as the legacy adapters open root transactions */
   private static void checkNoOpenTransaction(String method) {
+    checkNotClosing(method);
     if (Transaction.getLifecycle() == Transaction.Lifecycle.OPEN) {
       throw new IllegalStateException("TransferHelper." + method + " returns a legacy handler, whose fill/drain/insert/extract open a root transaction, "
                                       + "but a transaction is already open on this thread. Use the native lookup (get*ResourceHandler) with the open transaction instead.");

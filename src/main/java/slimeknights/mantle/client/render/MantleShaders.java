@@ -45,10 +45,14 @@ public class MantleShaders {
     .withVertexShader(Mantle.getResource("core/fluid"))
     .withFragmentShader(Mantle.getResource("core/fluid"))
     .buildSnippet();
-  /** Fluid pipeline state using vanilla's {@code position_color_tex_lightmap} shader, which ignores fog but works with shader packs. */
+  /**
+   * Fluid pipeline state ignoring fog, for shader compatibility.
+   * 1.21.9: vanilla removed the {@code position_color_tex_lightmap} shader this used; a missing shader in any registered pipeline makes the whole
+   * shader reload fail (and with it every vanilla GUI pipeline), so Mantle ships a copy as {@code mantle:core/fluid_no_fog}.
+   */
   public static final RenderPipeline.Snippet FLUID_NO_FOG_SNIPPET = RenderPipeline.builder(FLUID_BASE_SNIPPET)
-    .withVertexShader("core/position_color_tex_lightmap")
-    .withFragmentShader("core/position_color_tex_lightmap")
+    .withVertexShader(Mantle.getResource("core/fluid_no_fog"))
+    .withFragmentShader(Mantle.getResource("core/fluid_no_fog"))
     .buildSnippet();
 
   /** Fluid pipeline with the fog fix */

@@ -55,11 +55,25 @@ public record UiTestContext(Minecraft mc) {
    * moving the OS cursor, which GLFW ignores while the window is unfocused.
    */
   public void parkMouse() {
+    setMouse(0, 0);
+  }
+
+  /**
+   * Moves the mouse to a position in GUI coordinates, for code that reads the cursor from {@link MouseHandler} instead of
+   * taking it as a parameter (e.g. key handlers looking up what is under the mouse). Like {@link #parkMouse()}, sets the
+   * handler's position in window pixels directly.
+   */
+  public void moveMouse(double guiX, double guiY) {
+    double scale = mc.getWindow().getGuiScale();
+    setMouse(guiX * scale, guiY * scale);
+  }
+
+  private void setMouse(double x, double y) {
     try {
-      MouseFields.X.setDouble(mc.mouseHandler, 0);
-      MouseFields.Y.setDouble(mc.mouseHandler, 0);
+      MouseFields.X.setDouble(mc.mouseHandler, x);
+      MouseFields.Y.setDouble(mc.mouseHandler, y);
     } catch (IllegalAccessException e) {
-      throw new IllegalStateException("uitest: failed to park the mouse", e);
+      throw new IllegalStateException("uitest: failed to move the mouse", e);
     }
   }
 

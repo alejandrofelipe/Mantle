@@ -19,7 +19,6 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
-import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.item.ItemUtil;
@@ -169,24 +168,6 @@ public abstract class InventoryBlock extends Block implements EntityBlock {
     double z = pos.getZ();
     for (int i = 0; i < inventory.size(); ++i) {
       Containers.dropItemStack(world, x, y, z, ItemUtil.getStack(inventory, i));
-    }
-  }
-
-  /**
-   * Drops all items from the given inventory in world
-   * @param world      World instance
-   * @param pos        Position to drop
-   * @param inventory  Inventory instance
-   * @deprecated legacy item handlers are going away, use {@link #dropInventoryItems(Level, BlockPos, ResourceHandler)}. Removed with M5 phase 6b.
-   */
-  @SuppressWarnings("removal")
-  @Deprecated
-  public static void dropInventoryItems(Level world, BlockPos pos, IItemHandler inventory) {
-    double x = pos.getX();
-    double y = pos.getY();
-    double z = pos.getZ();
-    for(int i = 0; i < inventory.getSlots(); ++i) {
-      Containers.dropItemStack(world, x, y, z, inventory.getStackInSlot(i));
     }
   }
 

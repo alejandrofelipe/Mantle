@@ -1,45 +1,63 @@
 package slimeknights.mantle.inventory;
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import com.mojang.logging.LogUtils;
+import lombok.Getter;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.items.IItemHandlerModifiable;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.neoforged.neoforge.transfer.item.ItemStackResourceHandler;
+import net.neoforged.neoforge.transfer.transaction.TransactionContext;
+import org.slf4j.Logger;
 import slimeknights.mantle.block.entity.MantleBlockEntity;
 
-import org.slf4j.Logger;
-
-import javax.annotation.Nonnull;
+import java.util.Objects;
 
 /**
  * Item handler containing exactly one item.
- * @deprecated PORT 1.21.10: implements the legacy {@link IItemHandlerModifiable}, which NeoForge removes. Kept for the Tinkers handlers that
- * extend it until they are ported (M5 phase 6b), where it is replaced by a native single slot handler with the same NBT shape.
+ * <p>
+ * PORT 1.21.10: native {@link ResourceHandler} (was the legacy {@code IItemHandlerModifiable}). Changes made through a transaction are
+ * silent ({@link #setStackSilently(ItemStack)}) until the root transaction commits, then the final stack is replayed once through
+ * {@link #setStack(ItemStack)}, so subclasses keep their side effects (syncing, block updates) in {@link #setStack(ItemStack)} and simulations
+ * never reach them. The capacity is the slot limit capped to the item's max stack size. {@link #writeToNBT(HolderLookup.Provider)} keeps the
+ * legacy shape: the bare {@link ItemStack#CODEC} compound, {@code {}} when empty.
  */
-@Deprecated
-@SuppressWarnings({"unused", "removal"})
-@RequiredArgsConstructor
-public abstract class SingleItemHandler<T extends MantleBlockEntity> implements IItemHandlerModifiable {
+public abstract class SingleItemHandler<T extends MantleBlockEntity> implements ResourceHandler<ItemResource> {
   private static final Logger LOGGER = LogUtils.getLogger();
 
   protected final T parent;
   private final int maxStackSize;
+  /** Journal for transactions over {@link #stack} */
+  private final Journal journal = new Journal();
 
   /** Current item in this slot */
   @Getter
   private ItemStack stack = ItemStack.EMPTY;
 
+  protected SingleItemHandler(T parent, int maxStackSize) {
+    this.parent = parent;
+    this.maxStackSize = maxStackSize;
+  }
+
   /**
-   * Sets the stack in this duct
+   * Sets the stack in this slot as a normal change, running side effects. Overrides add their side effects and call super.
+   * Called directly for changes outside transactions, and once with the final stack when a root transaction commits.
    * @param newStack  New stack
    */
   public void setStack(ItemStack newStack) {
     this.stack = newStack;
     parent.setChangedFast();
+  }
+
+  /**
+   * Sets the stack without side effects, used inside transactions and to revert them. Overrides may only clear caches.
+   * @param newStack  New stack
+   */
+  protected void setStackSilently(ItemStack newStack) {
+    this.stack = newStack;
   }
 
   /**
@@ -49,102 +67,65 @@ public abstract class SingleItemHandler<T extends MantleBlockEntity> implements 
    */
   protected abstract boolean isItemValid(ItemStack stack);
 
-
-  /* Properties */
-
-  @Override
-  public boolean isItemValid(int slot, ItemStack stack) {
-    return slot == 0 && isItemValid(stack);
+  /**
+   * Checks if the given resource is valid for this slot, called by native inserts (inside transactions, so no side effects).
+   * @param resource  Resource, never empty
+   * @return  True if valid
+   */
+  protected boolean isItemValid(ItemResource resource) {
+    return isItemValid(resource.toStack());
   }
 
+  /** Gets the maximum stack size of this slot, before capping to the item's max stack size */
+  public int getSlotLimit() {
+    return maxStackSize;
+  }
+
+
+  /* Native handler */
+
   @Override
-  public int getSlots() {
+  public int size() {
     return 1;
   }
 
   @Override
-  public int getSlotLimit(int slot) {
-    return maxStackSize;
+  public ItemResource getResource(int index) {
+    return journal.getResource(index);
   }
-
-  @Nonnull
-  @Override
-  public ItemStack getStackInSlot(int slot) {
-    if (slot == 0) {
-      return stack;
-    }
-    return ItemStack.EMPTY;
-  }
-
-
-  /* Interaction */
 
   @Override
-  public void setStackInSlot(int slot, ItemStack stack) {
-    if (slot == 0) {
-      setStack(stack);
-    }
-  }
-  
-  @Nonnull
-  @Override
-  public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-    if (stack.isEmpty()) {
-      return ItemStack.EMPTY;
-    }
-    if (slot == 0) {
-      ItemStack current = getStack();
-      if (current.isEmpty()) {
-        if (this.isItemValid(slot, stack)) {
-          // insert up to the stack limit
-          int size = Math.min(stack.getCount(), getSlotLimit(0));
-          if (!simulate) {
-            this.setStack(stack.copyWithCount(size));
-          }
-          return stack.copyWithCount(stack.getCount() - size);
-        }
-      } else if (ItemStack.isSameItemSameComponents(current, stack)) {
-        // increase up to the stack limit
-        int added = Math.min(stack.getCount(), getSlotLimit(0) - current.getCount());
-        if (added > 0) {
-          if (!simulate) {
-            current.grow(added);
-            setStack(current);
-          }
-          return stack.copyWithCount(stack.getCount() - added);
-        }
-      }
-    }
-    return stack;
+  public long getAmountAsLong(int index) {
+    return journal.getAmountAsLong(index);
   }
 
-  @Nonnull
   @Override
-  public ItemStack extractItem(int slot, int amount, boolean simulate) {
-    if (amount == 0 || slot != 0) {
-      return ItemStack.EMPTY;
-    }
-    if (stack.isEmpty()) {
-      return ItemStack.EMPTY;
-    }
-
-    // if amount is less than our size, need to do some shrinking
-    if (amount < stack.getCount()) {
-      ItemStack result = stack.copyWithCount(amount);
-      if (!simulate) {
-        setStack(stack.copyWithCount(stack.getCount() - amount));
-      }
-      return result;
-    }
-    // equal to or bigger means we give them our stack directly
-    if (simulate) {
-      return stack.copy();
-    } else {
-      ItemStack ret = stack;
-      setStack(ItemStack.EMPTY);
-      return ret;
-    }
+  public long getCapacityAsLong(int index, ItemResource resource) {
+    return journal.getCapacityAsLong(index, resource);
   }
+
+  @Override
+  public boolean isValid(int index, ItemResource resource) {
+    return journal.isValid(index, resource);
+  }
+
+  @Override
+  public int insert(int index, ItemResource resource, int amount, TransactionContext transaction) {
+    return journal.insert(index, resource, amount, transaction);
+  }
+
+  @Override
+  public int extract(int index, ItemResource resource, int amount, TransactionContext transaction) {
+    return journal.extract(index, resource, amount, transaction);
+  }
+
+  @Override
+  public String toString() {
+    return getClass().getName() + "[" + stack + "]";
+  }
+
+
+  /* NBT */
 
   /**
    * Writes this module to NBT
@@ -170,5 +151,36 @@ public abstract class SingleItemHandler<T extends MantleBlockEntity> implements 
   public void readFromNBT(HolderLookup.Provider registries, CompoundTag nbt) {
     // an empty tag is the saved form of an empty stack
     stack = nbt.isEmpty() ? ItemStack.EMPTY : ItemStack.CODEC.parse(registries.createSerializationContext(NbtOps.INSTANCE), nbt).resultOrPartial(err -> LOGGER.error("Failed to read item stack for {}: {}", parent, err)).orElse(ItemStack.EMPTY);
+  }
+
+  /** Snapshot journal of the stack, silent until the root commit */
+  private class Journal extends ItemStackResourceHandler {
+    @Override
+    protected ItemStack getStack() {
+      return stack;
+    }
+
+    @Override
+    protected void setStack(ItemStack newStack) {
+      setStackSilently(newStack);
+    }
+
+    @Override
+    protected boolean isValid(ItemResource resource) {
+      return isItemValid(resource);
+    }
+
+    @Override
+    protected int getCapacity(ItemResource resource) {
+      return resource.isEmpty() ? maxStackSize : Math.min(maxStackSize, resource.getMaxStackSize());
+    }
+
+    @Override
+    protected void onRootCommit(ItemStack original) {
+      // replay the final stack over the original, so the owner sees a single normal change
+      ItemStack current = Objects.requireNonNull(stack);
+      setStackSilently(original);
+      SingleItemHandler.this.setStack(current);
+    }
   }
 }

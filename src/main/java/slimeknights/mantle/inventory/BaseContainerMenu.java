@@ -232,7 +232,9 @@ public class BaseContainerMenu<TILE extends BlockEntity> extends AbstractContain
         slot = this.slots.get(k);
         itemstack1 = slot.getItem();
 
-        if (!itemstack1.isEmpty() && ItemStack.isSameItemSameComponents(stack, itemstack1) && this.canTakeItemForPickAll(stack, slot)) {
+        // respect mayPlace like the empty slot pass: a slot may hold an item it does not accept more of (e.g. a result slot, or a
+        // native handler refusing inserts, where the source would shrink for a set the slot refuses)
+        if (!itemstack1.isEmpty() && ItemStack.isSameItemSameComponents(stack, itemstack1) && slot.mayPlace(stack) && this.canTakeItemForPickAll(stack, slot)) {
           int l = itemstack1.getCount() + stack.getCount();
           int limit = Math.min(stack.getMaxStackSize(), slot.getMaxStackSize(stack));
 

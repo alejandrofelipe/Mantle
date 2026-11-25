@@ -235,19 +235,19 @@ public class BaseContainerMenu<TILE extends BlockEntity> extends AbstractContain
         // respect mayPlace like the empty slot pass: a slot may hold an item it does not accept more of (e.g. a result slot, or a
         // native handler refusing inserts, where the source would shrink for a set the slot refuses)
         if (!itemstack1.isEmpty() && ItemStack.isSameItemSameComponents(stack, itemstack1) && slot.mayPlace(stack) && this.canTakeItemForPickAll(stack, slot)) {
-          int l = itemstack1.getCount() + stack.getCount();
+          int before = itemstack1.getCount();
           int limit = Math.min(stack.getMaxStackSize(), slot.getMaxStackSize(stack));
+          int target = Math.min(before + stack.getCount(), limit);
 
-          if (l <= limit) {
-            stack.setCount(0);
-            itemstack1.setCount(l);
+          if (target > before) {
+            itemstack1.setCount(target);
             slot.setChanged();
-            flag1 = true;
-          } else if (itemstack1.getCount() < limit) {
-            stack.shrink(limit - itemstack1.getCount());
-            itemstack1.setCount(limit);
-            slot.setChanged();
-            flag1 = true;
+            // take from the source only what the slot now holds: a slot may refuse the change (e.g. one over a native handler)
+            int accepted = acceptedBySlot(slot, stack, before, target);
+            if (accepted > 0) {
+              stack.shrink(accepted);
+              flag1 = true;
+            }
           }
         }
 
@@ -283,19 +283,17 @@ public class BaseContainerMenu<TILE extends BlockEntity> extends AbstractContain
 
       // Forge: Make sure to respect isItemValid in the slot.
       if (itemstack1.isEmpty() && slot.mayPlace(stack) && this.canTakeItemForPickAll(stack, slot)) {
-        int limit = slot.getMaxStackSize(stack);
-        ItemStack stack2 = stack.copy();
-
-        if (stack2.getCount() > limit) {
-          stack2.setCount(limit);
-          stack.shrink(limit);
-        } else {
-          stack.setCount(0);
+        int count = Math.min(stack.getCount(), slot.getMaxStackSize(stack));
+        if (count > 0) {
+          slot.set(stack.copyWithCount(count));
+          slot.setChanged();
+          // take from the source only what the slot now holds: a slot may refuse the set (e.g. one over a native handler)
+          int accepted = acceptedBySlot(slot, stack, 0, count);
+          if (accepted > 0) {
+            stack.shrink(accepted);
+            flag1 = true;
+          }
         }
-
-        slot.set(stack2);
-        slot.setChanged();
-        flag1 = true;
 
         if (stack.isEmpty()) {
           break;
@@ -310,6 +308,21 @@ public class BaseContainerMenu<TILE extends BlockEntity> extends AbstractContain
     }
 
     return flag1;
+  }
+
+  /**
+   * Measures how many items a merge into the slot really added. The merges above change the slot before shrinking the source, so a slot
+   * refusing or capping the change (a menu slot over a native handler, which can reject a set) never makes the source lose items.
+   * @param slot    Slot merged into
+   * @param stack   Source stack, of the item merged
+   * @param before  Amount the slot held before the merge
+   * @param target  Amount the slot was set to
+   * @return  Items to take from the source, between 0 and {@code target - before}
+   */
+  private static int acceptedBySlot(Slot slot, ItemStack stack, int before, int target) {
+    ItemStack placed = slot.getItem();
+    int now = ItemStack.isSameItemSameComponents(placed, stack) ? placed.getCount() : 0;
+    return Math.max(0, Math.min(now, target) - before);
   }
 
   /**

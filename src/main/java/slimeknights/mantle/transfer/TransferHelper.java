@@ -18,6 +18,7 @@ import net.neoforged.neoforge.transfer.access.ItemAccess;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
+import net.neoforged.neoforge.transfer.item.ItemUtil;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 import javax.annotation.Nullable;
@@ -32,15 +33,16 @@ import java.util.function.Function;
  * <ul>
  *   <li><strong>Native</strong> ({@code get*ResourceHandler}): return the capability as is. Use them for new code, and always inside an
  *   open transaction, passing that transaction to {@code insert}/{@code extract}.</li>
- *   <li><strong>Legacy</strong> ({@code getLegacy*}, {@code asLegacy*}): wrap the capability in NeoForge's new-to-legacy adapters
- *   ({@link IFluidHandler#of(ResourceHandler)}, {@link IItemHandler#of(ResourceHandler)}, {@link FluidResourceHandlerItemAdapter}) so code
- *   on the deprecated interfaces keeps working until the full migration (M5 phase 6), which removes them.
+ *   <li><strong>Legacy</strong> ({@code getLegacy*}, {@code asLegacy*}, all {@link Deprecated}): wrap the capability in NeoForge's new-to-legacy
+ *   adapters ({@link IFluidHandler#of(ResourceHandler)}, {@link IItemHandler#of(ResourceHandler)}, {@link FluidResourceHandlerItemAdapter}) so
+ *   code on the deprecated interfaces keeps working. Mantle itself no longer uses them (M5 phase 6a); they stay for the Tinkers code that is
+ *   still on the legacy interfaces and are removed once it is ported (phase 6b).
  *   <strong>They must not be used inside an open transaction:</strong> every {@code fill}/{@code drain}/{@code insertItem}/{@code extractItem}
  *   of the adapters opens a root transaction, which throws if a transaction is already open on the thread. The legacy lookups throw an
  *   {@link IllegalStateException} up front when called inside one.</li>
  * </ul>
  */
-@SuppressWarnings("removal")  // the legacy interfaces are the point of the legacy lookups until phase 6
+@SuppressWarnings("removal")  // the legacy interfaces are the point of the legacy lookups until phase 6b
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class TransferHelper {
   /* Native lookups */
@@ -84,6 +86,48 @@ public final class TransferHelper {
   @Nullable
   public static ResourceHandler<FluidResource> getFluidResourceHandler(ItemAccess access) {
     return access.getCapability(Capabilities.Fluid.ITEM);
+  }
+
+
+  /* Isolated item copies */
+
+  /**
+   * Puts a copy of {@code count} items of the stack in a new single slot handler, so its item access (see {@link #access(ItemStacksResourceHandler)})
+   * can be used without touching the stack: native item handlers exchange the item in the slot, read the result back with {@link #getStack(ItemStacksResourceHandler)}.
+   * @param stack  Stack to copy, never modified
+   * @param count  Number of items to put in the slot
+   * @return  Single slot handler, empty if the stack is empty
+   */
+  public static ItemStacksResourceHandler isolate(ItemStack stack, int count) {
+    ItemStacksResourceHandler slot = new ItemStacksResourceHandler(1);
+    if (!stack.isEmpty() && count > 0) {
+      slot.set(0, ItemResource.of(stack), count);
+    }
+    return slot;
+  }
+
+  /** Puts a one item copy of the stack in a new single slot handler, see {@link #isolate(ItemStack, int)} */
+  public static ItemStacksResourceHandler isolate(ItemStack stack) {
+    return isolate(stack, 1);
+  }
+
+  /** Gets the item access of the single slot of an {@linkplain #isolate(ItemStack, int) isolated copy} */
+  public static ItemAccess access(ItemStacksResourceHandler slot) {
+    return ItemAccess.forHandlerIndex(slot, 0);
+  }
+
+  /** Gets the stack in the single slot of an {@linkplain #isolate(ItemStack, int) isolated copy} */
+  public static ItemStack getStack(ItemStacksResourceHandler slot) {
+    return ItemUtil.getStack(slot, 0);
+  }
+
+  /**
+   * Gets the native fluid handler of the item in an {@linkplain #isolate(ItemStack, int) isolated copy}, or null if it exposes none.
+   * Safe to query inside a transaction, as changes only reach the copy.
+   */
+  @Nullable
+  public static ResourceHandler<FluidResource> getFluidResourceHandler(ItemStacksResourceHandler slot) {
+    return slot.getResource(0).isEmpty() ? null : getFluidResourceHandler(access(slot));
   }
 
 
@@ -140,6 +184,7 @@ public final class TransferHelper {
    * Null-safe {@link IFluidHandler#of(ResourceHandler)}.
    * <strong>Must not be called inside an open transaction</strong>, see the class javadoc.
    */
+  @Deprecated  // legacy bridge, removed with phase 6b
   @Nullable
   public static IFluidHandler asLegacyFluidHandler(@Nullable ResourceHandler<FluidResource> handler) {
     checkNoOpenTransaction("asLegacyFluidHandler");
@@ -150,6 +195,7 @@ public final class TransferHelper {
    * Null-safe {@link IItemHandler#of(ResourceHandler)}.
    * <strong>Must not be called inside an open transaction</strong>, see the class javadoc.
    */
+  @Deprecated  // legacy bridge, removed with phase 6b
   @Nullable
   public static IItemHandler asLegacyItemHandler(@Nullable ResourceHandler<ItemResource> handler) {
     checkNoOpenTransaction("asLegacyItemHandler");
@@ -163,6 +209,7 @@ public final class TransferHelper {
    * Gets the fluid handler at the given position bridged to a legacy handler, or null if the block exposes none.
    * <strong>Must not be called inside an open transaction</strong>, use {@link #getFluidResourceHandler(Level, BlockPos, Direction)} there.
    */
+  @Deprecated  // legacy bridge, removed with phase 6b
   @Nullable
   public static IFluidHandler getLegacyFluidHandler(Level level, BlockPos pos, @Nullable Direction side) {
     checkNoOpenTransaction("getLegacyFluidHandler");
@@ -174,6 +221,7 @@ public final class TransferHelper {
    * Pass the state and block entity when already known, or when the level no longer holds them (e.g. during removal).
    * <strong>Must not be called inside an open transaction</strong>, use {@link #getFluidResourceHandler(Level, BlockPos, BlockState, BlockEntity, Direction)} there.
    */
+  @Deprecated  // legacy bridge, removed with phase 6b
   @Nullable
   public static IFluidHandler getLegacyFluidHandler(Level level, BlockPos pos, @Nullable BlockState state, @Nullable BlockEntity blockEntity, @Nullable Direction side) {
     checkNoOpenTransaction("getLegacyFluidHandler");
@@ -185,6 +233,7 @@ public final class TransferHelper {
    * Note the adapter's {@code getStackInSlot} returns copies, so changing the returned stacks does not change the block.
    * <strong>Must not be called inside an open transaction</strong>, use {@link #getItemResourceHandler(Level, BlockPos, Direction)} there.
    */
+  @Deprecated  // legacy bridge, removed with phase 6b
   @Nullable
   public static IItemHandler getLegacyItemHandler(Level level, BlockPos pos, @Nullable Direction side) {
     checkNoOpenTransaction("getLegacyItemHandler");
@@ -197,6 +246,7 @@ public final class TransferHelper {
    * Note the adapter's {@code getStackInSlot} returns copies, so changing the returned stacks does not change the block.
    * <strong>Must not be called inside an open transaction</strong>, use {@link #getItemResourceHandler(Level, BlockPos, BlockState, BlockEntity, Direction)} there.
    */
+  @Deprecated  // legacy bridge, removed with phase 6b
   @Nullable
   public static IItemHandler getLegacyItemHandler(Level level, BlockPos pos, @Nullable BlockState state, @Nullable BlockEntity blockEntity, @Nullable Direction side) {
     checkNoOpenTransaction("getLegacyItemHandler");
@@ -218,6 +268,7 @@ public final class TransferHelper {
    * @return  Legacy handler, or null if the stack is empty or has no fluid capability
    * @see #getLegacyFluidHandlerForWholeStack(ItemStack)
    */
+  @Deprecated  // legacy bridge, removed with phase 6b
   @Nullable
   public static IFluidHandlerItem getLegacyFluidHandler(ItemStack stack) {
     return getLegacyFluidHandler(stack, TransferHelper::getFluidResourceHandler);
@@ -230,6 +281,7 @@ public final class TransferHelper {
    * @param lookup  Native handler lookup, may return null
    * @return  Legacy handler, or null if the stack is empty or the lookup found no handler
    */
+  @Deprecated  // legacy bridge, removed with phase 6b
   @Nullable
   public static IFluidHandlerItem getLegacyFluidHandler(ItemStack stack, Function<ItemAccess, ResourceHandler<FluidResource>> lookup) {
     checkNoOpenTransaction("getLegacyFluidHandler");
@@ -249,6 +301,7 @@ public final class TransferHelper {
    * @return  Legacy handler, or null if the stack is empty or has no fluid capability
    * @see #getLegacyFluidHandler(ItemStack)
    */
+  @Deprecated  // legacy bridge, removed with phase 6b
   @Nullable
   public static IFluidHandlerItem getLegacyFluidHandlerForWholeStack(ItemStack stack) {
     return getLegacyFluidHandlerForWholeStack(stack, TransferHelper::getFluidResourceHandler);
@@ -260,6 +313,7 @@ public final class TransferHelper {
    * @param lookup  Native handler lookup, may return null
    * @return  Legacy handler, or null if the stack is empty or the lookup found no handler
    */
+  @Deprecated  // legacy bridge, removed with phase 6b
   @Nullable
   public static IFluidHandlerItem getLegacyFluidHandlerForWholeStack(ItemStack stack, Function<ItemAccess, ResourceHandler<FluidResource>> lookup) {
     checkNoOpenTransaction("getLegacyFluidHandlerForWholeStack");
@@ -269,9 +323,7 @@ public final class TransferHelper {
   /** Puts the copy in a single slot and bridges the handler the lookup finds on it */
   @Nullable
   private static IFluidHandlerItem bridgeStack(ItemStack copy, Function<ItemAccess, ResourceHandler<FluidResource>> lookup) {
-    ItemStacksResourceHandler slot = new ItemStacksResourceHandler(1);
-    slot.set(0, ItemResource.of(copy), copy.getCount());
-    ItemAccess access = ItemAccess.forHandlerIndex(slot, 0);
+    ItemAccess access = access(isolate(copy, copy.getCount()));
     ResourceHandler<FluidResource> handler = lookup.apply(access);
     return handler != null ? new FluidResourceHandlerItemAdapter(handler, access) : null;
   }

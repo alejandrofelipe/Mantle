@@ -22,8 +22,9 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
-import net.neoforged.neoforge.fluids.capability.templates.EmptyFluidHandler;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import net.neoforged.neoforge.transfer.fluid.FluidUtil;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.transfer.TransferHelper;
 import slimeknights.mantle.util.TranslationHelper;
@@ -71,17 +72,15 @@ public class GaugeBlock extends Block {
     if (!world.isClientSide()) {
       Direction side = state.getValue(FACING);
       BlockPos neighbor = pos.relative(side.getOpposite());
-      IFluidHandler handler = TransferHelper.getLegacyFluidHandler(world, neighbor, side);
-      if (handler == null) {
-        handler = EmptyFluidHandler.INSTANCE;
-      }
-      if (handler.getTanks() > 0) {
-        FluidStack fluid = handler.getFluidInTank(0);
+      ResourceHandler<FluidResource> handler = TransferHelper.getFluidResourceHandler(world, neighbor, side);
+      if (handler != null && handler.size() > 0) {
+        FluidStack fluid = FluidUtil.getStack(handler, 0);
+        int capacity = handler.getCapacityAsInt(0, FluidResource.EMPTY);
         if (fluid.isEmpty()) {
           // show simple empty message if gauge amount is hidden
-          player.displayClientMessage(formatCapacity(handler.getTankCapacity(0)), true);
+          player.displayClientMessage(formatCapacity(capacity), true);
         } else {
-          Component contents = Component.translatable(CONTENTS_FORMAT, COMMA_FORMAT.format(fluid.getAmount()), COMMA_FORMAT.format(handler.getTankCapacity(0)), fluid.getHoverName());
+          Component contents = Component.translatable(CONTENTS_FORMAT, COMMA_FORMAT.format(fluid.getAmount()), COMMA_FORMAT.format(capacity), fluid.getHoverName());
           player.displayClientMessage(Component.translatable(CONTENTS_KEY, contents), true);
         }
       }

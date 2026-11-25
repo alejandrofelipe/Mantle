@@ -8,8 +8,10 @@ import net.minecraft.world.level.storage.loot.functions.LootItemConditionalFunct
 import net.minecraft.world.level.storage.loot.functions.LootItemFunctionType;
 import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
+import net.neoforged.neoforge.transfer.transaction.Transaction;
 import slimeknights.mantle.loot.MantleLoot;
 import slimeknights.mantle.transfer.TransferHelper;
 
@@ -33,13 +35,22 @@ public class SetFluidLootFunction extends LootItemConditionalFunction {
 
   @Override
   protected ItemStack run(ItemStack stack, LootContext context) {
-    // PORT 1.21.10: fill every item of the stack; the whole-stack bridge works on a copy and splits the fill between the items
-    IFluidHandlerItem handler = TransferHelper.getLegacyFluidHandlerForWholeStack(stack);
-    if (handler != null) {
-      handler.fill(fluid.copyWithAmount(fluid.getAmount() * stack.getCount()), FluidAction.EXECUTE);
-      return handler.getContainer();
+    // PORT 1.21.10: fill every item of the stack. The handler works on an isolated copy of the whole stack, where amounts are totals over
+    // the items, so the fill is split between them
+    if (stack.isEmpty() || fluid.isEmpty()) {
+      return stack;
     }
-    return stack;
+    ItemStacksResourceHandler slot = TransferHelper.isolate(stack, stack.getCount());
+    ResourceHandler<FluidResource> handler = TransferHelper.getFluidResourceHandler(slot);
+    if (handler == null) {
+      return stack;
+    }
+    // the changes only reach the copy, so nesting into a transaction that may be open is safe
+    try (Transaction tx = TransferHelper.openNestedOrRoot()) {
+      handler.insert(FluidResource.of(fluid), fluid.getAmount() * stack.getCount(), tx);
+      tx.commit();
+    }
+    return TransferHelper.getStack(slot);
   }
 
   @Override

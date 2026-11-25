@@ -41,8 +41,9 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
-import net.neoforged.neoforge.fluids.capability.templates.EmptyFluidHandler;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import net.neoforged.neoforge.transfer.fluid.FluidUtil;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -277,25 +278,23 @@ public class ClientEvents {
       return;
     }
     // block entity must have a fluid handler
-    IFluidHandler handler = TransferHelper.getLegacyFluidHandler(minecraft.level, gaugeContainer.getBlockPos(), null, gaugeContainer, side);
-    if (handler == null) {
-      handler = EmptyFluidHandler.INSTANCE;
-    }
-    if (handler.getTanks() <= 0) {
+    ResourceHandler<FluidResource> handler = TransferHelper.getFluidResourceHandler(minecraft.level, gaugeContainer.getBlockPos(), null, gaugeContainer, side);
+    if (handler == null || handler.size() <= 0) {
       return;
     }
     // if the fluid is empty, just render the capacity
-    FluidStack fluid = handler.getFluidInTank(0);
+    FluidStack fluid = FluidUtil.getStack(handler, 0);
+    int capacity = handler.getCapacityAsInt(0, FluidResource.EMPTY);
     List<Component> tooltip;
     if (fluid.isEmpty()) {
-      tooltip = List.of(GaugeBlock.formatCapacity(handler.getTankCapacity(0)));
+      tooltip = List.of(GaugeBlock.formatCapacity(capacity));
     } else if (RegistryHelper.contains(BuiltInRegistries.BLOCK_ENTITY_TYPE, MantleTags.BlockEntities.HIDES_GAUGE_AMOUNT, gaugeContainer.getType())) {
       // in the tag, don't show capacity
       ResourceLocation id = BuiltInRegistries.FLUID.getKey(fluid.getFluid());
       tooltip = new ArrayList<>(3);
       tooltip.add(fluid.getHoverName());
       FluidTooltipHandler.appendAdvanced(id, tooltip);
-      tooltip.add(GaugeBlock.formatCapacity(handler.getTankCapacity(0)).withStyle(ChatFormatting.GRAY));
+      tooltip.add(GaugeBlock.formatCapacity(capacity).withStyle(ChatFormatting.GRAY));
       tooltip.add(FluidTooltipHandler.formatModName(id));
     } else {
       // render full fluid tooltip

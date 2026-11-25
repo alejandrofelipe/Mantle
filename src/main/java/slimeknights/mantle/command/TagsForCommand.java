@@ -42,7 +42,9 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import net.neoforged.neoforge.transfer.fluid.FluidUtil;
 import slimeknights.mantle.command.argument.RegistryTagSource;
 import slimeknights.mantle.command.argument.TagSource;
 import slimeknights.mantle.command.argument.TagSourceArgument;
@@ -176,9 +178,9 @@ public class TagsForCommand {
   private static int heldFluid(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
     CommandSourceStack source = context.getSource();
     ItemStack stack = source.getPlayerOrException().getMainHandItem();
-    IFluidHandlerItem handler = TransferHelper.getLegacyFluidHandler(stack);
-    if (handler != null && handler.getTanks() > 0) {
-      FluidStack fluidStack = handler.getFluidInTank(0);
+    ResourceHandler<FluidResource> handler = TransferHelper.getFluidResourceHandler(TransferHelper.isolate(stack));
+    if (handler != null && handler.size() > 0) {
+      FluidStack fluidStack = FluidUtil.getStack(handler, 0);
       if (!fluidStack.isEmpty()) {
         Fluid fluid = fluidStack.getFluid();
         return printOwningTags(context, BuiltInRegistries.FLUID, fluid);

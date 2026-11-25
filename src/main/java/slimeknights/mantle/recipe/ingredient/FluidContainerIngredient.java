@@ -5,17 +5,11 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.common.crafting.ICustomIngredient;
 import net.neoforged.neoforge.common.crafting.IngredientType;
-import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction;
-import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.access.ItemAccess;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
-import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import slimeknights.mantle.Mantle;
@@ -73,40 +67,11 @@ public class FluidContainerIngredient implements ICustomIngredient {
     if (stack == null || stack.isEmpty()) {
       return false;
     }
-    // PORT 1.21.10: recipe matching can run inside a transaction (e.g. a casting recipe matched from a native fill), where the
-    // legacy bridge throws as its drain opens a root transaction; query the native handler in a nested transaction there
-    if (TransferHelper.isTransactionOpen()) {
-      return testNative(stack);
-    }
-    // first, must have a fluid capability. PORT 1.21.10: the bridge works on a one-item copy,
-    // so the same handler can be drained below without touching the passed stack
-    IFluidHandlerItem cap = TransferHelper.getLegacyFluidHandler(stack);
-    if (cap == null || cap.getTanks() != 1) {
-      return false;
-    }
-    // second, must contain enough fluid
-    FluidStack contained = cap.getFluidInTank(0);
-    if (contained.isEmpty() || fluidIngredient.getAmount(contained.getFluid()) != contained.getAmount() || !fluidIngredient.test(contained.getFluid())) {
-      return false;
-    }
-    // alright, we know it has the fluid, the question is just whether draining the fluid will give us the desired result
-    Fluid fluid = contained.getFluid();
-    int amount = fluidIngredient.getAmount(fluid);
-    FluidStack drained = cap.drain(amount, FluidAction.EXECUTE);
-    // we need an exact match, and we need the resulting container item to be the same as the item stack's container item
-    return drained.getFluid() == fluid && drained.getAmount() == amount && ItemStack.matches(stack.getCraftingRemainder(), cap.getContainer());
-  }
-
-  /**
-   * Same checks as {@link #test(ItemStack)} through the native handler, safe inside an open transaction.
-   * Works on an isolated one-item copy of the stack, and drains it in a nested transaction that is aborted, so neither the passed stack
-   * nor the outer transaction see any change.
-   */
-  private boolean testNative(ItemStack stack) {
+    // PORT 1.21.10: works on an isolated one-item copy of the stack and drains it in a transaction that is never committed, so neither the
+    // passed stack nor a transaction that may be open (e.g. a casting recipe matched from a native fill) sees any change
     // first, must have a fluid capability on a single container
-    ItemStacksResourceHandler slot = new ItemStacksResourceHandler(1);
-    slot.set(0, ItemResource.of(stack), 1);
-    ResourceHandler<FluidResource> handler = TransferHelper.getFluidResourceHandler(ItemAccess.forHandlerIndex(slot, 0));
+    ItemStacksResourceHandler slot = TransferHelper.isolate(stack);
+    ResourceHandler<FluidResource> handler = TransferHelper.getFluidResourceHandler(slot);
     if (handler == null || handler.size() != 1) {
       return false;
     }
@@ -116,11 +81,11 @@ public class FluidContainerIngredient implements ICustomIngredient {
     if (contained.isEmpty() || fluidIngredient.getAmount(contained.getFluid()) != containedAmount || !fluidIngredient.test(contained.getFluid())) {
       return false;
     }
-    // finally, draining the fluid must give the expected container; the nested transaction is never committed
+    // alright, we know it has the fluid, the question is just whether draining the fluid will give us the desired result:
+    // we need an exact match, and we need the resulting container item to be the same as the item stack's container item
     try (Transaction tx = TransferHelper.openNestedOrRoot()) {
       int drained = handler.extract(contained, containedAmount, tx);
-      ItemStack container = slot.getResource(0).toStack(slot.getAmountAsInt(0));
-      return drained == containedAmount && ItemStack.matches(stack.getCraftingRemainder(), container);
+      return drained == containedAmount && ItemStack.matches(stack.getCraftingRemainder(), TransferHelper.getStack(slot));
     }
   }
 

@@ -1,5 +1,6 @@
 package slimeknights.mantle.client.uitest;
 
+import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import net.minecraft.client.player.LocalPlayer;
@@ -61,11 +62,12 @@ public record UiTestContext(Minecraft mc) {
   /**
    * Moves the mouse to a position in GUI coordinates, for code that reads the cursor from {@link MouseHandler} instead of
    * taking it as a parameter (e.g. key handlers looking up what is under the mouse). Like {@link #parkMouse()}, sets the
-   * handler's position in window pixels directly.
+   * handler's position in window pixels directly, as the exact inverse of {@link MouseHandler#getScaledXPos} and
+   * {@link MouseHandler#getScaledYPos} (window size over GUI scaled size, not the rounded GUI scale).
    */
   public void moveMouse(double guiX, double guiY) {
-    double scale = mc.getWindow().getGuiScale();
-    setMouse(guiX * scale, guiY * scale);
+    Window window = mc.getWindow();
+    setMouse(guiX * window.getScreenWidth() / window.getGuiScaledWidth(), guiY * window.getScreenHeight() / window.getGuiScaledHeight());
   }
 
   private void setMouse(double x, double y) {

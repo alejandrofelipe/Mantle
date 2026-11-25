@@ -1,6 +1,6 @@
 # Mantle Documentation
 
-Documentation for **Mantle** on **Minecraft 1.21.8 / NeoForge 21.8.57** (the `alejandrofelipe` fork, branch `1.21.8`; the API guides were written for 1.21.1 — see the version-to-version gotchas below for what changed since). Mantle is the shared library that SlimeKnights-style mods (e.g. Tinkers' Construct) build on.
+Documentation for **Mantle** on **Minecraft 1.21.10 / NeoForge 21.10.64** (the `alejandrofelipe` fork, branch `1.21.10`; the API guides were written for 1.21.1 — see the version-to-version gotchas below for what changed since). Mantle is the shared library that SlimeKnights-style mods (e.g. Tinkers' Construct) build on.
 
 ## API guides
 
@@ -22,6 +22,7 @@ How to use each Mantle subsystem from a consuming mod:
 - [1.21.1 → 1.21.4 gotchas](migration/1.21.1-to-1.21.4.md) — roadmap M1 (1.21.2/1.21.3 folded in): recipes as a datapack registry, item/block `setId`, the item model rewrite.
 - [1.21.4 → 1.21.5 gotchas](migration/1.21.4-to-1.21.5.md) — roadmap M3: `BakedModel` removed, block-state-level dynamic models, `RenderPipeline`, NBT `Optional` getters, gametest framework.
 - [1.21.5 → 1.21.8 gotchas](migration/1.21.5-to-1.21.8.md) — roadmap M4 (1.21.6/1.21.7 folded in): deferred GUI rendering and picture-in-picture, GUI item model identity, `ValueInput`/`ValueOutput`, UBO shaders and fog, Mantle API changes for downstream mods.
+- [1.21.8 → 1.21.10 gotchas](migration/1.21.8-to-1.21.10.md) — roadmap M5 (1.21.9 folded in): the NeoForge transfer API rework (`ResourceHandler`, `ItemAccess`, transactions) and Mantle's full migration to it, two-phase rendering, event-based input, the removed `verifyComponentsAfterLoad`, datagen through the cache, Mantle API changes for downstream mods (incl. the breaking `refactor(transfer)!`).
 
 ## Build & commands
 

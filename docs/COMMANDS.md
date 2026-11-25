@@ -1,10 +1,11 @@
-# Build & Run Commands — Mantle / TinkersConstruct (MC 1.21.8 / NeoForge 21.8.57)
+# Build & Run Commands — Mantle / TinkersConstruct (MC 1.21.10 / NeoForge 21.10.64)
 
-> **Current target: MC 1.21.8 / NeoForge 21.8.57** (branch `1.21.8` in both repos; `1.21.5` = the 1.21.5 release,
-> `1.21.3` = the 1.21.4 release, `1.21.1` = the 1.21.1 release). The 1.21.1 notes below still apply except where the
-> [1.21.4 notes](#1214-notes-m1) or [1.21.8 notes](#1218-notes-m4) override them. Migration gotchas:
+> **Current target: MC 1.21.10 / NeoForge 21.10.64** (branch `1.21.10` in both repos; `1.21.8` = the 1.21.8 release,
+> `1.21.5` = the 1.21.5 release, `1.21.3` = the 1.21.4 release, `1.21.1` = the 1.21.1 release). The 1.21.1 notes below
+> still apply except where the [1.21.4 notes](#1214-notes-m1), [1.21.8 notes](#1218-notes-m4) or
+> [1.21.10 notes](#12110-notes-m5) override them. Migration gotchas:
 > [`1.21.1-to-1.21.4.md`](migration/1.21.1-to-1.21.4.md), [`1.21.4-to-1.21.5.md`](migration/1.21.4-to-1.21.5.md),
-> [`1.21.5-to-1.21.8.md`](migration/1.21.5-to-1.21.8.md).
+> [`1.21.5-to-1.21.8.md`](migration/1.21.5-to-1.21.8.md), [`1.21.8-to-1.21.10.md`](migration/1.21.8-to-1.21.10.md).
 
 Canonical, copy-paste-ready commands for this machine. The goal of this file is **zero retries**:
 every command here is written for the real environment probed on 2026-06-27. Read the
@@ -26,16 +27,18 @@ sections **before** running any Gradle task — skipping them is the #1 cause of
 | Fact | Value | Consequence |
 |------|-------|-------------|
 | OS / shell | Windows 10, PowerShell 7 (`pwsh`) | **Use PowerShell for build commands.** Bash PATH is unreliable here (see `running-windows-scripts` skill). |
-| Default Java | Temurin **17** (`JAVA_HOME` → `C:\Users\aleja\scoop\apps\temurin17-jdk\current`) | MC 1.21.1 / NeoForge need **Java 21** — must override `JAVA_HOME` per command. |
+| Default Java | Temurin **17** (`JAVA_HOME` → `C:\Users\aleja\scoop\apps\temurin17-jdk\current`) | MC 1.21.1 through 1.21.11 / NeoForge need **Java 21** — must override `JAVA_HOME` per command. From roadmap M7 (MC 26.1.2+) the game needs **Java 25** (installed at `C:\Users\aleja\scoop\apps\temurin25-jdk\current`). |
 | Repo root | `C:\Users\aleja\DEV\New Tinkers\repo` | The working dir of the shell tools is the **parent** (`New Tinkers`). Always target the repo explicitly. |
-| Branch | `1.21.8` | Active port work (M4). Released lines live on `1.21.5`, `1.21.3` (1.21.4) and `1.21.1`. |
-| Gradle wrapper | **9.2.1** (`gradle/wrapper/gradle-wrapper.properties`) | Paired with NeoGradle **7.1.39** (the official MDK toolchain from 1.21.4 through 1.21.8; 1.21.1 used 7.1.38). Already set; don't downgrade. |
+| Branch | `1.21.10` | Active port work (M5). Released lines live on `1.21.8`, `1.21.5`, `1.21.3` (1.21.4) and `1.21.1`. |
+| Gradle wrapper | **9.2.1** (`gradle/wrapper/gradle-wrapper.properties`) | Paired with NeoGradle **7.1.39** (used from 1.21.4 through 1.21.10; 1.21.1 used 7.1.38). Already set; don't downgrade. |
 | System Gradle | 9.5.1 (Scoop) | **Do not use** for build tasks — always use the wrapper (9.2.1), which pins the exact Gradle that NeoGradle 7.1.39 requires. |
 | Scoop CLI tools | `git` 2.54, `grep`, `fd`, `jq`, `python`, `dotnet-sdk` | Available; `git`/`grep` work in both Bash and PowerShell. |
 
 Paths (Scoop JDKs):
 - Java 17: `C:\Users\aleja\scoop\apps\temurin17-jdk\current`
 - Java 21: `C:\Users\aleja\scoop\apps\temurin21-jdk\current` *(after prereq 1)*
+- Java 25: `C:\Users\aleja\scoop\apps\temurin25-jdk\current` *(for M7+; installing a scoop JDK repoints `JAVA_HOME`/`PATH` —
+  undo with `scoop reset temurin17-jdk`)*
 
 ---
 
@@ -134,10 +137,8 @@ Set-Location "C:\Users\aleja\DEV\New Tinkers\repo"; $env:JAVA_HOME = "C:\Users\a
   - A removed or renamed provider keeps its old files until its `.cache` file (the header names the
     provider) is deleted.
   - Check after any run: `git -C "<repo>" status --short src/generated` lists only intended changes.
-  - Known drift (Tinkers): the current generators produce 129 part textures (126 `*_queens_slime`, plus
-    `maille_armor` enderslime/skyslime vine and a jeweled hide maille) with a few pixels or bytes different
-    from the committed (upstream-generated) ones. The cache skips unchanged hashes, so they only reappear
-    when `.cache` is deleted; restore them from HEAD unless you mean to refresh them.
+  - The 129 Tinkers part textures that used to regenerate a few pixels off (M1's `GreyToColorMapping` port) now
+    regenerate byte-identical to the committed upstream ones (fixed in M5).
 - **Release jars** drop `.DEV` via the `ARTIFACT_VERSION` env var (`version = <mc>-<ARTIFACT_VERSION>`). It
   leaks through the composite build, so build **Mantle and Tinkers separately**:
   ```powershell
@@ -157,8 +158,8 @@ Set-Location "C:\Users\aleja\DEV\New Tinkers\repo"; $env:JAVA_HOME = "C:\Users\a
 
 ## 1.21.8 notes (M4)
 
-- Toolchain unchanged from 1.21.4 (Gradle 9.2.1 + NeoGradle 7.1.39, Java 21); datagen is still the two mutually
-  purging runs above.
+- Toolchain unchanged from 1.21.4 (Gradle 9.2.1 + NeoGradle 7.1.39, Java 21); datagen was still the two mutually
+  purging runs (fixed in M5, see above).
 - **uitest needs an unlocked screen** — see [`runClientUiTest`](#runclientuitest-self-driving-visual-suite).
 - **The real uitest gate is a side-by-side review.** A capture bug once made every PNG show the previous scenario while
   all results said `"ok"`. For a milestone, run the same suite on the previous release (its tags checked out in
@@ -167,17 +168,34 @@ Set-Location "C:\Users\aleja\DEV\New Tinkers\repo"; $env:JAVA_HOME = "C:\Users\a
 - Singleplayer never serializes packets: network codec coverage comes from the gametest
   `synced_recipes_stream_codec_round_trip`, not from the uitest.
 
+## 1.21.10 notes (M5)
+
+- Toolchain unchanged (Gradle 9.2.1 + NeoGradle 7.1.39, Java 21). Pins: NeoForge `21.10.64`, Parchment
+  `1.21.10 / 2025.10.12`, JEI `26.3.0.31`, Crafting Tweaks `21.10.1` + Balm `21.10.11`, JSON Things `0.16.0` (re-added);
+  Immersive Engineering still excluded.
+- **Datagen keeps the other run's outputs** — no manual restore step any more (see the [1.21.4 notes](#1214-notes-m1)).
+- **Tinkers' `runData` needs the 1.21.4 client jar** (SHA-1 `a7e5a602…`) for the spawn egg template layers. Looked up in
+  order: `-PspawnEggTemplateJar=<path>`, the NeoGradle/ForgeGradle caches, the official launcher and Prism Launcher files;
+  if none has it, Gradle downloads it once from `piston-data.mojang.com` into `caches/modules-2` (SHA-1 and size
+  checked). Offline with nothing cached, `runData` fails naming the cause and `test` skips the real-layer egg check
+  (logged). The jar is never committed.
+- **`runClientUiTest` fails when any result is not `"ok"`** — see [`runClientUiTest`](#runclientuitest-self-driving-visual-suite).
+- **JSON Things gametests:** `runGameTestServer` depends on `prepareGameTestThingpacks`, which syncs
+  `src/gametest/thingpacks` into `run/gameTestServer/thingpacks` (JSON Things only reads `<game dir>/thingpacks`).
+- Warning counts: `--rerun` belongs to the task right before it, so `compileJava compileTestJava --rerun` reruns only
+  `compileTestJava`; use `compileJava --rerun` for main-source warnings.
+
 ## Task reference
 
 | Goal | Task (`GW <task>`) | Notes / expected signal |
 |------|--------------------|-------------------------|
 | First sync / download deps | `--refresh-dependencies tasks` | **First run downloads NeoForge + decompiles Minecraft — minutes, large download. Run in background.** Success = task list prints, no resolution errors. |
 | List available tasks | `tasks` | Shows `runClient`, `runData`, `runServer`, etc. once NeoGradle is applied. |
-| Dependency tree *(post-migration)* | `dependencies --configuration runtimeClasspath` | Confirm `net.neoforged:neoforge:21.8.57` resolves (no `FAILED`). Before Stage 0 migration this still shows the Forge dep. |
+| Dependency tree *(post-migration)* | `dependencies --configuration runtimeClasspath` | Confirm `net.neoforged:neoforge:21.10.64` resolves (no `FAILED`). Before Stage 0 migration this still shows the Forge dep. |
 | **Compile** (per-stage gate) | `compileJava` | The verification gate for port stages 0–7. Success = `BUILD SUCCESSFUL`, zero `error:` lines. |
 | Compile tests (if present) | `compileTestJava` | Only if a test source set exists. |
-| **Full build** | `build` | Compiles + runs `jar`. Output: `build/libs/Mantle-1.21.8-*.jar`. |
-| **Datagen** | `runData` and/or `runServerData` | 1.21.4: two runs (client assets / server data). Each keeps the other side's outputs since M5 (needs the local `.cache`) — see [1.21.4 notes](#1214-notes-m1) before committing `src/generated/resources/`. Tinkers' `runData` needs the 1.21.4 client jar for the spawn egg templates (found automatically, or `-PspawnEggTemplateJar=<path>`). Background them. |
+| **Full build** | `build` | Compiles + runs `jar`. Output: `build/libs/Mantle-1.21.10-*.jar`. |
+| **Datagen** | `runData` and/or `runServerData` | 1.21.4: two runs (client assets / server data). Each keeps the other side's outputs since M5 (needs the local `.cache`) — see [1.21.4 notes](#1214-notes-m1) before committing `src/generated/resources/`. Tinkers' `runData` needs the 1.21.4 client jar for the spawn egg templates (found locally or downloaded once by Gradle, or `-PspawnEggTemplateJar=<path>` — see [1.21.10 notes](#12110-notes-m5)). Background them. |
 | **Run client** *(post-migration)* | `runClient` | Launches the game. **Background it and watch the log**; success = main menu, `mantle` in the mod list, no `mantle` registration errors. |
 | Run server *(post-migration)* | `runServer` | `--nogui` is preconfigured. Background it. |
 | Game tests | `runGameTestServer` | **Not defined in Mantle's `build.gradle runs{}`** — Mantle has no game-test suite. The **tinkers** repo defines this run; see [Automated tests & screenshots](#automated-tests--screenshots). |
@@ -300,7 +318,9 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 Runs the JUnit 5 + Mockito unit suite (`src/test/java`, `slimeknights.tconstruct.*`) on a plain JVM —
-no Minecraft boot. Current suite (1.21.8) = 674 tests: 672 passing + 2 `@Disabled` (each carries its reason in-code).
+no Minecraft boot. Current suite (1.21.10) = 793 tests: 791 passing + 2 `@Disabled` (each carries its reason in-code).
+Mantle has no test source set: its unit tests (transfer helpers, `SingleFluidTank`, datagen cache keeper, …) live in this
+suite.
 Reports land in `build/reports/tests/test/` (HTML) and `build/test-results/test/` (JUnit XML).
 
 > **UP-TO-DATE trap.** `build` already executes this suite, so a `test` right after a green `build`
@@ -325,9 +345,15 @@ test methods with its own `@TinkerGameTest(template, timeoutTicks)` and `TinkerG
 each as a `TEST_FUNCTION` + `FunctionGameTestInstance` (id `tconstruct:<method_name>`, structure
 `tconstruct:<template>`, environment `tconstruct:default`) on `RegisterGameTestsEvent`; the server runs every
 registered instance, so the old `neoforge.enabledGameTestNamespaces` property is gone. In-game (dev client):
-`/test run tconstruct:<name>`, `/test runfailed`, … Current suite (1.21.8) = 57 Tinkers tests (+ vanilla's built-in
-`minecraft:always_pass`, so the log says 58) — smeltery/alloyer/casting/tool-crafting
-logic (castless casting included), capabilities, the `*_lookup_populated` recipe-lookup checks,
+`/test run tconstruct:<name>`, `/test runfailed`, … Current suite (1.21.10) = 137 Tinkers tests (+ vanilla's built-in
+`minecraft:always_pass`, so the log says 138) — smeltery/alloyer/casting/tool-crafting
+logic (castless casting included), capabilities and the native transfer API (`CapabilityGameTests`,
+`FluidTransferGameTests`, `SmelteryTransferGameTests`: transaction simulate/abort/commit, hopper/pipe interop, item
+`ItemAccess` capabilities), menu slots over native handlers (`MenuSlotGameTests`, incl. the `slot_safety_*` safety net),
+lazy tool verification and tool copies (`ToolGameTests`), `BlockEntityRoundTripGameTests` (save → load → re-save and client
+sync of every Tinkers block entity, empty, filled and filled → empty), `DropGameTests`, `FluidEffectGameTests`,
+`JsonThingsGameTests` (registered only when JSON Things is loaded; thingpack synced by `prepareGameTestThingpacks`), the
+`*_lookup_populated` recipe-lookup checks,
 `RecipeValidationGameTests` (every melting/casting/alloy recipe), `DatapackTagGapGameTests`, `WorldgenGameTests`
 (structures/sets/features/biome modifiers resolve,
 all 25 island templates load with the right palette, and every island, geode, cobalt ore and slime tree is
@@ -337,8 +363,8 @@ entity and built-tool save → load round-trips checked against the 1.21.5 on-di
 `MantleCommandGameTests` (`/mantle` command suggestions and execution) and `RecipeSyncGameTests`
 (`synced_recipes_stream_codec_round_trip`: every client-synced recipe encoded → decoded → re-encoded with
 `RecipeHolder.STREAM_CODEC`, byte-equal — the only coverage of the dedicated-server network path, since singleplayer
-never serializes). A green run takes ~1-4 min (cold) and prints `All 58 required tests passed :)` +
-`BUILD SUCCESSFUL` (1.21.8).
+never serializes). A green run takes ~1-4 min (cold) and prints `All 138 required tests passed :)` +
+`BUILD SUCCESSFUL` (1.21.10).
 
 > **Fresh world every run.** `runGameTestServer` depends on `cleanGameTestWorld`, which deletes
 > `run/gameTestServer/world` first — the 1.21.4 server reused that world forever (flat preset, seed 0), so
@@ -361,7 +387,7 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 Boots a real client straight into the committed superflat world `UITest` (`--quickPlaySingleplayer`,
-1280×720, `-Dmantle.uitest=true`), drives the 30 registered scenarios (`tinker_station`, `part_builder`,
+1280×720, `-Dmantle.uitest=true`), drives the 42 registered scenarios (`tinker_station`, `part_builder`,
 `crafting_station`, `smeltery`, `melter`, `casting_pour`, `book_materials_and_you`, `jei_melting_category`,
 `jei_item_list_cleanup`, `book_interior`, `station_reflow`, `station_collapsed`,
 `station_collapsed_overlay`, `extra_hearts`, `dynamic_block_models` — connected glass, a retextured table and a filled
@@ -372,11 +398,17 @@ JEI categories (`casting_table`, `casting_basin`, `molding`, `alloy`, `entity_me
 `severing`, `tool_building`, `part_builder`, `worktable` — each asserts the category is registered and has recipes),
 `book_structure` — the smeltery 3D structure preview in "Mighty Smelting" (Mantle's picture-in-picture structure
 renderer) —, `crafting_tweaks_rotate` — presses the Crafting Tweaks rotate button on a filled crafting station and
-asserts the grid rotated), writes
+asserts the grid rotated —, and since 1.21.10: `tool_inventory` (a pocket tool opens its inventory through the item
+capability), `fluid_blocks` (melter/alloyer/gauge fluids and a faucet → channel → basin pour in the world),
+`casting_cooling` (table and basin frozen mid cooling, output fading in), `aoe_outline` / `aoe_outline_high_contrast`
+(3×3 hammer outlines + extra-block breaking overlay), `station_carried_clicks` (pick up, double-click gather, tab click
+with a carried stack), `jei_tank_clickable` / `jei_smeltery_tank_clickable` / `jei_crafting_station_slot` /
+`jei_smeltery_slot` (JEI mouse areas match the cursor), `jei_recipe_transfer` (transfer from a side-inventory chest) and
+`jei_category_tooltips` (no-GUI check of the JEI category tooltip lines)), writes
 `run/clientUiTest/uitest-screenshots/*.png` +
 `run/clientUiTest/uitest-results.json` (scenario id → `"ok"` / `"fail: ..."`), then **exits on its own**
 (verified full run ≈ 6-7 min cold including the build, ~3 min in-world, zero leftover
-processes). **Do not interact with the window while it runs.** A green 1.21.8 run records 31 results: the 30 scenarios
+processes). **Do not interact with the window while it runs.** A green 1.21.10 run records 43 results: the 42 scenarios
 plus `mantle:suite_setup` (below).
 
 > **The task fails on any failing result (since M5).** The client always exits 0, so `runClientUiTest` deletes
@@ -413,7 +445,9 @@ game mode there) — and call `UiTestScenarios.register(...)` during client setu
 `UiTestScenarios.isActive()`; see `slimeknights.tconstruct.client.uitest.TinkerUiTestScenarios` as the
 template. Registration must happen before world load — the suite snapshots the registry at world load.
 Screens open with the cursor centered, so hover tooltips can cover the capture: call `UiTestContext#parkMouse()` (top
-left corner; the JEI category scenarios re-park every tick until capture).
+left corner; the JEI category scenarios re-park every tick until capture). Handlers that read the real cursor instead of
+the event (Mantle `BookScreen`, JEI key actions) need `UiTestContext#moveMouse(guiX, guiY)` first; synthetic clicks use
+`new MouseButtonEvent(x, y, new MouseButtonInfo(button, 0))`.
 
 ### Focused testing — run only the changed domain
 
@@ -434,10 +468,10 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 The suite logs `uitest: filtered to N of M scenario(s) via mantle.uitest.only=station_`; an empty match
-logs a warning and finishes cleanly (no crash; the task passes with only `mantle:suite_setup` in the results). Property unset = all 30 scenarios run (the default).
+logs a warning and finishes cleanly (no crash; the task passes with only `mantle:suite_setup` in the results). Property unset = all 42 scenarios run (the default).
 
 **gametest** — 1.21.5: `-PgametestOnly=<selector>` forwards to the gametest launcher's `--tests` (wildcards
-allowed), e.g. `runGameTestServer -PgametestOnly=tconstruct:smeltery_*`; unset = all 58 tests (57 Tinkers +
+allowed), e.g. `runGameTestServer -PgametestOnly=tconstruct:smeltery_*`; unset = all 138 tests (137 Tinkers +
 `minecraft:always_pass`).
 
 ---
@@ -449,7 +483,7 @@ allowed), e.g. `runGameTestServer -PgametestOnly=tconstruct:smeltery_*`; unset =
 | `No matching variant of net.neoforged.gradle:userdev` / `Minimum supported Gradle version` | Wrapper ↔ NeoGradle plugin version mismatch | [Prereq 2](#2-upgrade-the-gradle-wrapper-to-921) — pair Gradle 9.2.1 with NeoGradle 7.1.39 (7.1.38 on `1.21.1`) |
 | `Unsupported class file major version` / toolchain error / `No compatible toolchains` | Gradle running on Java 17, or can't find Java 21 | [Prereq 1 + 3](#one-time-prerequisites-do-these-first) — set `JAVA_HOME` to temurin21 in the same command |
 | `Plugin [id: 'net.neoforged.gradle.userdev'...] was not found` | `settings.gradle` missing the NeoForged maven, or offline | Ensure `maven { url = 'https://maven.neoforged.net/releases' }` is in `settings.gradle pluginManagement`; check network |
-| `Could not resolve net.neoforged:neoforge:21.8.57` | Version typo or transient maven issue | Recheck `neoforge_version` in `gradle.properties` against the NeoForged maven |
+| `Could not resolve net.neoforged:neoforge:21.10.64` | Version typo or transient maven issue | Recheck `neoforge_version` in `gradle.properties` against the NeoForged maven |
 | `Could not resolve mezz.jei:...` | JEI version not published for this MC/loader | Reconfirm/adjust `jei_version` against the BlameJared maven |
 | Command "hangs" for minutes | Cold start + decompile/download (daemon disabled) | **Not a hang** — background it; don't retry |
 | `dotnet`/script "not found" in Bash | Scoop PATH unreliable in Bash | Use the **PowerShell** tool |

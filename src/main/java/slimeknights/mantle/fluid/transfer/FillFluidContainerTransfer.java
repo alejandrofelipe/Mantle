@@ -14,7 +14,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import net.neoforged.neoforge.transfer.transaction.Transaction;
+import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import org.apache.commons.lang3.function.TriFunction;
 import org.jetbrains.annotations.Nullable;
 import slimeknights.mantle.Mantle;
@@ -27,7 +30,7 @@ import java.util.function.Consumer;
 
 /** Fluid transfer info that fills a fluid into an item */
 @RequiredArgsConstructor
-public class FillFluidContainerTransfer implements IFluidContainerTransfer.WithDirection {
+public class FillFluidContainerTransfer implements IFluidContainerTransfer {
   public static final ResourceLocation ID = Mantle.getResource("fill_item");
 
   private final Ingredient input;
@@ -51,15 +54,37 @@ public class FillFluidContainerTransfer implements IFluidContainerTransfer.WithD
 
   @Nullable
   @Override
+  public TransferResult transfer(ItemStack stack, FluidStack fluid, ResourceHandler<FluidResource> handler, TransferDirection direction, TransactionContext transaction) {
+    if (!direction.canFill() || fluid.isEmpty()) {
+      return null;
+    }
+    int amount = this.fluid.getAmount(fluid.getFluid());
+    FluidStack toDrain = fluid.copyWithAmount(amount);
+    // exactly the amount for one container must be drained, else nothing is transferred
+    try (Transaction tx = Transaction.open(transaction)) {
+      int actual = handler.extract(FluidResource.of(toDrain), amount, tx);
+      if (actual == amount) {
+        tx.commit();
+        return new TransferResult(getFilled(toDrain), toDrain, true);
+      }
+    }
+    return null;
+  }
+
+  /** @deprecated legacy handlers are going away, use {@link #transfer(ItemStack, FluidStack, ResourceHandler, TransferDirection, TransactionContext)} */
+  @SuppressWarnings("removal")
+  @Deprecated
+  @Nullable
+  @Override
   public TransferResult transfer(ItemStack stack, FluidStack fluid, IFluidHandler handler, TransferDirection direction) {
     if (!direction.canFill()) {
       return null;
     }
     int amount = this.fluid.getAmount(fluid.getFluid());
     FluidStack toDrain = fluid.copyWithAmount(amount);
-    FluidStack simulated = handler.drain(toDrain.copy(), FluidAction.SIMULATE);
+    FluidStack simulated = handler.drain(toDrain.copy(), IFluidHandler.FluidAction.SIMULATE);
     if (simulated.getAmount() == amount) {
-      FluidStack actual = handler.drain(toDrain.copy(), FluidAction.EXECUTE);
+      FluidStack actual = handler.drain(toDrain.copy(), IFluidHandler.FluidAction.EXECUTE);
       if (actual.getAmount() != amount) {
         Mantle.logger.error("Wrong amount drained from {}, expected {}, filled {}", BuiltInRegistries.ITEM.getKey(stack.getItem()), fluid.getAmount(), actual.getAmount());
       }

@@ -5,6 +5,9 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import slimeknights.mantle.data.gson.GenericRegisteredSerializer.IJsonSerializable;
 import slimeknights.mantle.fluid.FluidTransferHelper;
 
@@ -26,28 +29,34 @@ public interface IFluidContainerTransfer extends IJsonSerializable {
   boolean matches(ItemStack stack, FluidStack fluid);
 
   /**
-   * Performs the actual transfer into or out of the handler
-   * @param stack    Stack to transfer
-   * @param fluid    Current fluid the handler allows draining. Does not mean the handler may not accept other fluids
-   * @param handler  Handler either receiving or giving fluid
+   * Performs the actual transfer into or out of the handler, as part of the given transaction.
+   * <p>
+   * The changes to the handler only apply once the caller commits the transaction. When this returns null, the transfer must have left
+   * no change in the transaction (implementations open a nested transaction and only commit it on success).
+   * @param stack        Stack to transfer, not modified
+   * @param fluid        Current fluid the handler allows draining. Does not mean the handler may not accept other fluids
+   * @param handler      Handler either receiving or giving fluid
+   * @param direction    Determines whether to try and fill or empty the container
+   * @param transaction  Transaction for the changes to the handler
    * @return  container after the transfer and the fluid transferred, null if the transfer failed
    */
-  @Deprecated(forRemoval = true)
   @Nullable
-  TransferResult transfer(ItemStack stack, FluidStack fluid, IFluidHandler handler);
+  TransferResult transfer(ItemStack stack, FluidStack fluid, ResourceHandler<FluidResource> handler, TransferDirection direction, TransactionContext transaction);
 
   /**
-   * Performs the actual transfer into or out of the handler
+   * Performs the actual transfer into or out of a legacy handler.
    * @param stack      Stack to transfer
    * @param fluid      Current fluid the handler allows draining. Does not mean the handler may not accept other fluids
    * @param handler    Handler either receiving or giving fluid
    * @param direction  Determines whether to try and fill or empty the container
    * @return  container after the transfer and the fluid transferred, null if the transfer failed
+   * @deprecated PORT 1.21.10: legacy fluid handlers are going away; use {@link #transfer(ItemStack, FluidStack, ResourceHandler, TransferDirection, TransactionContext)}.
+   * Kept until the Tinkers handlers that are still legacy are ported (M5 phase 6b), then removed.
    */
+  @SuppressWarnings("removal")
+  @Deprecated
   @Nullable
-  default TransferResult transfer(ItemStack stack, FluidStack fluid, IFluidHandler handler, TransferDirection direction) {
-    return transfer(stack, fluid, handler);
-  }
+  TransferResult transfer(ItemStack stack, FluidStack fluid, IFluidHandler handler, TransferDirection direction);
 
   /**
    * Result after transferring a fluid
@@ -81,21 +90,6 @@ public interface IFluidContainerTransfer extends IJsonSerializable {
     /** If true, may empty the item */
     public boolean canFill() {
       return this != EMPTY_ITEM;
-    }
-  }
-
-  /** Temporary interface to make it easier to work with the method deprecation */
-  interface WithDirection extends IFluidContainerTransfer {
-    @Nullable
-    @Override
-    TransferResult transfer(ItemStack stack, FluidStack fluid, IFluidHandler handler, TransferDirection direction);
-
-    @SuppressWarnings("removal")
-    @Nullable
-    @Override
-    @Deprecated(forRemoval = true)
-    default TransferResult transfer(ItemStack stack, FluidStack fluid, IFluidHandler handler) {
-      return transfer(stack, fluid, handler, TransferDirection.AUTO);
     }
   }
 }

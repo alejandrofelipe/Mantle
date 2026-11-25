@@ -269,15 +269,28 @@ public class ItemRegistryAdapter extends EnumRegistryAdapter<Item> {
   }
 
   /**
-   * Registers a spawn egg for the entity type
+   * Registers a spawn egg for the entity type, named {@code <baseName>_spawn_egg}.
+   * Since 1.21.5 its look comes from its own item model and texture, there are no egg colors.
    * @param type       Entity type supplier
-   * @param primary    Primary color
-   * @param secondary  Secondary color
    * @param baseName   Entity name, as it may or may not be present in the entity type
    * @return  Spawn egg item instance
    */
-  public SpawnEggItem registerSpawnEgg(Supplier<? extends EntityType<? extends Mob>> type, int primary, int secondary, String baseName) {
+  public SpawnEggItem registerSpawnEgg(Supplier<? extends EntityType<? extends Mob>> type, String baseName) {
     // 1.21.4 dropped DeferredSpawnEggItem and spawn-egg colors; 1.21.9 moved the entity type onto the ENTITY_DATA component (Properties#spawnEgg)
     return register(new SpawnEggItem(new Properties().spawnEgg(type.get()).setId(ResourceKey.create(Registries.ITEM, getResource(baseName + "_spawn_egg")))), baseName + "_spawn_egg");
+  }
+
+  /**
+   * Registers a spawn egg for the entity type
+   * @param type       Entity type supplier
+   * @param primary    Ignored, spawn eggs have no colors since 1.21.5
+   * @param secondary  Ignored, spawn eggs have no colors since 1.21.5
+   * @param baseName   Entity name, as it may or may not be present in the entity type
+   * @return  Spawn egg item instance
+   * @deprecated the colors are unused since 1.21.5 (eggs have their own textures), use {@link #registerSpawnEgg(Supplier, String)}
+   */
+  @Deprecated(forRemoval = true)
+  public SpawnEggItem registerSpawnEgg(Supplier<? extends EntityType<? extends Mob>> type, int primary, int secondary, String baseName) {
+    return registerSpawnEgg(type, baseName);
   }
 }

@@ -64,9 +64,11 @@ public class DefaultRetexturedBlockEntity extends MantleBlockEntity implements I
   @Override
   protected void loadAdditional(ValueInput input) {
     super.loadAdditional(input);
-    input.getString(TAG_TEXTURE).ifPresent(name -> {
-      texture = RetexturedHelper.getBlock(name);
+    // saving skips air, so a missing tag means no texture (a client copy may still hold the previous one)
+    Block oldTexture = texture;
+    texture = RetexturedHelper.getBlock(input.getStringOr(TAG_TEXTURE, ""));
+    if (oldTexture != texture) {
       RetexturedHelper.onTextureUpdated(this);
-    });
+    }
   }
 }

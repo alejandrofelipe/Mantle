@@ -71,7 +71,8 @@ public abstract class NameableBlockEntity extends MantleBlockEntity implements I
 	@Override
 	protected void loadAdditional(ValueInput input) {
 		super.loadAdditional(input);
-		input.read(TAG_CUSTOM_NAME, JSON_STRING_CODEC).ifPresent(name -> this.customName = name);
+		// saving skips a missing name, so no tag means no name (a client copy may still hold the previous one)
+		this.customName = input.read(TAG_CUSTOM_NAME, JSON_STRING_CODEC).orElse(null);
 	}
 
 	@Override

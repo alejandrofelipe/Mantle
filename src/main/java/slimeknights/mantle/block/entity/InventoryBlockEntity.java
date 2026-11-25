@@ -22,6 +22,7 @@ import net.neoforged.neoforge.transfer.item.VanillaContainerWrapper;
 import slimeknights.mantle.util.ItemStackList;
 
 import javax.annotation.Nullable;
+import java.util.Optional;
 
 // Updated version of InventoryLogic in Mantle. Also contains a few bugfixes DOES NOT OVERRIDE createMenu
 public abstract class InventoryBlockEntity extends NameableBlockEntity implements Container, MenuProvider, Nameable {
@@ -256,8 +257,16 @@ public abstract class InventoryBlockEntity extends NameableBlockEntity implement
    * Replaces {@code readInventoryFromNBT(CompoundTag, HolderLookup.Provider)}.
    */
   public void readInventory(ValueInput input) {
+    Optional<ValueInput.TypedInputList<ItemStackWithSlot>> items = input.list(TAG_ITEMS, ItemStackWithSlot.CODEC);
+    if (items.isEmpty()) {
+      return;
+    }
+    // the list skips empty slots, so clear them first (a client copy receiving the list in an update tag may still hold old stacks)
+    for (int i = 0; i < this.inventory.size(); i++) {
+      this.inventory.set(i, ItemStack.EMPTY);
+    }
     int limit = this.getMaxStackSize();
-    for (ItemStackWithSlot entry : input.listOrEmpty(TAG_ITEMS, ItemStackWithSlot.CODEC)) {
+    for (ItemStackWithSlot entry : items.get()) {
       if (entry.isValidInContainer(this.inventory.size())) {
         ItemStack stack = entry.stack();
         if (!stack.isEmpty() && stack.getCount() > limit) {

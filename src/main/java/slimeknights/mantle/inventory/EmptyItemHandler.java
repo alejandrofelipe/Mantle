@@ -9,7 +9,11 @@ import javax.annotation.Nonnull;
 
 /**
  * Item handler that contains no items. Use similarly to {@link net.neoforged.neoforge.fluids.capability.templates.EmptyFluidHandler}
+ * @deprecated PORT 1.21.10: legacy item handlers are going away, use {@link net.neoforged.neoforge.transfer.EmptyResourceHandler#instance()}.
+ * Kept for Tinkers until M5 phase 6b.
  */
+@Deprecated
+@SuppressWarnings("removal")
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class EmptyItemHandler implements IItemHandler {
   public static final EmptyItemHandler INSTANCE = new EmptyItemHandler();

@@ -20,6 +20,9 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.neoforged.neoforge.transfer.item.ItemUtil;
 import slimeknights.mantle.block.entity.INameableMenuProvider;
 import slimeknights.mantle.block.entity.MantleBlockEntity;
 import slimeknights.mantle.inventory.BaseContainerMenu;
@@ -118,7 +121,7 @@ public abstract class InventoryBlock extends Block implements EntityBlock {
       return;
     }
     // the level already holds the new state, so pass the old state and block entity to find the right capability
-    IItemHandler inventory = TransferHelper.getLegacyItemHandler(level, pos, state, blockEntity, null);
+    ResourceHandler<ItemResource> inventory = TransferHelper.getItemResourceHandler(level, pos, state, blockEntity, null);
     if (inventory != null) {
       dropInventoryItems(state, level, pos, inventory);
     }
@@ -144,14 +147,29 @@ public abstract class InventoryBlock extends Block implements EntityBlock {
   /**
    * Called when the block is replaced to drop contained items, for block entities that are not a {@link Container}
    * (those use {@link #dropContainerItems(BlockState, Level, BlockPos, Container)}).
-   * Note a bridged capability returns copies from {@code getStackInSlot}, so the dropped items are not removed from it.
+   * Note the items are dropped as copies, they are not extracted from the handler.
    * @param state       Block state
    * @param worldIn     Tile world
    * @param pos         Tile position
-   * @param inventory   Item handler
+   * @param inventory   Item handler of the block entity
    */
-  protected void dropInventoryItems(BlockState state, Level worldIn, BlockPos pos, IItemHandler inventory) {
+  protected void dropInventoryItems(BlockState state, Level worldIn, BlockPos pos, ResourceHandler<ItemResource> inventory) {
     dropInventoryItems(worldIn, pos, inventory);
+  }
+
+  /**
+   * Drops copies of all items in the given inventory in world
+   * @param world      World instance
+   * @param pos        Position to drop
+   * @param inventory  Inventory instance
+   */
+  public static void dropInventoryItems(Level world, BlockPos pos, ResourceHandler<ItemResource> inventory) {
+    double x = pos.getX();
+    double y = pos.getY();
+    double z = pos.getZ();
+    for (int i = 0; i < inventory.size(); ++i) {
+      Containers.dropItemStack(world, x, y, z, ItemUtil.getStack(inventory, i));
+    }
   }
 
   /**
@@ -159,7 +177,10 @@ public abstract class InventoryBlock extends Block implements EntityBlock {
    * @param world      World instance
    * @param pos        Position to drop
    * @param inventory  Inventory instance
+   * @deprecated legacy item handlers are going away, use {@link #dropInventoryItems(Level, BlockPos, ResourceHandler)}. Removed with M5 phase 6b.
    */
+  @SuppressWarnings("removal")
+  @Deprecated
   public static void dropInventoryItems(Level world, BlockPos pos, IItemHandler inventory) {
     double x = pos.getX();
     double y = pos.getY();

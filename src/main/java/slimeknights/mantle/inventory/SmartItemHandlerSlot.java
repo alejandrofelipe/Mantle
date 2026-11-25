@@ -5,7 +5,13 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.SlotItemHandler;
 
-/** Forge still uses dumb vanilla logic for determining slot limits instead of their own method */
+/**
+ * Forge still uses dumb vanilla logic for determining slot limits instead of their own method
+ * @deprecated PORT 1.21.10: legacy item handlers are going away, use NeoForge's {@link net.neoforged.neoforge.transfer.item.ResourceHandlerSlot},
+ * which already limits the stack size by the handler's capacity for the item. Kept for Tinkers menus until M5 phase 6b.
+ */
+@Deprecated
+@SuppressWarnings("removal")
 public class SmartItemHandlerSlot extends SlotItemHandler {
 	public SmartItemHandlerSlot(IItemHandler itemHandler, int index, int xPosition, int yPosition) {
 		super(itemHandler, index, xPosition, yPosition);

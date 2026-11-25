@@ -17,8 +17,11 @@ import javax.annotation.Nonnull;
 
 /**
  * Item handler containing exactly one item.
+ * @deprecated PORT 1.21.10: implements the legacy {@link IItemHandlerModifiable}, which NeoForge removes. Kept for the Tinkers handlers that
+ * extend it until they are ported (M5 phase 6b), where it is replaced by a native single slot handler with the same NBT shape.
  */
-@SuppressWarnings("unused")
+@Deprecated
+@SuppressWarnings({"unused", "removal"})
 @RequiredArgsConstructor
 public abstract class SingleItemHandler<T extends MantleBlockEntity> implements IItemHandlerModifiable {
   private static final Logger LOGGER = LogUtils.getLogger();

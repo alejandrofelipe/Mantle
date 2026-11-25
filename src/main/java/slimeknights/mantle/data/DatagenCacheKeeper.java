@@ -1,14 +1,17 @@
 package slimeknights.mantle.data;
 
+import com.google.common.annotations.VisibleForTesting;
 import net.minecraft.data.CachedOutput;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.data.DataProvider;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
+import net.neoforged.neoforge.data.event.GatherDataEvent.DataGeneratorConfig;
 import slimeknights.mantle.Mantle;
 
 import javax.annotation.Nullable;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,6 +33,9 @@ import java.util.stream.Stream;
  * It relies on the cache files under {@code .cache} in the output folder: when they are missing (e.g. not committed, on a fresh clone),
  * a run still deletes the other run's files until both runs ran once. A provider that is removed or renamed keeps its files until its
  * cache file is deleted.
+ * <p>
+ * Runs generating several mods into one folder ({@code --flat}) are left alone: NeoForge gives each mod its own generator and merges
+ * those sharing a folder before running, which fails on a placeholder standing for a provider of another of those mods.
  */
 public final class DatagenCacheKeeper {
   /** Start of the first line of a cache file, followed by the version, the date and the provider name separated by tabs */
@@ -39,11 +45,40 @@ public final class DatagenCacheKeeper {
 
   /** Registers a placeholder for every cached provider the current run lacks, so the run keeps its files */
   public static void keepOtherRunOutputs(GatherDataEvent event) {
-    DataGenerator generator = event.getGenerator();
+    if (sharesFolderWithOtherMods(event)) {
+      Mantle.logger.info("Data run for several mods into one folder, the other data run's outputs will be deleted");
+      return;
+    }
+    keepOtherRunOutputs(event.getGenerator());
+  }
+
+  /**
+   * Checks if the event's generator is merged with the generators of other mods before running. The event does not expose its config, so it is
+   * read by reflection; if that fails, assumes it is shared.
+   */
+  @VisibleForTesting
+  static boolean sharesFolderWithOtherMods(GatherDataEvent event) {
+    DataGeneratorConfig config;
+    try {
+      Field field = GatherDataEvent.class.getDeclaredField("config");
+      field.setAccessible(true);
+      config = (DataGeneratorConfig) field.get(event);
+    } catch (ReflectiveOperationException | RuntimeException e) {
+      Mantle.logger.warn("Failed to read the data generator config, not keeping the other data run's outputs", e);
+      return true;
+    }
+    return config == null || config.getMods().size() > 1 && config.isFlat();
+  }
+
+  /** Registers a placeholder in the given generator for every cached provider it lacks */
+  @VisibleForTesting
+  static void keepOtherRunOutputs(DataGenerator generator) {
     Path cacheFolder = generator.getPackOutput().getOutputFolder().resolve(".cache");
     if (!Files.isDirectory(cacheFolder)) {
       return;
     }
+    // fast path: the providers to run; a provider registered without running (e.g. addProvider(false, ...)) is not in this view,
+    // registering again throws, see below
     Set<String> registered = generator.getProvidersView().keySet();
     List<Path> cacheFiles;
     try (Stream<Path> files = Files.list(cacheFolder)) {
@@ -55,7 +90,11 @@ public final class DatagenCacheKeeper {
     for (Path cacheFile : cacheFiles) {
       String name = readProviderName(cacheFile);
       if (name != null && !registered.contains(name)) {
-        generator.addProvider(false, new Placeholder(name));
+        try {
+          generator.addProvider(false, new Placeholder(name));
+        } catch (IllegalStateException e) {
+          // "Duplicate provider": registered but not run (only the providers to run are visible), so its files are kept already
+        }
       }
     }
   }

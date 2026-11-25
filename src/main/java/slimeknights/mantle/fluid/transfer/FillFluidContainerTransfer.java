@@ -7,13 +7,11 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import lombok.RequiredArgsConstructor;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
@@ -67,28 +65,6 @@ public class FillFluidContainerTransfer implements IFluidContainerTransfer {
         tx.commit();
         return new TransferResult(getFilled(toDrain), toDrain, true);
       }
-    }
-    return null;
-  }
-
-  /** @deprecated legacy handlers are going away, use {@link #transfer(ItemStack, FluidStack, ResourceHandler, TransferDirection, TransactionContext)} */
-  @SuppressWarnings("removal")
-  @Deprecated
-  @Nullable
-  @Override
-  public TransferResult transfer(ItemStack stack, FluidStack fluid, IFluidHandler handler, TransferDirection direction) {
-    if (!direction.canFill()) {
-      return null;
-    }
-    int amount = this.fluid.getAmount(fluid.getFluid());
-    FluidStack toDrain = fluid.copyWithAmount(amount);
-    FluidStack simulated = handler.drain(toDrain.copy(), IFluidHandler.FluidAction.SIMULATE);
-    if (simulated.getAmount() == amount) {
-      FluidStack actual = handler.drain(toDrain.copy(), IFluidHandler.FluidAction.EXECUTE);
-      if (actual.getAmount() != amount) {
-        Mantle.logger.error("Wrong amount drained from {}, expected {}, filled {}", BuiltInRegistries.ITEM.getKey(stack.getItem()), fluid.getAmount(), actual.getAmount());
-      }
-      return new TransferResult(getFilled(toDrain), toDrain, true);
     }
     return null;
   }

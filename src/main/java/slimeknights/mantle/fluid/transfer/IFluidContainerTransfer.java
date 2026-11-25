@@ -4,7 +4,6 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.TransactionContext;
@@ -42,21 +41,6 @@ public interface IFluidContainerTransfer extends IJsonSerializable {
    */
   @Nullable
   TransferResult transfer(ItemStack stack, FluidStack fluid, ResourceHandler<FluidResource> handler, TransferDirection direction, TransactionContext transaction);
-
-  /**
-   * Performs the actual transfer into or out of a legacy handler.
-   * @param stack      Stack to transfer
-   * @param fluid      Current fluid the handler allows draining. Does not mean the handler may not accept other fluids
-   * @param handler    Handler either receiving or giving fluid
-   * @param direction  Determines whether to try and fill or empty the container
-   * @return  container after the transfer and the fluid transferred, null if the transfer failed
-   * @deprecated PORT 1.21.10: legacy fluid handlers are going away; use {@link #transfer(ItemStack, FluidStack, ResourceHandler, TransferDirection, TransactionContext)}.
-   * Kept until the Tinkers handlers that are still legacy are ported (M5 phase 6b), then removed.
-   */
-  @SuppressWarnings("removal")
-  @Deprecated
-  @Nullable
-  TransferResult transfer(ItemStack stack, FluidStack fluid, IFluidHandler handler, TransferDirection direction);
 
   /**
    * Result after transferring a fluid

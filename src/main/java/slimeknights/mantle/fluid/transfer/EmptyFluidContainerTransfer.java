@@ -13,7 +13,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
@@ -76,29 +75,6 @@ public class EmptyFluidContainerTransfer implements IFluidContainerTransfer {
           Mantle.logger.error("Wrong amount filled from {}, expected {}, filled {}", BuiltInRegistries.ITEM.getKey(stack.getItem()), this.fluid.getAmount(), actual);
         }
         tx.commit();
-        return new TransferResult(result.copy(), contained, false);
-      }
-    }
-    return null;
-  }
-
-  /** @deprecated legacy handlers are going away, use {@link #transfer(ItemStack, FluidStack, ResourceHandler, TransferDirection, TransactionContext)} */
-  @SuppressWarnings("removal")
-  @Deprecated
-  @Nullable
-  @Override
-  public TransferResult transfer(ItemStack stack, FluidStack fluid, IFluidHandler handler, TransferDirection direction) {
-    if (!direction.canEmpty()) {
-      return null;
-    }
-    FluidStack contained = getFluid(stack);
-    int simulated = handler.fill(contained.copy(), IFluidHandler.FluidAction.SIMULATE);
-    if (simulated == contained.getAmount()) {
-      int actual = handler.fill(contained.copy(), IFluidHandler.FluidAction.EXECUTE);
-      if (actual > 0) {
-        if (actual != this.fluid.getAmount()) {
-          Mantle.logger.error("Wrong amount filled from {}, expected {}, filled {}", BuiltInRegistries.ITEM.getKey(stack.getItem()), this.fluid.getAmount(), actual);
-        }
         return new TransferResult(result.copy(), contained, false);
       }
     }

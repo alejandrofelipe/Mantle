@@ -45,12 +45,12 @@ public class SetFluidLootFunction extends LootItemConditionalFunction {
     if (handler == null) {
       return stack;
     }
-    // the changes only reach the copy, so nesting into a transaction that may be open is safe
+    // the changes only reach the copy, so read the result inside the transaction and close it without committing:
+    // committing a nested transaction would tie the copy's journal to an outer transaction that may be open
     try (Transaction tx = TransferHelper.openNestedOrRoot()) {
       handler.insert(FluidResource.of(fluid), fluid.getAmount() * stack.getCount(), tx);
-      tx.commit();
+      return TransferHelper.getStack(slot);
     }
-    return TransferHelper.getStack(slot);
   }
 
   @Override

@@ -121,16 +121,23 @@ Set-Location "C:\Users\aleja\DEV\New Tinkers\repo"; $env:JAVA_HOME = "C:\Users\a
 ## 1.21.4 notes (M1)
 
 - **Datagen is two runs.** `runData` (run type `clientData`: models/blockstates/item defs/atlases/textures)
-  and `runServerData` (run type `serverData`: recipes/tags/loot/advancements/fluid transfers). Each run's
-  HashCache **deletes every output it didn't produce** — the other side's files included — and the texture
-  generators skip files that already exist, so a `runData` also wipes ~10k untouched part textures.
-  Safe procedure:
-  ```powershell
-  # regenerate the side you changed (e.g. server), then restore everything you did NOT intend to change:
-  git -C "<repo>" restore --source=HEAD -- src/generated/resources/assets    # after a runServerData
-  git -C "<repo>" restore --source=HEAD -- src/generated/resources/data      # after a runData
-  git -C "<repo>" status --short src/generated                               # only intended files remain
-  ```
+  and `runServerData` (run type `serverData`: recipes/tags/loot/advancements/fluid transfers), both writing
+  to `src/generated/resources`. Run only the side you changed; the other side's files stay (M5, 2026-11-25):
+  - The vanilla HashCache deletes every file of the output folder that no provider of the run produced.
+    Mantle's `DatagenCacheKeeper` (lowest priority `GatherDataEvent` listener in Mantle and Tinkers)
+    registers every provider with a cache file under `src/generated/resources/.cache` that the run lacks as
+    a not-run provider, so the cache keeps its files. Texture generators (Mantle `GenericTextureGenerator`,
+    Tinkers' generators) write through the data cache too, so they are no longer purged by their own run.
+  - It needs the `.cache` files: Mantle commits them, Tinkers ignores them (local only). On a fresh Tinkers
+    clone a single run still deletes the other side's files — run **both** once (either order) and the
+    tree is complete; after that each run alone is safe.
+  - A removed or renamed provider keeps its old files until its `.cache` file (the header names the
+    provider) is deleted.
+  - Check after any run: `git -C "<repo>" status --short src/generated` lists only intended changes.
+  - Known drift (Tinkers): the current generators produce 129 part textures (126 `*_queens_slime`, plus
+    `maille_armor` enderslime/skyslime vine and a jeweled hide maille) with a few pixels or bytes different
+    from the committed (upstream-generated) ones. The cache skips unchanged hashes, so they only reappear
+    when `.cache` is deleted; restore them from HEAD unless you mean to refresh them.
 - **Release jars** drop `.DEV` via the `ARTIFACT_VERSION` env var (`version = <mc>-<ARTIFACT_VERSION>`). It
   leaks through the composite build, so build **Mantle and Tinkers separately**:
   ```powershell
@@ -170,7 +177,7 @@ Set-Location "C:\Users\aleja\DEV\New Tinkers\repo"; $env:JAVA_HOME = "C:\Users\a
 | **Compile** (per-stage gate) | `compileJava` | The verification gate for port stages 0–7. Success = `BUILD SUCCESSFUL`, zero `error:` lines. |
 | Compile tests (if present) | `compileTestJava` | Only if a test source set exists. |
 | **Full build** | `build` | Compiles + runs `jar`. Output: `build/libs/Mantle-1.21.8-*.jar`. |
-| **Datagen** | `runData` **+** `runServerData` | 1.21.4: two runs (client assets / server data). They **purge each other's outputs** — see [1.21.4 notes](#1214-notes-m1) before committing `src/generated/resources/`. Background them. |
+| **Datagen** | `runData` and/or `runServerData` | 1.21.4: two runs (client assets / server data). Each keeps the other side's outputs since M5 (needs the local `.cache`) — see [1.21.4 notes](#1214-notes-m1) before committing `src/generated/resources/`. Tinkers' `runData` needs the 1.21.4 client jar for the spawn egg templates (found automatically, or `-PspawnEggTemplateJar=<path>`). Background them. |
 | **Run client** *(post-migration)* | `runClient` | Launches the game. **Background it and watch the log**; success = main menu, `mantle` in the mod list, no `mantle` registration errors. |
 | Run server *(post-migration)* | `runServer` | `--nogui` is preconfigured. Background it. |
 | Game tests | `runGameTestServer` | **Not defined in Mantle's `build.gradle runs{}`** — Mantle has no game-test suite. The **tinkers** repo defines this run; see [Automated tests & screenshots](#automated-tests--screenshots). |

@@ -1,5 +1,6 @@
 package slimeknights.mantle.data.client;
 
+import com.google.common.hash.Hashing;
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.Util;
@@ -15,8 +16,11 @@ import slimeknights.mantle.Mantle;
 import slimeknights.mantle.data.GenericDataProvider;
 
 import javax.annotation.Nullable;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
@@ -64,20 +68,34 @@ public abstract class GenericTextureGenerator extends GenericDataProvider {
     }
   }
 
-  /** Saves the given image to the given location */
+  /**
+   * Saves the given image to the given location through the data cache, so the file counts as an output of the provider: the data run
+   * keeps it, skips rewriting it when unchanged, and deletes it once no longer generated.
+   */
+  @SuppressWarnings("deprecation") // sha1 is what the data cache hashes with
   public static CompletableFuture<?> saveImage(CachedOutput cache, PathProvider pathProvider, ResourceLocation location, NativeImage image) {
     return CompletableFuture.runAsync(() -> {
       try {
-        Path path = pathProvider.file(location, "png");
-        // PORT 1.21.4: NativeImage#asByteArray was removed with no public replacement, so we can no longer hand raw PNG
-        // bytes to CachedOutput#writeIfNeeded. Write straight to the target path instead; this produces an identical PNG
-        // but bypasses the cache's hash-based dedup and stale-file tracking. Only used by downstream texture datagen
-        // (e.g. Tinkers fluid cameras); Mantle's own data generation does not exercise this path.
-        image.writeToFile(path);
+        byte[] bytes = encodePng(image);
+        cache.writeIfNeeded(pathProvider.file(location, "png"), bytes, Hashing.sha1().hashBytes(bytes));
       } catch (IOException e) {
         Mantle.logger.error("Couldn't write image for {}", location, e);
         throw new CompletionException(e);
       }
     }, Util.backgroundExecutor());
+  }
+
+  /**
+   * Encodes the image as a PNG, the same bytes {@link NativeImage#writeToFile(Path)} writes.
+   * PORT 1.21.4: {@code NativeImage#asByteArray} was removed; this goes through the channel writer behind {@code writeToFile} (access transformer).
+   */
+  public static byte[] encodePng(NativeImage image) throws IOException {
+    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    try (WritableByteChannel channel = Channels.newChannel(bytes)) {
+      if (!image.writeToChannel(channel)) {
+        throw new IOException("Could not encode a " + image.getWidth() + "x" + image.getHeight() + " image as PNG");
+      }
+    }
+    return bytes.toByteArray();
   }
 }

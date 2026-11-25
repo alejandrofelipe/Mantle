@@ -34,6 +34,7 @@ import slimeknights.mantle.client.ClientEvents;
 import slimeknights.mantle.command.MantleCommand;
 import slimeknights.mantle.command.argument.ResourceOrTagKeyArgument;
 import slimeknights.mantle.config.Config;
+import slimeknights.mantle.data.DatagenCacheKeeper;
 import slimeknights.mantle.data.predicate.block.BlockPredicate;
 import slimeknights.mantle.data.predicate.block.BlockPropertiesPredicate;
 import slimeknights.mantle.data.predicate.damage.DamageSourcePredicate;
@@ -112,6 +113,9 @@ public class Mantle {
     // 1.21.4: GatherDataEvent split into nested Server/Client events (one fired per side); register a listener for each
     bus.addListener(EventPriority.NORMAL, false, GatherDataEvent.Server.class, this::gatherDataServer);
     bus.addListener(EventPriority.NORMAL, false, GatherDataEvent.Client.class, this::gatherDataClient);
+    // both runs write to one folder, keep the other run's outputs (after every provider is registered)
+    bus.addListener(EventPriority.LOWEST, false, GatherDataEvent.Server.class, DatagenCacheKeeper::keepOtherRunOutputs);
+    bus.addListener(EventPriority.LOWEST, false, GatherDataEvent.Client.class, DatagenCacheKeeper::keepOtherRunOutputs);
     bus.addListener(EventPriority.NORMAL, false, RegisterEvent.class, this::register);
 
     // network payloads (replaces the old commonSetup MantleNetwork.registerPackets())

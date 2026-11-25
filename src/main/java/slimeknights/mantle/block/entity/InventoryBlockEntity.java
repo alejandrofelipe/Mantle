@@ -253,7 +253,8 @@ public abstract class InventoryBlockEntity extends NameableBlockEntity implement
   }
 
   /**
-   * Reads an inventory from the input. Slots present in the input are overwritten, slots absent from it are left unchanged.
+   * Reads an inventory from the input. When the input has an {@code Items} list, it replaces the whole inventory: slots absent from the list
+   * are emptied. Without the list the inventory is left unchanged (block entities that sync their items by packet leave it out of the update tag).
    * Replaces {@code readInventoryFromNBT(CompoundTag, HolderLookup.Provider)}.
    */
   public void readInventory(ValueInput input) {

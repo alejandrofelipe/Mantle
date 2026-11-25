@@ -375,9 +375,15 @@ renderer) —, `crafting_tweaks_rotate` — presses the Crafting Tweaks rotate b
 asserts the grid rotated), writes
 `run/clientUiTest/uitest-screenshots/*.png` +
 `run/clientUiTest/uitest-results.json` (scenario id → `"ok"` / `"fail: ..."`), then **exits on its own**
-(`BUILD SUCCESSFUL`; verified full run ≈ 6-7 min cold including the build, ~3 min in-world, zero leftover
+(verified full run ≈ 6-7 min cold including the build, ~3 min in-world, zero leftover
 processes). **Do not interact with the window while it runs.** A green 1.21.8 run records 31 results: the 30 scenarios
 plus `mantle:suite_setup` (below).
+
+> **The task fails on any failing result (since M5).** The client always exits 0, so `runClientUiTest` deletes
+> `uitest-results.json` before launching and reads it after the client exits: it fails (`BUILD FAILED`, listing each
+> `id: result`) when any result — `mantle:suite_setup` included — is not `"ok"`, when `mantle:suite_setup` is missing,
+> or when the file is missing or older than the run (the client died or quit before the suite finished). A green run
+> prints `uitest: all N result(s) ok` + `BUILD SUCCESSFUL`. The JSON is still written for the details.
 
 > **Screen must be unlocked.** If the Windows session is locked, GL window creation fails in `glfwCreateWindow`
 > (`atio6axx.dll`, AMD driver) and the client never boots. That is the lock, not a flake — unlock and rerun.
@@ -393,7 +399,7 @@ The suite verifies this before the first scenario and records it as `"mantle:sui
 
 > **Result-reading rule.** A `FATAL` `Error executing task` line in the log overrides an `"ok"` in
 > `uitest-results.json` — server-thread scenario guards log there instead of failing the recorded result,
-> so check the log even when the JSON looks clean.
+> so check the log even when the JSON (and so the task) looks clean.
 
 World regeneration: delete `run/clientUiTest/saves/UITest`; the `prepareUiTestWorld` task re-extracts the
 committed `src/uitest/uitest-world.zip` automatically before `runClientUiTest` whenever the world is
@@ -428,7 +434,7 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 The suite logs `uitest: filtered to N of M scenario(s) via mantle.uitest.only=station_`; an empty match
-logs a warning and finishes cleanly (no crash). Property unset = all 30 scenarios run (the default).
+logs a warning and finishes cleanly (no crash; the task passes with only `mantle:suite_setup` in the results). Property unset = all 30 scenarios run (the default).
 
 **gametest** — 1.21.5: `-PgametestOnly=<selector>` forwards to the gametest launcher's `--tests` (wildcards
 allowed), e.g. `runGameTestServer -PgametestOnly=tconstruct:smeltery_*`; unset = all 58 tests (57 Tinkers +

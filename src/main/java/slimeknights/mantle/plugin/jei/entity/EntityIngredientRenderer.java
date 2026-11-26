@@ -5,7 +5,7 @@ import mezz.jei.api.ingredients.IIngredientRenderer;
 import mezz.jei.api.ingredients.rendering.IIngredientRenderContext;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -60,7 +60,7 @@ public class EntityIngredientRenderer implements IIngredientRenderer<EntityIngre
   }
 
   @Override
-  public void render(GuiGraphics graphics, EntityIngredient.@Nullable EntityInput input, int x, int y, IIngredientRenderContext context) {
+  public void render(GuiGraphicsExtractor graphics, EntityIngredient.@Nullable EntityInput input, int x, int y, IIngredientRenderContext context) {
     Matrix3x2fStack pose = graphics.pose();
     pose.pushMatrix();
     try {
@@ -74,12 +74,12 @@ public class EntityIngredientRenderer implements IIngredientRenderer<EntityIngre
   /** JEI 27 still declares this overload abstract, but only calls the positioned one above */
   @SuppressWarnings("removal")
   @Override
-  public void render(GuiGraphics graphics, EntityIngredient.@Nullable EntityInput input) {
+  public void render(GuiGraphicsExtractor graphics, EntityIngredient.@Nullable EntityInput input) {
     render(graphics, input, 0, 0, IIngredientRenderContext.INGREDIENT);
   }
 
   /** Draws the entity in the {@code size} square at the pose origin */
-  private void renderAtOrigin(GuiGraphics graphics, EntityIngredient.@Nullable EntityInput input) {
+  private void renderAtOrigin(GuiGraphicsExtractor graphics, EntityIngredient.@Nullable EntityInput input) {
     if (input != null) {
       Level world = Minecraft.getInstance().level;
       EntityType<?> type = input.type();
@@ -137,7 +137,7 @@ public class EntityIngredientRenderer implements IIngredientRenderer<EntityIngre
       }
 
       // fallback, draw a pink and black "spawn egg"
-      // 1.21.8: GuiGraphics.blit takes a render pipeline, and the color is part of each draw (white by default) rather than a global shader color
+      // 1.21.8: GuiGraphicsExtractor.blit takes a render pipeline, and the color is part of each draw (white by default) rather than a global shader color
       int offset = (size - 16) / 2;
       graphics.blit(RenderPipelines.GUI_TEXTURED, MISSING, offset, offset, 0.0F, 0.0F, 16, 16, 16, 16);
     }

@@ -11,24 +11,24 @@ import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.renderer.block.model.BlockModelPart;
-import net.minecraft.client.renderer.block.model.BlockStateModel;
-import net.minecraft.client.renderer.block.model.SimpleModelWrapper;
-import net.minecraft.client.renderer.block.model.SingleVariant;
-import net.minecraft.client.renderer.block.model.TextureSlots;
-import net.minecraft.client.renderer.block.model.Variant;
-import net.minecraft.client.renderer.item.BlockModelWrapper;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
+import net.minecraft.client.resources.model.SimpleModelWrapper;
+import net.minecraft.client.renderer.block.dispatch.SingleVariant;
+import net.minecraft.client.resources.model.sprite.TextureSlots;
+import net.minecraft.client.renderer.block.dispatch.Variant;
+import net.minecraft.client.renderer.item.CuboidItemModelWrapper;
 import net.minecraft.client.renderer.item.ItemModel;
 import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.BlockModelRotation;
-import net.minecraft.client.resources.model.Material;
+import net.minecraft.client.renderer.block.dispatch.BlockModelRotation;
+import net.minecraft.client.resources.model.sprite.SpriteId;
 import net.minecraft.client.resources.model.ModelBaker;
-import net.minecraft.client.resources.model.ModelState;
+import net.minecraft.client.renderer.block.dispatch.ModelState;
 import net.minecraft.client.resources.model.ResolvedModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
@@ -37,7 +37,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.ItemOwner;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -145,12 +145,12 @@ public class RetexturedModel extends ColoredBlockModel {
 
     /**
      * Rebakes the model, pointing all retextured names at the given texture.
-     * PORT 1.21.5: runs on chunk meshing threads and reads the block atlas through {@link ModelHelper#getSprite(Material)}; verify
+     * PORT 1.21.5: runs on chunk meshing threads and reads the block atlas through {@link ModelHelper#getSprite(SpriteId)}; verify
      * retextured tables in the uitest phase (texture blocks are only known at render time, so this cannot use the baker).
      */
     private SimpleModelWrapper bake(Identifier texture) {
-      Material material = new Material(TextureAtlas.LOCATION_BLOCKS, texture);
-      Map<String,Material> replacements = new HashMap<>();
+      SpriteId material = new SpriteId(TextureAtlas.LOCATION_BLOCKS, texture);
+      Map<String,SpriteId> replacements = new HashMap<>();
       for (String name : retextured) {
         replacements.put(name, material);
       }
@@ -190,7 +190,7 @@ public class RetexturedModel extends ColoredBlockModel {
     public BlockStateModel bake(ModelBaker baker) {
       ResolvedModel resolved = baker.getModel(variant.modelLocation());
       ModelState state = variant.modelState().asModelState();
-      BlockModelPart base = SimpleModelWrapper.bake(baker, resolved, state);
+      BlockStateModelPart base = SimpleModelWrapper.bake(baker, resolved, state);
       Retexturer retexturer = Retexturer.of(baker, resolved, state);
       if (retexturer == null) {
         Mantle.logger.warn("Block state model type mantle:retextured used with {}, which is not a retextured model", resolved.debugName());
@@ -207,7 +207,7 @@ public class RetexturedModel extends ColoredBlockModel {
   public static class Baked extends DynamicBakedWrapper<SingleVariant> {
     private final Retexturer retexturer;
 
-    protected Baked(BlockModelPart base, Retexturer retexturer) {
+    protected Baked(BlockStateModelPart base, Retexturer retexturer) {
       super(new SingleVariant(base));
       this.retexturer = retexturer;
     }
@@ -220,12 +220,12 @@ public class RetexturedModel extends ColoredBlockModel {
     }
 
     /** Gets the cached model for the given block */
-    public BlockModelPart getCachedModel(Block block) {
+    public BlockStateModelPart getCachedModel(Block block) {
       return retexturer.getCachedModel(block);
     }
 
     @Override
-    public void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random, List<BlockModelPart> parts) {
+    public void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random, List<BlockStateModelPart> parts) {
       Block block = getTexture(level, pos);
       if (block != null) {
         parts.add(getCachedModel(block));
@@ -280,7 +280,7 @@ public class RetexturedModel extends ColoredBlockModel {
   /** Shared logic for {@link #getAllRetextured(SimpleBlockModel, Set)} */
   private static Set<String> getAllRetextured(ModelTextureIteratable maps, Set<String> originalSet) {
     Set<String> retextured = Sets.newHashSet(originalSet);
-    for (Map<String,Either<Material, String>> textures : maps) {
+    for (Map<String,Either<SpriteId, String>> textures : maps) {
       textures.forEach((name, either) ->
         either.ifRight(parent -> {
           if (retextured.contains(parent)) {
@@ -355,7 +355,7 @@ public class RetexturedModel extends ColoredBlockModel {
     public ItemModel bake(ItemModel.BakingContext context) {
       ModelBaker baker = context.blockModelBaker();
       ResolvedModel resolved = baker.getModel(model);
-      // base model, matching vanilla BlockModelWrapper
+      // base model, matching vanilla CuboidItemModelWrapper
       TextureSlots textures = resolved.getTopTextureSlots();
       List<BakedQuad> quads = resolved.bakeTopGeometry(textures, baker, BlockModelRotation.IDENTITY).getAll();
       ModelRenderProperties properties = ModelRenderProperties.fromResolvedModel(baker, resolved, textures);
@@ -366,7 +366,7 @@ public class RetexturedModel extends ColoredBlockModel {
     /** Quads and properties for a single item variant, with lazily computed extents and whether any sprite is animated */
     private record ItemVariant(List<BakedQuad> quads, ModelRenderProperties properties, Supplier<Vector3fc[]> extents, boolean animated) {
       private ItemVariant(List<BakedQuad> quads, ModelRenderProperties properties) {
-        this(quads, properties, Suppliers.memoize(() -> BlockModelWrapper.computeExtents(quads)), ModelHelper.hasAnimatedSprite(quads));
+        this(quads, properties, Suppliers.memoize(() -> CuboidItemModelWrapper.computeExtents(quads)), ModelHelper.hasAnimatedSprite(quads));
       }
     }
 

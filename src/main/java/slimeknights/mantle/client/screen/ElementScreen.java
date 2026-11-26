@@ -1,7 +1,7 @@
 package slimeknights.mantle.client.screen;
 
 import lombok.AllArgsConstructor;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
@@ -38,7 +38,7 @@ public class ElementScreen {
    * @param yPos Y-Coordinate on the screen
    * @param blitOffset Ignored since 1.21.6 (the GUI has no z offset anymore), kept for API compatibility
    */
-  public void draw(GuiGraphics graphics, int xPos, int yPos, int blitOffset) {
+  public void draw(GuiGraphicsExtractor graphics, int xPos, int yPos, int blitOffset) {
     graphics.blit(RenderPipelines.GUI_TEXTURED, this.texture, xPos, yPos, (float) this.x, (float) this.y, this.w, this.h, this.texW, this.texH);
   }
 
@@ -48,7 +48,7 @@ public class ElementScreen {
    * @param xPos X-Coordinate on the screen
    * @param yPos Y-Coordinate on the screen
    */
-  public void draw(GuiGraphics graphics, int xPos, int yPos) {
+  public void draw(GuiGraphicsExtractor graphics, int xPos, int yPos) {
     this.draw(graphics, xPos, yPos, 0);
   }
 }

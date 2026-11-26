@@ -7,7 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
-import net.minecraft.client.renderer.block.model.BlockModelPart;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
@@ -102,7 +102,7 @@ public class StructurePiPRenderer extends PictureInPictureRenderer<StructureRend
 
               // block models collect parts against the level (block entity data is read through TemplateLevel#getModelData)
               level.random.setSeed(blockState.getSeed(pos));
-              List<BlockModelPart> parts = blockRender.getBlockModel(blockState).collectParts(level, pos, blockState, level.random);
+              List<BlockStateModelPart> parts = blockRender.getBlockModel(blockState).collectParts(level, pos, blockState, level.random);
               blockRender.getModelRenderer().tesselateBlock(level, parts, blockState, pos, poseStack, bufferLookup, false, overlay);
 
               poseStack.popPose();

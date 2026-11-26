@@ -2,7 +2,7 @@ package slimeknights.mantle.client.screen.book.element;
 
 import com.mojang.math.Transformation;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import org.joml.AxisAngle4f;
@@ -54,7 +54,7 @@ public class StructureElement extends SizedBookElement {
   }
 
   @Override
-  public void draw(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, Font fontRenderer) {
+  public void draw(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks, Font fontRenderer) {
     long currentTime = System.currentTimeMillis();
 
     if (this.lastStep < 0)

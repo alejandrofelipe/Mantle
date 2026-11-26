@@ -11,22 +11,22 @@ import lombok.NoArgsConstructor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.Sheets;
-import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.renderer.block.model.TextureSlots;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.sprite.TextureSlots;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
-import net.minecraft.client.renderer.item.BlockModelWrapper;
+import net.minecraft.client.renderer.item.CuboidItemModelWrapper;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.AtlasManager;
-import net.minecraft.client.resources.model.BlockModelRotation;
-import net.minecraft.client.resources.model.Material;
+import net.minecraft.client.resources.model.sprite.AtlasManager;
+import net.minecraft.client.renderer.block.dispatch.BlockModelRotation;
+import net.minecraft.client.resources.model.sprite.SpriteId;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ModelManager;
-import net.minecraft.client.resources.model.ModelState;
+import net.minecraft.client.renderer.block.dispatch.ModelState;
 import net.minecraft.client.resources.model.ResolvedModel;
 import net.minecraft.core.BlockMath;
 import net.minecraft.core.Direction;
@@ -135,10 +135,10 @@ public class ModelHelper {
     }
     // probes have the highest priority so they replace whatever the targets resolved to
     TextureSlots.Data.Builder probes = new TextureSlots.Data.Builder();
-    Map<Material,String> probeTargets = new HashMap<>();
+    Map<SpriteId,String> probeTargets = new HashMap<>();
     int index = 0;
     for (String target : targets) {
-      Material probe = new Material(REFERENCE_PROBE, Identifier.fromNamespaceAndPath("mantle", "probe_" + index));
+      SpriteId probe = new SpriteId(REFERENCE_PROBE, Identifier.fromNamespaceAndPath("mantle", "probe_" + index));
       index++;
       probes.addTexture(target, probe);
       probeTargets.put(probe, target);
@@ -146,7 +146,7 @@ public class ModelHelper {
     TextureSlots resolved = resolver.addFirst(probes.build()).resolve(model);
     Map<String,String> references = new HashMap<>();
     for (String name : names) {
-      Material material = resolved.getMaterial(name);
+      SpriteId material = resolved.getMaterial(name);
       if (material != null) {
         String target = probeTargets.get(material);
         if (target != null) {
@@ -161,7 +161,7 @@ public class ModelHelper {
   /* Item models */
 
   /**
-   * Adds the quads to an item render state, matching vanilla {@code BlockModelWrapper#update}. Replaces the
+   * Adds the quads to an item render state, matching vanilla {@code CuboidItemModelWrapper#update}. Replaces the
    * 1.21.4 {@code LayerRenderState#setupBlockModel(BakedModel, RenderType)} for dynamic item models.
    * <p>
    * 1.21.11: blocks and items have separate atlases and a layer binds a single one, so quads mixing both atlases are split
@@ -174,7 +174,7 @@ public class ModelHelper {
    * @param quads           Quads to render
    * @param properties      Item render properties (gui light, particle, transforms)
    * @param renderType      Render type for the layer, null to use the stack's default for the atlas of the quads
-   * @param extents         Model extents, see {@link BlockModelWrapper#computeExtents(List)}. Must be memoized and created
+   * @param extents         Model extents, see {@link CuboidItemModelWrapper#computeExtents(List)}. Must be memoized and created
    *                        once per cached variant: it doubles as the variant's model identity (see below).
    * @param animated        Whether any quad uses an animated sprite, see {@link #hasAnimatedSprite(List)}; compute once per variant
    * @return  The added layer (the first one if the quads were split per atlas), for further customization such as tint layers
@@ -222,7 +222,7 @@ public class ModelHelper {
   /** Appends the model identity, foil and animation state for the item, shared by every layer of the model */
   private static void appendModelIdentity(ItemStackRenderState renderState, ItemStack stack, Supplier<Vector3fc[]> extents, boolean animated) {
     // 1.21.6+: GUI items are drawn once into an atlas keyed by the render state's model identity, so every distinct
-    // look must append a distinct element (vanilla appends the BlockModelWrapper itself). Without one, all dynamic items
+    // look must append a distinct element (vanilla appends the CuboidItemModelWrapper itself). Without one, all dynamic items
     // share the empty identity and show whichever was drawn first. The memoized extents supplier is unique per variant
     // and compares by identity, so it is a cheap stable key.
     renderState.appendModelIdentityElement(extents);
@@ -290,7 +290,7 @@ public class ModelHelper {
   }
 
   /**
-   * Gets the default render type for item quads from a single atlas, matching vanilla {@code BlockModelWrapper#detectRenderType}:
+   * Gets the default render type for item quads from a single atlas, matching vanilla {@code CuboidItemModelWrapper#detectRenderType}:
    * quads from the items atlas (or no quads) use {@link Sheets#translucentItemSheet()}, quads from the blocks atlas use
    * {@link Sheets#cutoutBlockSheet()} for non-translucent block items and {@link Sheets#translucentBlockItemSheet()} otherwise.
    * 1.21.11: replaces {@code ItemBlockRenderTypes.getRenderType(ItemStack)}; item textures moved to their own atlas, so the
@@ -301,7 +301,7 @@ public class ModelHelper {
       return Sheets.translucentItemSheet();
     }
     if (stack.getItem() instanceof BlockItem blockItem) {
-      @SuppressWarnings("deprecation")  // same call as vanilla BlockModelWrapper
+      @SuppressWarnings("deprecation")  // same call as vanilla CuboidItemModelWrapper
       ChunkSectionLayer layer = ItemBlockRenderTypes.getChunkRenderType(blockItem.getBlock().defaultBlockState());
       if (layer != ChunkSectionLayer.TRANSLUCENT) {
         return Sheets.cutoutBlockSheet();
@@ -330,7 +330,7 @@ public class ModelHelper {
   /* Quads */
 
   /**
-   * Part cache for {@link net.minecraft.client.renderer.block.model.FaceBakery#bakeQuad} outside the model bakery, which
+   * Part cache for {@link net.minecraft.client.resources.model.cuboid.FaceBakery#bakeQuad} outside the model bakery, which
    * only exists during baking. The bakery's cache interns positions to save memory; this one keeps them as baked, so the
    * quads are identical either way.
    */
@@ -356,13 +356,13 @@ public class ModelHelper {
   /* Sprites */
 
   /**
-   * Gets a sprite for a material at runtime, outside the model bake. Unlike {@link AtlasManager#get(Material)}, supports
+   * Gets a sprite for a material at runtime, outside the model bake. Unlike {@link AtlasManager#get(SpriteId)}, supports
    * {@link ModelManager#BLOCK_OR_ITEM}, the atlas vanilla assigns to every texture parsed from a model JSON since 1.21.11:
    * like the model bakery's sprite getter, the items atlas is checked first, then the blocks atlas (missing sprite if neither).
-   * @param material  Material to fetch
+   * @param material  SpriteId to fetch
    * @return  Sprite, or the missing sprite of the atlas
    */
-  public static TextureAtlasSprite getSprite(Material material) {
+  public static TextureAtlasSprite getSprite(SpriteId material) {
     AtlasManager atlases = Minecraft.getInstance().getAtlasManager();
     if (material.atlasLocation().equals(ModelManager.BLOCK_OR_ITEM)) {
       TextureAtlasSprite sprite = atlases.getAtlasOrThrow(AtlasIds.ITEMS).getTextures().get(material.texture());
@@ -374,7 +374,7 @@ public class ModelHelper {
     return atlases.get(material);
   }
 
-  /** Checks if any of the quads uses an animated sprite, matching vanilla's {@code BlockModelWrapper} constructor. Call once per baked variant, not per render. */
+  /** Checks if any of the quads uses an animated sprite, matching vanilla's {@code CuboidItemModelWrapper} constructor. Call once per baked variant, not per render. */
   public static boolean hasAnimatedSprite(List<BakedQuad> quads) {
     for (BakedQuad quad : quads) {
       if (quad.sprite().contents().isAnimated()) {

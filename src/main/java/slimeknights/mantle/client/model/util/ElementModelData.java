@@ -1,19 +1,19 @@
 package slimeknights.mantle.client.model.util;
 
-import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.renderer.block.model.BlockElement;
-import net.minecraft.client.renderer.block.model.SimpleModelWrapper;
-import net.minecraft.client.renderer.block.model.TextureSlots;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.cuboid.CuboidModelElement;
+import net.minecraft.client.resources.model.SimpleModelWrapper;
+import net.minecraft.client.resources.model.sprite.TextureSlots;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.Material;
+import net.minecraft.client.resources.model.sprite.SpriteId;
 import net.minecraft.client.resources.model.MaterialSet;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ModelDebugName;
-import net.minecraft.client.resources.model.ModelState;
-import net.minecraft.client.resources.model.QuadCollection;
+import net.minecraft.client.renderer.block.dispatch.ModelState;
+import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.client.resources.model.ResolvedModel;
 import net.minecraft.util.context.ContextMap;
 import net.neoforged.neoforge.client.RenderTypeGroup;
@@ -31,7 +31,7 @@ import java.util.function.Function;
  * <p>
  * 1.21.5: replaces the {@code BakedModel} + {@code DynamicBakedWrapper} + {@code bakeReplaced} pattern. A {@link ModelBaker}
  * only exists during model baking, while dynamic models (retextured blocks, tanks, material blocks) only know their
- * textures at render time, so they keep this record and rebake quads lazily, typically with the atlas manager ({@link ModelHelper#getSprite(Material)})
+ * textures at render time, so they keep this record and rebake quads lazily, typically with the atlas manager ({@link ModelHelper#getSprite(SpriteId)})
  * through {@link #runtimeSprites(Map)}, caching the result per texture.
  *
  * @param elements             Elements to bake, including elements inherited from parents
@@ -44,7 +44,7 @@ import java.util.function.Function;
  * @param itemProperties       Item render properties (gui light, transforms, particle) for item models
  * @param name                 Debug name for error reporting
  */
-public record ElementModelData(List<BlockElement> elements, List<ColorData> colorData, TextureSlots textures, ModelState state, boolean useAmbientOcclusion,
+public record ElementModelData(List<CuboidModelElement> elements, List<ColorData> colorData, TextureSlots textures, ModelState state, boolean useAmbientOcclusion,
                                TextureAtlasSprite particle, RenderTypeGroup renderType, ModelRenderProperties itemProperties, ModelDebugName name) {
   /**
    * Captures the data for a resolved model
@@ -95,18 +95,18 @@ public record ElementModelData(List<BlockElement> elements, List<ColorData> colo
 
   /**
    * Sprite lookup at runtime with the given texture replacements, through the atlas manager.
-   * 1.21.9: {@code Material#sprite()} is gone; {@link net.minecraft.client.resources.model.AtlasManager} is the runtime {@link MaterialSet}
+   * 1.21.9: {@code SpriteId#sprite()} is gone; {@link net.minecraft.client.resources.model.sprite.AtlasManager} is the runtime {@link MaterialSet}
    * holding every stitched sprite (missing sprite for unknown textures, like the old atlas lookup).
-   * 1.21.11: model textures use the {@code block_or_item} pseudo atlas, which the atlas manager rejects; {@link ModelHelper#getSprite(Material)}
+   * 1.21.11: model textures use the {@code block_or_item} pseudo atlas, which the atlas manager rejects; {@link ModelHelper#getSprite(SpriteId)}
    * resolves it like the model bakery.
    */
-  public Function<String,TextureAtlasSprite> runtimeSprites(Map<String,Material> replacements) {
+  public Function<String,TextureAtlasSprite> runtimeSprites(Map<String,SpriteId> replacements) {
     return SimpleBlockModel.spriteLookup(textures, replacements, ModelHelper::getSprite);
   }
 
   /** Gets the particle for the given replacements, falling back to the default particle */
-  public TextureAtlasSprite particle(Map<String,Material> replacements) {
-    Material particle = replacements.get("particle");
+  public TextureAtlasSprite particle(Map<String,SpriteId> replacements) {
+    SpriteId particle = replacements.get("particle");
     return particle != null ? ModelHelper.getSprite(particle) : this.particle;
   }
 
@@ -124,7 +124,7 @@ public record ElementModelData(List<BlockElement> elements, List<ColorData> colo
   }
 
   /** Bakes the elements with the given texture replacements at runtime */
-  public QuadCollection bakeReplaced(Map<String,Material> replacements) {
+  public QuadCollection bakeReplaced(Map<String,SpriteId> replacements) {
     return bake(runtimeSprites(replacements));
   }
 

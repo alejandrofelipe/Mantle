@@ -2,7 +2,7 @@ package slimeknights.mantle.client.screen.book;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.ARGB;
@@ -22,7 +22,7 @@ public class TextDataRenderer {
    * @deprecated Call drawText with tooltip param and then call drawTooltip separately on the tooltip layer to prevent overlap
    */
   @Deprecated
-  public static String drawText(GuiGraphics graphics, int x, int y, int boxWidth, int boxHeight, TextData[] data, int mouseX, int mouseY, Font fr, BookScreen parent) {
+  public static String drawText(GuiGraphicsExtractor graphics, int x, int y, int boxWidth, int boxHeight, TextData[] data, int mouseX, int mouseY, Font fr, BookScreen parent) {
     List<Component> tooltip = new ArrayList<>();
     String action = drawText(graphics, x, y, boxWidth, boxHeight, data, mouseX, mouseY, fr, tooltip);
 
@@ -34,7 +34,7 @@ public class TextDataRenderer {
   }
 
   // TODO: can we merge this with TextComponentDataRenderer, put the differences in TextData vs TextComponentData?
-  public static String drawText(GuiGraphics graphics, int x, int y, int boxWidth, int boxHeight, TextData[] data, int mouseX, int mouseY, Font fr, List<Component> tooltip) {
+  public static String drawText(GuiGraphicsExtractor graphics, int x, int y, int boxWidth, int boxHeight, TextData[] data, int mouseX, int mouseY, Font fr, List<Component> tooltip) {
     String action = "";
 
     int atX = x;
@@ -248,7 +248,7 @@ public class TextDataRenderer {
 
   //BEGIN METHODS FROM GUI
   //TODO: does this exist elsewhere now?
-  public static void drawScaledString(GuiGraphics graphics, Font font, String text, float x, float y, int color, boolean dropShadow, float scale) {
+  public static void drawScaledString(GuiGraphicsExtractor graphics, Font font, String text, float x, float y, int color, boolean dropShadow, float scale) {
     Matrix3x2fStack poseStack = graphics.pose();
     poseStack.pushMatrix();
     poseStack.translate(x, y);

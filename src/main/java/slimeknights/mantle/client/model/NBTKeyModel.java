@@ -10,9 +10,9 @@ import com.mojang.math.Transformation;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.renderer.block.model.TextureSlots;
-import net.minecraft.client.renderer.item.BlockModelWrapper;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.sprite.TextureSlots;
+import net.minecraft.client.renderer.item.CuboidItemModelWrapper;
 import net.minecraft.client.renderer.item.ItemModel;
 import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
@@ -20,13 +20,13 @@ import net.minecraft.client.renderer.item.ModelRenderProperties;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.BlockModelRotation;
-import net.minecraft.client.resources.model.Material;
+import net.minecraft.client.renderer.block.dispatch.BlockModelRotation;
+import net.minecraft.client.resources.model.sprite.SpriteId;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ModelDebugName;
 import net.minecraft.client.resources.model.ModelManager;
-import net.minecraft.client.resources.model.ModelState;
-import net.minecraft.client.resources.model.QuadCollection;
+import net.minecraft.client.renderer.block.dispatch.ModelState;
+import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.client.resources.model.ResolvedModel;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.Identifier;
@@ -120,9 +120,9 @@ public class NBTKeyModel extends AbstractUnbakedModel {
 
   /** Bakes the default texture, used when the model is rendered without the item model type */
   private QuadCollection bake(TextureSlots textures, ModelBaker baker, ModelState state, ModelDebugName debugName, ContextMap additionalProperties) {
-    Material defaultTexture = textures.getMaterial("default");
+    SpriteId defaultTexture = textures.getMaterial("default");
     if (defaultTexture == null) {
-      defaultTexture = new Material(TextureAtlas.LOCATION_BLOCKS, MissingTextureAtlasSprite.getLocation());
+      defaultTexture = new SpriteId(TextureAtlas.LOCATION_BLOCKS, MissingTextureAtlasSprite.getLocation());
     }
     QuadCollection.Builder builder = new QuadCollection.Builder();
     bakeQuads(baker.sprites().get(defaultTexture, debugName), state, additionalProperties).forEach(builder::addUnculledFace);
@@ -154,18 +154,18 @@ public class NBTKeyModel extends AbstractUnbakedModel {
   /**
    * Gets all variant textures for this model: every texture defined along the resolved chain, then the registered extras.
    * 1.21.11: these are unbaked materials on the {@link ModelManager#BLOCK_OR_ITEM} pseudo atlas; resolve them with the model
-   * baker's sprite getter or {@link ModelHelper#getSprite(Material)}, or use {@link Baked#getTexture(String)} for concrete atlases.
+   * baker's sprite getter or {@link ModelHelper#getSprite(SpriteId)}, or use {@link Baked#getTexture(String)} for concrete atlases.
    * @param resolved  Resolved model using this model
    * @return  Map of variant name to texture
    */
-  public Map<String,Material> getTextures(ResolvedModel resolved) {
+  public Map<String,SpriteId> getTextures(ResolvedModel resolved) {
     TextureSlots slots = resolved.getTopTextureSlots();
     // texture slot data keys are readable, so collect all names defined along the chain
     Set<String> names = ModelHelper.getTextureNames(resolved);
     names.remove("particle");
-    Map<String,Material> textures = new HashMap<>();
+    Map<String,SpriteId> textures = new HashMap<>();
     for (String name : names) {
-      Material material = slots.getMaterial(name);
+      SpriteId material = slots.getMaterial(name);
       if (material != null) {
         textures.put(name, material);
       }
@@ -173,7 +173,7 @@ public class NBTKeyModel extends AbstractUnbakedModel {
     // fetch extra textures
     for (Pair<String,Identifier> extra : getExtraTextures()) {
       // 1.21.11: same atlas as textures parsed from the model JSON, resolved from the items or blocks atlas at bake time
-      textures.putIfAbsent(extra.getFirst(), new Material(ModelManager.BLOCK_OR_ITEM, extra.getSecond()));
+      textures.putIfAbsent(extra.getFirst(), new SpriteId(ModelManager.BLOCK_OR_ITEM, extra.getSecond()));
     }
     return Map.copyOf(textures);
   }
@@ -215,7 +215,7 @@ public class NBTKeyModel extends AbstractUnbakedModel {
       NBTKeyModel nbtModel = find(resolved);
       if (nbtModel == null) {
         Mantle.logger.warn("Item model type mantle:nbt_key used with {}, which is not an NBT key model", resolved.debugName());
-        return new BlockModelWrapper.Unbaked(model, List.of()).bake(context);
+        return new CuboidItemModelWrapper.Unbaked(model, List.of()).bake(context);
       }
       TextureSlots slots = resolved.getTopTextureSlots();
       ModelRenderProperties properties = ModelRenderProperties.fromResolvedModel(baker, resolved, slots);
@@ -223,13 +223,13 @@ public class NBTKeyModel extends AbstractUnbakedModel {
       RenderTypeGroup renderTypes = MantleItemLayerModel.getDefaultRenderType(additionalProperties.getOrDefault(NeoForgeModelProperties.RENDER_TYPE, RenderTypeGroup.EMPTY));
 
       // bake all variants now, the textures are all known
-      Map<String,Material> unbakedTextures = nbtModel.getTextures(resolved);
-      Map<String,Material> textures = new HashMap<>(unbakedTextures.size());
+      Map<String,SpriteId> unbakedTextures = nbtModel.getTextures(resolved);
+      Map<String,SpriteId> textures = new HashMap<>(unbakedTextures.size());
       Map<String,Variant> variants = new HashMap<>(unbakedTextures.size());
-      for (Entry<String,Material> entry : unbakedTextures.entrySet()) {
+      for (Entry<String,SpriteId> entry : unbakedTextures.entrySet()) {
         TextureAtlasSprite sprite = baker.sprites().get(entry.getValue(), resolved);
         // 1.21.11: expose the atlas the sprite was found in rather than the block_or_item pseudo atlas, which AtlasManager#get rejects
-        textures.put(entry.getKey(), new Material(sprite.atlasLocation(), entry.getValue().texture()));
+        textures.put(entry.getKey(), new SpriteId(sprite.atlasLocation(), entry.getValue().texture()));
         variants.put(entry.getKey(), new Variant(bakeQuads(sprite, BlockModelRotation.IDENTITY, additionalProperties), new ModelRenderProperties(properties.usesBlockLight(), sprite, properties.transforms())));
       }
       Variant defaultVariant = variants.get("default");
@@ -243,20 +243,20 @@ public class NBTKeyModel extends AbstractUnbakedModel {
   /** Quads and properties for a single variant, with lazily computed extents and whether any sprite is animated */
   private record Variant(List<BakedQuad> quads, ModelRenderProperties properties, Supplier<Vector3fc[]> extents, boolean animated) {
     private Variant(List<BakedQuad> quads, ModelRenderProperties properties) {
-      this(quads, properties, Suppliers.memoize(() -> BlockModelWrapper.computeExtents(quads)), ModelHelper.hasAnimatedSprite(quads));
+      this(quads, properties, Suppliers.memoize(() -> CuboidItemModelWrapper.computeExtents(quads)), ModelHelper.hasAnimatedSprite(quads));
     }
   }
 
   /** Baked item model for an NBT key model, replaces the old {@code NBTKeyModel.Overrides} */
   public static class Baked implements ItemModel {
     private final String nbtKey;
-    private final Map<String,Material> textures;
+    private final Map<String,SpriteId> textures;
     private final Map<String,Variant> variants;
     private final Variant defaultVariant;
     /** 1.21.11: the variant textures may come from the items or the blocks atlas, so the layers pick their type from the group */
     private final RenderTypeGroup renderTypes;
 
-    private Baked(String nbtKey, Map<String,Material> textures, Map<String,Variant> variants, Variant defaultVariant, RenderTypeGroup renderTypes) {
+    private Baked(String nbtKey, Map<String,SpriteId> textures, Map<String,Variant> variants, Variant defaultVariant, RenderTypeGroup renderTypes) {
       this.nbtKey = nbtKey;
       this.textures = textures;
       this.variants = variants;
@@ -270,8 +270,8 @@ public class NBTKeyModel extends AbstractUnbakedModel {
      * 1.21.11: the material names the atlas the sprite was baked from (items or blocks), so {@code AtlasManager#get} resolves it.
      */
     @Nullable
-    public Material getTexture(String name) {
-      Material texture = textures.get(name);
+    public SpriteId getTexture(String name) {
+      SpriteId texture = textures.get(name);
       return texture != null ? texture : textures.get("default");
     }
 

@@ -1,11 +1,11 @@
 package slimeknights.mantle.client.model.util;
 
-import net.minecraft.client.renderer.block.model.BlockModelPart;
-import net.minecraft.client.renderer.block.model.BlockStateModel;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.EmptyBlockAndTintGetter;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.model.DelegateBlockStateModel;
@@ -39,10 +39,10 @@ public abstract class DynamicBakedWrapper<T extends BlockStateModel> extends Del
   /** @deprecated use {@link #collectParts(BlockAndTintGetter, BlockPos, BlockState, RandomSource, List)} */
   @Override
   @Deprecated
-  public void collectParts(RandomSource random, List<BlockModelPart> parts) {
-    collectParts(EmptyBlockAndTintGetter.INSTANCE, BlockPos.ZERO, Blocks.AIR.defaultBlockState(), random, parts);
+  public void collectParts(RandomSource random, List<BlockStateModelPart> parts) {
+    collectParts(BlockAndTintGetter.EMPTY, BlockPos.ZERO, Blocks.AIR.defaultBlockState(), random, parts);
   }
 
   @Override
-  public abstract void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random, List<BlockModelPart> parts);
+  public abstract void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random, List<BlockStateModelPart> parts);
 }

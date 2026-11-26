@@ -9,22 +9,22 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonSyntaxException;
 import com.mojang.math.Transformation;
 import com.mojang.serialization.MapCodec;
-import net.minecraft.client.renderer.block.model.BlockElement;
-import net.minecraft.client.renderer.block.model.BlockElementFace;
-import net.minecraft.client.renderer.block.model.BlockModelPart;
-import net.minecraft.client.renderer.block.model.BlockStateModel;
-import net.minecraft.client.renderer.block.model.SimpleModelWrapper;
-import net.minecraft.client.renderer.block.model.SingleVariant;
-import net.minecraft.client.renderer.block.model.TextureSlots;
-import net.minecraft.client.renderer.block.model.Variant;
+import net.minecraft.client.resources.model.cuboid.CuboidModelElement;
+import net.minecraft.client.resources.model.cuboid.CuboidFace;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
+import net.minecraft.client.resources.model.SimpleModelWrapper;
+import net.minecraft.client.renderer.block.dispatch.SingleVariant;
+import net.minecraft.client.resources.model.sprite.TextureSlots;
+import net.minecraft.client.renderer.block.dispatch.Variant;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.Material;
+import net.minecraft.client.resources.model.sprite.SpriteId;
 import net.minecraft.client.resources.model.ModelBaker;
-import net.minecraft.client.resources.model.ModelState;
+import net.minecraft.client.renderer.block.dispatch.ModelState;
 import net.minecraft.client.resources.model.ResolvedModel;
-import net.minecraft.client.resources.model.SpriteGetter;
+import net.minecraft.client.resources.model.sprite.SpriteGetter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
@@ -32,8 +32,8 @@ import net.minecraft.core.Direction.Plane;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.BlockAndTintGetter;
-import net.minecraft.world.level.EmptyBlockAndTintGetter;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.neoforged.neoforge.client.model.UnbakedModelLoader;
@@ -110,12 +110,12 @@ public class ConnectedModel extends ColoredBlockModel {
    * @param textures  Resolved base texture slots
    * @return  Map of suffixed texture name to its material
    */
-  private Map<String,Material> computeExtraTextures(TextureSlots textures) {
-    Map<String,Material> extraTextures = new HashMap<>();
+  private Map<String,SpriteId> computeExtraTextures(TextureSlots textures) {
+    Map<String,SpriteId> extraTextures = new HashMap<>();
     for (Entry<String,String[]> entry : connectedTextures.entrySet()) {
       // fetch data from the base texture
       String name = entry.getKey();
-      Material base = textures.getMaterial(name);
+      SpriteId base = textures.getMaterial(name);
       // skip if missing
       if (base == null) {
         continue;
@@ -134,13 +134,13 @@ public class ConnectedModel extends ColoredBlockModel {
         // skip running if we have seen it before
         String suffixedName = name + "_" + suffix;
         if (!extraTextures.containsKey(suffixedName)) {
-          Material mat;
+          SpriteId mat;
           // allow overriding a specific texture
-          Material override = textures.getMaterial(suffixedName);
+          SpriteId override = textures.getMaterial(suffixedName);
           if (override != null) {
             mat = override;
           } else {
-            mat = new Material(atlas, Identifier.fromNamespaceAndPath(namespace, path + "/" + suffix));
+            mat = new SpriteId(atlas, Identifier.fromNamespaceAndPath(namespace, path + "/" + suffix));
           }
           // cache the texture name, we use it a lot in rebaking
           extraTextures.put(suffixedName, mat);
@@ -178,7 +178,7 @@ public class ConnectedModel extends ColoredBlockModel {
       ResolvedModel resolved = baker.getModel(variant.modelLocation());
       ModelState state = variant.modelState().asModelState();
       // unconnected part, used whenever there are no connections or no level
-      BlockModelPart base = SimpleModelWrapper.bake(baker, resolved, state);
+      BlockStateModelPart base = SimpleModelWrapper.bake(baker, resolved, state);
       ConnectedModel connected = find(resolved);
       if (connected == null) {
         Mantle.logger.warn("Block state model type mantle:connected used with {}, which is not a connected model", resolved.debugName());
@@ -202,11 +202,11 @@ public class ConnectedModel extends ColoredBlockModel {
     /** Sprites for every texture name the connected variants can use, resolved at bake time */
     private final Map<String,TextureAtlasSprite> sprites;
     private final TextureAtlasSprite missing;
-    private final AtomicReferenceArray<BlockModelPart> cache = new AtomicReferenceArray<>(64);
+    private final AtomicReferenceArray<BlockStateModelPart> cache = new AtomicReferenceArray<>(64);
     /** Map of face texture name to the connected texture it references, computed at bake time */
     private final Map<String,String> connectedNames;
 
-    public Baked(ConnectedModel connected, ResolvedModel resolved, ModelBaker baker, ElementModelData data, Transformation rotation, BlockModelPart base) {
+    public Baked(ConnectedModel connected, ResolvedModel resolved, ModelBaker baker, ElementModelData data, Transformation rotation, BlockStateModelPart base) {
       super(new SingleVariant(base));
       this.connected = connected;
       this.data = data;
@@ -216,10 +216,10 @@ public class ConnectedModel extends ColoredBlockModel {
 
       // resolve all sprites now while we have a baker: the base face textures plus all connected suffix variants
       SpriteGetter spriteGetter = baker.sprites();
-      Map<String,Material> extraTextures = connected.computeExtraTextures(data.textures());
+      Map<String,SpriteId> extraTextures = connected.computeExtraTextures(data.textures());
       Map<String,TextureAtlasSprite> sprites = new HashMap<>();
-      for (BlockElement element : data.elements()) {
-        for (BlockElementFace face : element.faces().values()) {
+      for (CuboidModelElement element : data.elements()) {
+        for (CuboidFace face : element.faces().values()) {
           String name = stripReference(face.texture());
           if (!sprites.containsKey(name)) {
             sprites.put(name, spriteGetter.resolveSlot(data.textures(), name, data.name()));
@@ -231,12 +231,12 @@ public class ConnectedModel extends ColoredBlockModel {
       this.connectedNames = ModelHelper.findReferences(resolved, connected.connectedTextures.keySet(), sprites.keySet());
       // PORT 1.21.5: suffix sprites are now resolved eagerly, so a pack missing an unused suffix texture logs it as a
       // missing texture at bake (1.21.4 silently used missingno on demand); check the client log in the uitest phase
-      for (Entry<String,Material> entry : extraTextures.entrySet()) {
+      for (Entry<String,SpriteId> entry : extraTextures.entrySet()) {
         sprites.put(entry.getKey(), spriteGetter.get(entry.getValue(), data.name()));
       }
       this.sprites = Map.copyOf(sprites);
       // the missing sprite is part of the atlas, so this lookup does not report anything
-      this.missing = spriteGetter.get(new Material(TextureAtlas.LOCATION_BLOCKS, MissingTextureAtlasSprite.getLocation()), data.name());
+      this.missing = spriteGetter.get(new SpriteId(TextureAtlas.LOCATION_BLOCKS, MissingTextureAtlasSprite.getLocation()), data.name());
     }
 
     /** Removes the leading {@code '#'} from a texture reference */
@@ -284,13 +284,13 @@ public class ConnectedModel extends ColoredBlockModel {
      * @param original  Block face data, for the UVs and rotation
      * @return  Direction transform function
      */
-    private static Function<Direction,Direction> getTransform(Direction face, BlockElementFace original) {
+    private static Function<Direction,Direction> getTransform(Direction face, CuboidFace original) {
       // TODO: how do I apply UV lock?
       // final transform switches from face (NSWE) to world direction, the rest are composed in to apply first
       Function<Direction,Direction> transform = (d) -> rotateDirection(d, face);
 
       // flipping; 1.21.5: missing UVs mean the default UVs, which are never flipped
-      BlockElementFace.UVs uvs = original.uvs();
+      CuboidFace.UVs uvs = original.uvs();
       if (uvs != null) {
         boolean flipV = uvs.minV() > uvs.maxV();
         if (uvs.minU() > uvs.maxU()) {
@@ -365,9 +365,9 @@ public class ConnectedModel extends ColoredBlockModel {
       return "_" + suffix;
     }
 
-    /** Copies a face with a new texture; faces are always copied as {@link BlockElement} binds each face to its element */
-    private static BlockElementFace copyFace(BlockElementFace face, String texture) {
-      return new BlockElementFace(face.cullForDirection(), face.tintIndex(), texture, face.uvs(), face.rotation(), face.faceData(), new MutableObject<>());
+    /** Copies a face with a new texture; faces are always copied as {@link CuboidModelElement} binds each face to its element */
+    private static CuboidFace copyFace(CuboidFace face, String texture) {
+      return new CuboidFace(face.cullForDirection(), face.tintIndex(), texture, face.uvs(), face.rotation(), face.faceData(), new MutableObject<>());
     }
 
     /**
@@ -375,15 +375,15 @@ public class ConnectedModel extends ColoredBlockModel {
      * @param connections  Array of face connections, true at indexes of connected sides
      * @return  Model with connections applied
      */
-    private BlockModelPart applyConnections(byte connections) {
+    private BlockStateModelPart applyConnections(byte connections) {
       // copy each element with updated faces
-      List<BlockElement> elements = Lists.newArrayList();
-      for (BlockElement part : data.elements()) {
-        Map<Direction,BlockElementFace> partFaces = new EnumMap<>(Direction.class);
-        for (Map.Entry<Direction,BlockElementFace> entry : part.faces().entrySet()) {
+      List<CuboidModelElement> elements = Lists.newArrayList();
+      for (CuboidModelElement part : data.elements()) {
+        Map<Direction,CuboidFace> partFaces = new EnumMap<>(Direction.class);
+        for (Map.Entry<Direction,CuboidFace> entry : part.faces().entrySet()) {
           // first, determine which texture to use on this side
           Direction dir = entry.getKey();
-          BlockElementFace original = entry.getValue();
+          CuboidFace original = entry.getValue();
           String texture = original.texture();
 
           // follow the texture name back to the original name
@@ -401,7 +401,7 @@ public class ConnectedModel extends ColoredBlockModel {
           partFaces.put(dir, copyFace(original, texture));
         }
         // add the updated parts into a new model part
-        elements.add(new BlockElement(part.from(), part.to(), partFaces, part.rotation(), part.shade(), part.lightEmission(), part.faceData()));
+        elements.add(new CuboidModelElement(part.from(), part.to(), partFaces, part.rotation(), part.shade(), part.lightEmission(), part.faceData()));
       }
 
       // bake the model with the sprites resolved at bake time so the suffixed textures resolve
@@ -426,7 +426,7 @@ public class ConnectedModel extends ColoredBlockModel {
     /** Gets the connections for the block at the given position */
     private byte getConnections(BlockAndTintGetter level, BlockPos pos, BlockState state) {
       // no level (item rendering, deprecated context-free calls): fall back to the block state properties, used by multipart connected blocks
-      if (level == EmptyBlockAndTintGetter.INSTANCE) {
+      if (level == BlockAndTintGetter.EMPTY) {
         return getConnections(dir -> {
           if (!connected.sides.contains(dir)) {
             return false;
@@ -439,8 +439,8 @@ public class ConnectedModel extends ColoredBlockModel {
     }
 
     /** Gets the part for the given connections, baking it if needed */
-    protected BlockModelPart getCachedPart(byte connections) {
-      BlockModelPart part = cache.get(connections);
+    protected BlockStateModelPart getCachedPart(byte connections) {
+      BlockStateModelPart part = cache.get(connections);
       if (part == null) {
         // baking twice on a race is harmless, both results are identical
         part = applyConnections(connections);
@@ -450,7 +450,7 @@ public class ConnectedModel extends ColoredBlockModel {
     }
 
     @Override
-    public void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random, List<BlockModelPart> parts) {
+    public void collectParts(BlockAndTintGetter level, BlockPos pos, BlockState state, RandomSource random, List<BlockStateModelPart> parts) {
       parts.add(getCachedPart(getConnections(level, pos, state)));
     }
 

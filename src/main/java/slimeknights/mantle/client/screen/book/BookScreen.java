@@ -5,7 +5,7 @@ import net.minecraft.advancements.AdvancementNode;
 import net.minecraft.advancements.AdvancementProgress;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.font.FontManager;
 import net.minecraft.client.gui.screens.Screen;
@@ -153,7 +153,7 @@ public class BookScreen extends Screen {
   }
 
   @Override
-  public void render(GuiGraphics graphics, int mouseX ,int mouseY, float partialTicks) {
+  public void render(GuiGraphicsExtractor graphics, int mouseX ,int mouseY, float partialTicks) {
     if(this.minecraft == null) {
       return;
     }
@@ -163,7 +163,7 @@ public class BookScreen extends Screen {
   }
 
   @Override
-  public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
+  public void renderBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
     // 1.21 blurs the whole framebuffer inside Screen.renderBackground, so it must run before any book content or the book renders blurred
     if (this.drawScreenBackground) {
       super.renderBackground(graphics, mouseX, mouseY, partialTicks);
@@ -254,7 +254,7 @@ public class BookScreen extends Screen {
     return this.page < fullPageCount - 1 || this.book.getPageCount(this.advancementCache) % 2 != 0;
   }
 
-  private void renderCover(GuiGraphics graphics, Vector3f coverColor) {
+  private void renderCover(GuiGraphicsExtractor graphics, Vector3f coverColor) {
     Font fontRenderer = getFontRenderer();
 
     Identifier cover = book.appearance.getCoverTexture();
@@ -292,12 +292,12 @@ public class BookScreen extends Screen {
     }
   }
 
-  private void renderUnderLayer(GuiGraphics graphics, Vector3f coverColor) {
+  private void renderUnderLayer(GuiGraphicsExtractor graphics, Vector3f coverColor) {
     int tint = ARGB.colorFromFloat(1f, coverColor.x(), coverColor.y(), coverColor.z());
     graphics.blit(RenderPipelines.GUI_TEXTURED, this.book.appearance.getBookTexture(), this.width / 2 - PAGE_WIDTH_UNSCALED, this.height / 2 - PAGE_HEIGHT_UNSCALED / 2, 0.0F, 0.0F, PAGE_WIDTH_UNSCALED * 2, PAGE_HEIGHT_UNSCALED, TEX_SIZE, TEX_SIZE, tint);
   }
 
-  private void renderPageBackground(GuiGraphics graphics, boolean rightSide) {
+  private void renderPageBackground(GuiGraphicsExtractor graphics, boolean rightSide) {
     Vector3f pageTint = splitRGB(this.book.appearance.getPageTint());
     int tint = ARGB.colorFromFloat(1f, pageTint.x(), pageTint.y(), pageTint.z());
     if(!rightSide) {
@@ -307,7 +307,7 @@ public class BookScreen extends Screen {
     }
   }
 
-  private void renderPageLayer(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, List<BookElement> elements, ILayerRenderFunction layerFunc) {
+  private void renderPageLayer(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks, List<BookElement> elements, ILayerRenderFunction layerFunc) {
     // 1.21.5: setShaderTexture takes a GpuTexture and every GUI blit binds its own texture, so the cover texture is no longer pre-bound here
     Font font = getFontRenderer();
 

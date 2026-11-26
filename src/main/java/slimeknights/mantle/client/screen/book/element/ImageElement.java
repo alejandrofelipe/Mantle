@@ -1,7 +1,7 @@
 package slimeknights.mantle.client.screen.book.element;
 
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.resources.Identifier;
@@ -72,12 +72,12 @@ public class ImageElement extends SizedBookElement {
   }
 
   /**
-   * Draws this element untinted by delegating to {@link #draw(GuiGraphics, int, int, float, Font, int)}.
+   * Draws this element untinted by delegating to {@link #draw(GuiGraphicsExtractor, int, int, float, Font, int)}.
    * Subclasses changing how the image is drawn must override the tint overload instead of this method,
    * as callers such as {@link SelectionElement} call the tint overload directly.
    */
   @Override
-  public void draw(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, Font fontRenderer) {
+  public void draw(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks, Font fontRenderer) {
     this.draw(graphics, mouseX, mouseY, partialTicks, fontRenderer, 0xFFFFFFFF);
   }
 
@@ -85,9 +85,9 @@ public class ImageElement extends SizedBookElement {
    * Draws this element with an extra ARGB tint multiplied into the color multiplier.
    * Replaces wrapping the draw in {@code RenderSystem.setShaderColor}, which no longer exists in 1.21.8.
    * The tint does not apply to item images, as GUI item rendering takes no color.
-   * This is the method subclasses should override, {@link #draw(GuiGraphics, int, int, float, Font)} delegates to it.
+   * This is the method subclasses should override, {@link #draw(GuiGraphicsExtractor, int, int, float, Font)} delegates to it.
    */
-  public void draw(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, Font fontRenderer, int tint) {
+  public void draw(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks, Font fontRenderer, int tint) {
     if (this.image.item == null) {
       int color = ARGB.multiply(0xFF000000 | (this.colorMultiplier & 0xFFFFFF), tint);
       Identifier texture = requireNonNullElse(this.image.location, TextureManager.INTENTIONAL_MISSING_TEXTURE);

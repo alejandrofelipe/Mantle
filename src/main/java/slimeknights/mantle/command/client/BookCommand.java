@@ -14,8 +14,8 @@ import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.render.state.GuiRenderState;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.state.gui.GuiRenderState;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.fog.FogRenderer;
@@ -207,7 +207,7 @@ public class BookCommand {
 
       // 1.21.5: render targets can no longer be bound for writing; GUI render types always draw into the main target.
       // Resize the main target to the export size for the duration of the export, and restore the window size after.
-      // 1.21.8: GuiGraphics only records render states, the game's GuiRenderer draws them into the main target. It takes the projection, scissor
+      // 1.21.8: GuiGraphicsExtractor only records render states, the game's GuiRenderer draws them into the main target. It takes the projection, scissor
       // and picture-in-picture resolution from the window, so the window framebuffer size and GUI scale are swapped to the export ones too.
       Minecraft minecraft = Minecraft.getInstance();
       GameRenderer gameRenderer = minecraft.gameRenderer;
@@ -264,8 +264,8 @@ public class BookCommand {
           gameRenderer.getLighting().setupFor(Lighting.Entry.ITEMS_3D);
           GuiRenderState renderState = gameRenderer.guiRenderState;
           renderState.reset();
-          // 1.21.11: GuiGraphics tracks the mouse for text hover effects; -1/-1 lies outside the export so nothing is hovered
-          screen.render(new GuiGraphics(minecraft, renderState, -1, -1), 0, 0, 0);
+          // 1.21.11: GuiGraphicsExtractor tracks the mouse for text hover effects; -1/-1 lies outside the export so nothing is hovered
+          screen.render(new GuiGraphicsExtractor(minecraft, renderState, -1, -1), 0, 0, 0);
           // render resets the state once drawn
           gameRenderer.guiRenderer.render(gameRenderer.fogRenderer.getBuffer(FogRenderer.FogMode.NONE));
           // each page is a frame for the GUI renderer, so animated items in the item atlas redraw for the next page

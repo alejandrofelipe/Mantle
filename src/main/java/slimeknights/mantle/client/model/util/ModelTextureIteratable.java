@@ -1,7 +1,7 @@
 package slimeknights.mantle.client.model.util;
 
 import com.mojang.datafixers.util.Either;
-import net.minecraft.client.resources.model.Material;
+import net.minecraft.client.resources.model.sprite.SpriteId;
 import net.minecraft.client.resources.model.ResolvedModel;
 
 import org.jspecify.annotations.Nullable;
@@ -12,23 +12,23 @@ import java.util.Map;
 
 /**
  * Iterates over the raw texture maps ({@code #reference} chains preserved) of a model chain, child first. Texture
- * references are flattened at bake time into {@link net.minecraft.client.renderer.block.model.TextureSlots}, so Mantle
+ * references are flattened at bake time into {@link net.minecraft.client.resources.model.sprite.TextureSlots}, so Mantle
  * models keep their raw maps (see {@link SimpleBlockModel#getTextures()}) to let wrapping models follow references by
  * name. Vanilla {@code BlockModel} texture references are not readable ({@code TextureSlots.Reference} is package-private),
  * so iteration stops at the first non-Mantle model in the chain.
  * <p>
  * 1.21.5: unbaked models only know their parent's location, so walking parents requires a {@link ResolvedModel}.
  */
-public class ModelTextureIteratable implements Iterable<Map<String,Either<Material, String>>> {
+public class ModelTextureIteratable implements Iterable<Map<String,Either<SpriteId, String>>> {
   /** Maps to iterate, child first */
-  private final List<Map<String,Either<Material, String>>> maps;
+  private final List<Map<String,Either<SpriteId, String>>> maps;
 
   /**
    * Creates an iterable over an optional initial map followed by the given resolved model chain
    * @param startMap    Initial map, or null for none
    * @param startModel  Resolved model to iterate, or null for none
    */
-  public ModelTextureIteratable(@Nullable Map<String,Either<Material, String>> startMap, @Nullable ResolvedModel startModel) {
+  public ModelTextureIteratable(@Nullable Map<String,Either<SpriteId, String>> startMap, @Nullable ResolvedModel startModel) {
     this.maps = new ArrayList<>();
     if (startMap != null) {
       maps.add(startMap);
@@ -58,7 +58,7 @@ public class ModelTextureIteratable implements Iterable<Map<String,Either<Materi
   }
 
   @Override
-  public Iterator<Map<String,Either<Material, String>>> iterator() {
+  public Iterator<Map<String,Either<SpriteId, String>>> iterator() {
     return maps.iterator();
   }
 }

@@ -4,7 +4,7 @@ import com.mojang.blaze3d.platform.Window;
 import net.minecraft.util.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
@@ -174,7 +174,7 @@ public class ExtraHeartRenderHandler {
     boolean compactAbsorption = showHearts < 10 && absorb <= 2 * (10 - showHearts);
 
     // time to draw heart backgrounds
-    GuiGraphics graphics = event.getGuiGraphics();
+    GuiGraphicsExtractor graphics = event.getGuiGraphics();
 
     // render max health backgrounds
     int absorptionOffset = ROW_HEIGHT;
@@ -245,7 +245,7 @@ public class ExtraHeartRenderHandler {
    * @param count        Number to render
    * @param indexOffset  Heart to raise for regen
    */
-  private void renderHearts(GuiGraphics graphics, int x, int y, int heartOffset, int count, int indexOffset) {
+  private void renderHearts(GuiGraphicsExtractor graphics, int x, int y, int heartOffset, int count, int indexOffset) {
     int heartsTopColor = (count % 20) / 2;
     int heartIndex = count / 20;
     // if we have 1 full non-vanilla row, render the right side hearts
@@ -266,7 +266,7 @@ public class ExtraHeartRenderHandler {
    * @param current     Current to render
    * @param last        Number previous tick
    */
-  private void renderHeartsWithDamage(GuiGraphics graphics, int x, int y, int heartOffset, int current, int last) {
+  private void renderHeartsWithDamage(GuiGraphicsExtractor graphics, int x, int y, int heartOffset, int current, int last) {
     int currentTopRow = current % 20;
     int currentRight = currentTopRow / 2;
     int lastTopRow = last % 20;
@@ -326,7 +326,7 @@ public class ExtraHeartRenderHandler {
    * @param end         Above the last heart to renderer
    * @param half        If true, renders an extra half heart
    */
-  private void renderHeartRow(GuiGraphics graphics, int x, int y, int indexOffset, int uOffset, int vOffset, int start, int end, boolean half) {
+  private void renderHeartRow(GuiGraphicsExtractor graphics, int x, int y, int indexOffset, int uOffset, int vOffset, int start, int end, boolean half) {
     // draw full hearts
     for (int i = start; i < end; i += 1) {
       graphics.blit(RenderPipelines.GUI_TEXTURED, ICON_HEARTS, x + HEART_OFFSET * i, y + offsets[i + indexOffset], (float) uOffset, (float) vOffset, HEART_SIZE, HEART_SIZE, 256, 256);

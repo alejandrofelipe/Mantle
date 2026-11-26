@@ -4,7 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
-import net.minecraft.client.renderer.block.model.BlockModel;
+import net.minecraft.client.resources.model.cuboid.CuboidModel;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.GsonHelper;
 import net.neoforged.neoforge.client.model.UnbakedModelLoader;
@@ -14,14 +14,14 @@ import net.neoforged.fml.ModList;
  * Loads the first model from a list of models that has a loaded mod ID, ideal for optional CTM model support.
  * <p>
  * In 1.21.4 the geometry-loader system was replaced by {@link UnbakedModelLoader}, which returns an
- * {@link net.minecraft.client.resources.model.UnbakedModel} directly; the chosen child {@link BlockModel} is itself an
+ * {@link net.minecraft.client.resources.model.UnbakedModel} directly; the chosen child {@link CuboidModel} is itself an
  * unbaked model, so it is returned as-is (no wrapper needed).
  */
-public enum FallbackModelLoader implements UnbakedModelLoader<BlockModel> {
+public enum FallbackModelLoader implements UnbakedModelLoader<CuboidModel> {
   INSTANCE;
 
   @Override
-  public BlockModel read(JsonObject data, JsonDeserializationContext context) {
+  public CuboidModel read(JsonObject data, JsonDeserializationContext context) {
     JsonArray models = GsonHelper.getAsJsonArray(data, "models");
     if (models.size() < 2) {
       throw new JsonSyntaxException("Fallback model must contain at least 2 models");
@@ -45,7 +45,7 @@ public enum FallbackModelLoader implements UnbakedModelLoader<BlockModel> {
       if (modId == null || ModList.get().isLoaded(modId)) {
         try {
           // the deserialized block model is already an UnbakedModel; return it directly so it bakes via vanilla logic
-          return context.deserialize(entry, BlockModel.class);
+          return context.deserialize(entry, CuboidModel.class);
         } catch (JsonSyntaxException e) {
           // wrap exceptions to make it more clear what failed
           throw new JsonSyntaxException("Failed to parse fallback model " + debugName, e);

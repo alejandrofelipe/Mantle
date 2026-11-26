@@ -4,17 +4,17 @@ import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Transformation;
-import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.renderer.block.model.TextureSlots;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.sprite.TextureSlots;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.Material;
+import net.minecraft.client.resources.model.sprite.SpriteId;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ModelDebugName;
-import net.minecraft.client.resources.model.ModelState;
-import net.minecraft.client.resources.model.QuadCollection;
-import net.minecraft.client.resources.model.UnbakedGeometry;
+import net.minecraft.client.renderer.block.dispatch.ModelState;
+import net.minecraft.client.resources.model.geometry.QuadCollection;
+import net.minecraft.client.resources.model.geometry.UnbakedGeometry;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
 import net.minecraft.resources.Identifier;
@@ -130,9 +130,9 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
   /** Bakes the layers into a quad collection, used as this model's geometry */
   private QuadCollection bake(TextureSlots textureSlots, ModelBaker baker, ModelState modelTransform, ModelDebugName debugName, ContextMap additionalProperties) {
     // gather the layer materials from the resolved texture slots
-    List<Material> textures = new ArrayList<>();
+    List<SpriteId> textures = new ArrayList<>();
     for (int i = 0; ; i++) {
-      Material material = textureSlots.getMaterial("layer" + i);
+      SpriteId material = textureSlots.getMaterial("layer" + i);
       if (material == null) {
         break;
       }
@@ -141,7 +141,7 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
     if (textures.isEmpty()) {
       throw new IllegalStateException("Empty textures list");
     }
-    Function<Material,TextureAtlasSprite> spriteGetter = material -> baker.sprites().get(material, debugName);
+    Function<SpriteId,TextureAtlasSprite> spriteGetter = material -> baker.sprites().get(material, debugName);
 
     // setup quad building
     ReversedListBuilder<List<BakedQuad>> quadBuilder = new ReversedListBuilder<>();

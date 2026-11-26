@@ -6,13 +6,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.Sheets;
 import net.minecraft.client.renderer.blockentity.HangingSignRenderer;
-import net.minecraft.client.renderer.blockentity.SignRenderer;
+import net.minecraft.client.renderer.blockentity.StandingSignRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -97,7 +97,7 @@ public class ClientEvents {
   @SubscribeEvent
   static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
     if (MantleRegistrations.SIGN != null) {
-      event.registerBlockEntityRenderer(MantleRegistrations.SIGN, SignRenderer::new);
+      event.registerBlockEntityRenderer(MantleRegistrations.SIGN, StandingSignRenderer::new);
     }
     if (MantleRegistrations.HANGING_SIGN != null) {
       event.registerBlockEntityRenderer(MantleRegistrations.HANGING_SIGN, HangingSignRenderer::new);
@@ -202,7 +202,7 @@ public class ClientEvents {
     }
 
     // show attack indicator
-    GuiGraphics graphics = event.getGuiGraphics();
+    GuiGraphicsExtractor graphics = event.getGuiGraphics();
     switch (indicator) {
       case CROSSHAIR:
         if (!isHotbar && minecraft.options.getCameraType().isFirstPerson()) {
@@ -312,9 +312,9 @@ public class ClientEvents {
       return;
     }
     pendingGaugeTooltip = null;
-    // draws immediately, bypassing the setTooltipForNextFrame queue: that queue is only drawn by Screen#renderWithTooltip, and GuiGraphics is
+    // draws immediately, bypassing the setTooltipForNextFrame queue: that queue is only drawn by Screen#renderWithTooltip, and GuiGraphicsExtractor is
     // recreated each frame, so without a screen open a deferred tooltip would never show. A new stratum keeps it above the whole HUD.
-    GuiGraphics graphics = event.getGuiGraphics();
+    GuiGraphicsExtractor graphics = event.getGuiGraphics();
     Font font = Minecraft.getInstance().font;
     int x = graphics.guiWidth() / 2;
     int y = graphics.guiHeight() / 2;

@@ -24,6 +24,7 @@ All loaders are registered by Mantle under the `mantle` namespace during `ModelE
 | `slimeknights.mantle.client.render.MantleShaders` | Registers and selects Mantle's `fluid` and `block_fullbright` shaders |
 | `slimeknights.mantle.client.render.FluidRenderer` | Static helpers to render fluid cuboids/cameras into a `VertexConsumer` |
 | `slimeknights.mantle.client.render.FluidCuboid` | Loadable data class describing a fluid box (`from`/`to`/per-face flow + rotation) |
+| `slimeknights.mantle.client.render.FluidRenderInfo` | Sprites, tint, light level and gas flag of a fluid, resolved at render state extraction for the two-phase `FluidRenderer.submit*` methods |
 
 Datagen builders live in `slimeknights.mantle.client.model.builder`: `RetexturedModelBuilder`, `ConnectedModelBuilder`, `NBTKeyModelBuilder`, `ColoredModelBuilder`, `MantleItemLayerBuilder`, `FallbackModelBuilder`.
 
@@ -151,6 +152,34 @@ public class TankRenderer implements BlockEntityRenderer<TankBlockEntity> {
 ```
 
 For a fixed (always-full) volume use `FluidRenderer.renderCuboids(matrices, buffer.getBuffer(MantleRenderTypes.FLUID), List.of(CUBOID), fluid, light)`, or `renderCuboid(...)` for a single box with an explicit `from`/`to`. `FluidCuboid` also has a data-driven `REGISTRY` (`mantle/model/block_fluids`) if you want to define the boxes per blockstate in JSON instead of in code.
+
+### Two-phase world fluids (1.21.9+, seam added after 1.21.11 / Mantle 1.17)
+
+Since 1.21.9 block entity renderers extract a render state, then submit geometry that the feature dispatcher draws later in
+the frame. The example above is the 1.21.1 shape; today a renderer resolves a **`FluidRenderInfo`** in
+`extractRenderState` and only passes it to a `FluidRenderer.submit*` method in `submit` — the geometry lambdas never read the
+fluid type, and the downstream renderer never touches a `VertexConsumer`, a render type or `IClientFluidTypeExtensions`:
+
+| Method | Draws |
+|---|---|
+| `FluidRenderInfo.of(FluidStack)` → `@Nullable FluidRenderInfo` | still/flowing sprites, ARGB tint, light level, gas flag; `null` for an empty stack. `withOpacity(int)` fades the alpha (0–255), `light(int)` applies the fluid's light level to a packed light |
+| `submitCuboid(PoseStack, SubmitNodeCollector, FluidCuboid, FluidRenderInfo, int light)` | one full cuboid on `FLUID`; gases flip |
+| `submitPouring(PoseStack, SubmitNodeCollector, List<FluidCuboid>, List<List<FluidCuboid>> below, FluidRenderInfo, int light)` | faucet/channel streams: the cuboids, then `below[i]` drawn `i + 1` blocks down (from `RenderingHelper.getFaucetFluids` at extract); never flips gases. Rotate first with `RenderingHelper.applyRotation` |
+| `submitTiledBox(PoseStack, SubmitNodeCollector, FluidRenderInfo, Vector3fc from, Vector3fc to, int light)` | a multi-block box (multiblock tank layer): six outer faces tiled per block, `FLUID_NO_CULL`, bottom raised 0.001 against z-fighting; gases flip |
+
+```java
+// extract
+state.fluid = FluidRenderInfo.of(blockEntity.getFluid());
+// submit
+if (state.fluid != null) {
+  FluidRenderer.submitCuboid(matrices, collector, CUBOID, state.fluid, state.lightCoords);
+}
+```
+
+`MantleRenderTypes.FLUID_NO_CULL` is `FLUID` with culling off (pipelines `mantle:pipeline/fluid_no_cull` and
+`fluid_no_fog_no_cull`, chosen by the same fog-fix config). Submits of one render type are batched into one buffer in
+submission order and sorted on upload, so splitting a draw into several submits does not change the picture. The older
+`submitCuboids`/`submitScaledCuboid(…, FluidStack, …)` stay for tanks that scale with the amount.
 
 The fluid render type uses `MantleRenderTypes.FLUID_SHADER`, which `MantleShaders.getConfiguredFluidShader()` swaps between Mantle's custom `fluid` shader (correct fog) and vanilla's `position_color_tex_lightmap` shader based on the `ENABLE_FLUID_FOG_FIX` client config — so fog renders correctly on the fluid while staying compatible with shader packs when the user opts out. The shaders are registered in `MantleShaders.registerShaders` on `RegisterShadersEvent`.
 

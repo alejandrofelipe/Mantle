@@ -381,7 +381,7 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 Runs the JUnit 5 + Mockito unit suite (`src/test/java`, `slimeknights.tconstruct.*`) on a plain JVM —
-no Minecraft boot. Current suite (1.21.11) = 796 tests: 794 passing + 2 `@Disabled` (each carries its reason in-code).
+no Minecraft boot. Current suite (1.21.11) = 799 tests: 797 passing + 2 `@Disabled` (each carries its reason in-code).
 Mantle has no test source set: its unit tests (transfer helpers, `SingleFluidTank`, datagen cache keeper, …) live in this
 suite.
 Reports land in `build/reports/tests/test/` (HTML) and `build/test-results/test/` (JUnit XML).
@@ -455,7 +455,7 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 Boots a real client straight into the committed superflat world `UITest` (`--quickPlaySingleplayer`,
-1280×720, `-Dmantle.uitest=true`), drives the 47 registered scenarios (`tinker_station`, `part_builder`,
+1280×720, `-Dmantle.uitest=true`), drives the 48 registered scenarios (`tinker_station`, `part_builder`,
 `crafting_station`, `smeltery`, `melter`, `casting_pour`, `book_materials_and_you`, `jei_melting_category`,
 `jei_item_list_cleanup`, `book_interior`, `station_reflow`, `station_collapsed`,
 `station_collapsed_overlay`, `extra_hearts`, `dynamic_block_models` — connected glass, a retextured table and a filled
@@ -474,11 +474,11 @@ with a carried stack), `jei_tank_clickable` / `jei_smeltery_tank_clickable` / `j
 `jei_smeltery_slot` (JEI mouse areas match the cursor), `jei_recipe_transfer` (transfer from a side-inventory chest) and
 `jei_category_tooltips` (no-GUI check of the JEI category tooltip lines), and since 1.21.11: `item_atlas_grid` (item
 icons across the blocks/items atlas split), `trimmed_armor` / `worn_armor` (worn Tinkers armor and trims, with pixel
-asserts), `jei_tinker_station_transfer` / `jei_tool_inventory_transfer` (JEI 27 transfers)), writes
+asserts), `jei_tinker_station_transfer` / `jei_tool_inventory_transfer` (JEI 27 transfers), and since the R3 pilot `smeltery_tank_world` (the in-world smeltery tank: a liquid below a gas, pixel asserts)), writes
 `run/clientUiTest/uitest-screenshots/*.png` +
 `run/clientUiTest/uitest-results.json` (scenario id → `"ok"` / `"fail: ..."`), then **exits on its own**
 (verified full run ≈ 6-7 min cold including the build, ~3 min in-world, zero leftover
-processes). **Do not interact with the window while it runs.** A green 1.21.11 run records 48 results: the 47 scenarios
+processes). **Do not interact with the window while it runs.** A green 1.21.11 run records 49 results: the 48 scenarios
 plus `mantle:suite_setup` (below).
 
 > **The task fails on any failing result (since M5).** The client always exits 0, so `runClientUiTest` deletes
@@ -540,7 +540,7 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 The suite logs `uitest: filtered to N of M scenario(s) via mantle.uitest.only=station_`; an empty match
-logs a warning and finishes cleanly (no crash; the task passes with only `mantle:suite_setup` in the results). Property unset = all 47 scenarios run (the default).
+logs a warning and finishes cleanly (no crash; the task passes with only `mantle:suite_setup` in the results). Property unset = all 48 scenarios run (the default).
 
 **gametest** — 1.21.5: `-PgametestOnly=<selector>` forwards to the gametest launcher's `--tests` (wildcards
 allowed), e.g. `runGameTestServer -PgametestOnly=tconstruct:smeltery_*`; unset = all 159 tests (158 Tinkers +

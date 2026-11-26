@@ -327,6 +327,18 @@ to manual smoke testing after runtime-affecting changes: `test` for the plain-JV
 Same `JAVA_HOME` + `-p` pattern as the
 [canonical invocation](#the-canonical-invocation), just pointed at `tinkers` instead of `repo`.
 
+> **Boundary contracts (R1).** [`tinkers/docs/boundary-contracts.md`](../../tinkers/docs/boundary-contracts.md) maps every
+> vanilla/NeoForge integration point to the test that guards it (plus a gaps list) — review it in each milestone's
+> Phase 0; a new integration point gets a row and a guard.
+>
+> **Datagen golden diff.** After `runData` + `runServerData`, check that generated resources didn't change unexpectedly
+> (pass `-Allow '<glob,...>'` for outputs the step is meant to change; details in
+> [`scripts/verify-generated/README.md`](../scripts/verify-generated/README.md)):
+> ```powershell
+> pwsh -NoProfile -File "C:\Users\aleja\DEV\New Tinkers\repo\scripts\verify-generated\Test-GeneratedUnchanged.ps1" -Repo "C:\Users\aleja\DEV\New Tinkers\tinkers"
+> pwsh -NoProfile -File "C:\Users\aleja\DEV\New Tinkers\repo\scripts\verify-generated\Test-GeneratedUnchanged.ps1" -Repo "C:\Users\aleja\DEV\New Tinkers\repo"
+> ```
+
 ### `test` (JVM unit tests)
 
 ```powershell

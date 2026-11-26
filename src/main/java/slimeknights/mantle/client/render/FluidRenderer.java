@@ -510,8 +510,8 @@ public class FluidRenderer {
    * @param end    Range end
    * @return  {@code start}, the whole block coordinates between, and {@code end}
    */
-  private static float[] tiledBounds(float start, float end) {
-    // ignoring the decimals of start counts the whole blocks crossed, else e.g. 2.3 to 5.1 would give 2.8 (2) instead of 2.3, 3, 4, 5.1
+  static float[] tiledBounds(float start, float end) { // package-private for FluidRendererTiledBoundsTest
+    // ignoring the decimals of start counts the block edges crossed, else e.g. 2.3 to 5.1 would give 2.8 (2) instead of 3 (2.3, 3, 4, 5, 5.1)
     int delta = (int) (end - (int) start);
     // except when end lies exactly on a block edge, which would repeat the last face: 1 to 3 would give 1, 2, 3, 3
     if (end % 1d == 0) {

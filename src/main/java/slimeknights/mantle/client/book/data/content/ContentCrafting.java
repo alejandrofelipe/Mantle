@@ -30,7 +30,7 @@ import slimeknights.mantle.util.html.HtmlElement;
 import slimeknights.mantle.util.html.HtmlGroup;
 import slimeknights.mantle.util.html.HtmlSerializable;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -58,8 +58,7 @@ public class ContentCrafting extends PageContent {
   public String grid_size = "auto";
   public IngredientData[][] grid;
   public IngredientData result;
-  @Nullable
-  public TextData[] description;
+  public TextData @Nullable [] description;
   public String recipe;
 
   @Override

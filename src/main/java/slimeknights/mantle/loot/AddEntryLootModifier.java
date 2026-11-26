@@ -16,7 +16,6 @@ import net.neoforged.neoforge.common.loot.IGlobalLootModifier;
 import net.neoforged.neoforge.common.loot.LootModifier;
 import slimeknights.mantle.loot.condition.ILootModifierCondition;
 
-import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -56,7 +55,6 @@ public class AddEntryLootModifier extends LootModifier {
     return builder(builder.build());
   }
 
-  @Nonnull
   @Override
   protected ObjectArrayList<ItemStack> doApply(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
     // if any condition fails, exit immediately

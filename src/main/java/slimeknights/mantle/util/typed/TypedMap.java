@@ -2,7 +2,7 @@ package slimeknights.mantle.util.typed;
 
 import org.jetbrains.annotations.Contract;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
 /**

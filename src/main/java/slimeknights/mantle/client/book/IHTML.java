@@ -5,7 +5,7 @@ import slimeknights.mantle.client.book.data.BookData;
 import slimeknights.mantle.util.html.HtmlElement;
 import slimeknights.mantle.util.html.HtmlSerializable;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Should be implemented by classes that extend {@link slimeknights.mantle.client.book.data.content.PageContent}

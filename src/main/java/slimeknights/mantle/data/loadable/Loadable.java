@@ -26,7 +26,7 @@ import slimeknights.mantle.data.loadable.mapping.MappedLoadable;
 import slimeknights.mantle.data.loadable.mapping.SetLoadable;
 import slimeknights.mantle.util.typed.TypedMap;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;

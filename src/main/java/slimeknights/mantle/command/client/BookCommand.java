@@ -36,7 +36,7 @@ import slimeknights.mantle.client.screen.book.BookScreen;
 import slimeknights.mantle.command.GeneratePackHelper;
 import slimeknights.mantle.command.MantleCommand;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;

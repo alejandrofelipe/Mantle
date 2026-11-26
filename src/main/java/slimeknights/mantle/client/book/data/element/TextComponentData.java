@@ -10,7 +10,7 @@ import slimeknights.mantle.util.html.HtmlElement;
 import slimeknights.mantle.util.html.HtmlGroup;
 import slimeknights.mantle.util.html.HtmlSerializable;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 @Accessors(fluent = true)
@@ -30,8 +30,7 @@ public class TextComponentData implements IHTML {
   public boolean dropShadow = false;
   public float scale = 1;
   public String action = "";
-  @Nullable
-  public Component[] tooltips = null;
+  public Component @Nullable [] tooltips = null;
 
   public TextComponentData(@Nullable Component text) {
     this.text = text;

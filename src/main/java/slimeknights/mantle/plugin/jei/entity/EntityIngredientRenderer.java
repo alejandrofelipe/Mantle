@@ -26,7 +26,7 @@ import org.joml.Vector2f;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.recipe.ingredient.EntityIngredient;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -60,7 +60,7 @@ public class EntityIngredientRenderer implements IIngredientRenderer<EntityIngre
   }
 
   @Override
-  public void render(GuiGraphics graphics, @Nullable EntityIngredient.EntityInput input, int x, int y, IIngredientRenderContext context) {
+  public void render(GuiGraphics graphics, EntityIngredient.@Nullable EntityInput input, int x, int y, IIngredientRenderContext context) {
     Matrix3x2fStack pose = graphics.pose();
     pose.pushMatrix();
     try {
@@ -74,12 +74,12 @@ public class EntityIngredientRenderer implements IIngredientRenderer<EntityIngre
   /** JEI 27 still declares this overload abstract, but only calls the positioned one above */
   @SuppressWarnings("removal")
   @Override
-  public void render(GuiGraphics graphics, @Nullable EntityIngredient.EntityInput input) {
+  public void render(GuiGraphics graphics, EntityIngredient.@Nullable EntityInput input) {
     render(graphics, input, 0, 0, IIngredientRenderContext.INGREDIENT);
   }
 
   /** Draws the entity in the {@code size} square at the pose origin */
-  private void renderAtOrigin(GuiGraphics graphics, @Nullable EntityIngredient.EntityInput input) {
+  private void renderAtOrigin(GuiGraphics graphics, EntityIngredient.@Nullable EntityInput input) {
     if (input != null) {
       Level world = Minecraft.getInstance().level;
       EntityType<?> type = input.type();

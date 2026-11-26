@@ -28,7 +28,7 @@ import slimeknights.mantle.data.loadable.common.BlockStateLoadable;
 import slimeknights.mantle.network.NetworkWrapper;
 import slimeknights.mantle.network.packet.ISimplePacket;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;

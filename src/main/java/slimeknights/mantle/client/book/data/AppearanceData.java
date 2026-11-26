@@ -6,7 +6,7 @@ import net.minecraft.resources.Identifier;
 import slimeknights.mantle.client.screen.book.TextDataRenderer;
 import slimeknights.mantle.client.screen.book.Textures;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 
 /** This class represents the JSON structure of book appearance */

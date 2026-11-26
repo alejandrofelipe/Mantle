@@ -4,7 +4,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import slimeknights.mantle.block.entity.MantleHangingSignBlockEntity;
 import slimeknights.mantle.block.entity.MantleSignBlockEntity;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import static slimeknights.mantle.registration.RegistrationHelper.injected;
 

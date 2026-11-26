@@ -40,7 +40,7 @@ import slimeknights.mantle.util.ItemLayerPixels;
 import slimeknights.mantle.util.LogicHelper;
 import slimeknights.mantle.util.ReversedListBuilder;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;

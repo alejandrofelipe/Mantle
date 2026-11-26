@@ -39,7 +39,7 @@ import net.neoforged.neoforge.client.model.UnbakedElementsHelper;
 import net.neoforged.neoforge.client.model.UnbakedModelLoader;
 import slimeknights.mantle.client.model.util.ColoredBlockModel.ColorData;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

@@ -5,7 +5,7 @@ import com.google.gson.JsonObject;
 import slimeknights.mantle.data.loadable.Loadable;
 import slimeknights.mantle.util.typed.TypedMap;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 

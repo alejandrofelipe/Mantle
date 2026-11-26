@@ -13,7 +13,7 @@ import net.minecraft.world.level.storage.loot.LootContext;
 import net.neoforged.neoforge.common.conditions.ICondition;
 import slimeknights.mantle.Mantle;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.function.Function;
 

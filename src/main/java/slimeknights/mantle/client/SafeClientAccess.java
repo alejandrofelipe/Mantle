@@ -7,7 +7,7 @@ import net.minecraft.world.level.Level;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLEnvironment;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Class to add one level of static indirection to client only lookups */
 public class SafeClientAccess {

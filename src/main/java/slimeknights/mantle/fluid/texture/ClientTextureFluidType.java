@@ -16,7 +16,7 @@ import org.joml.Vector3f;
 import org.joml.Vector4f;
 import slimeknights.mantle.client.render.FluidRenderer;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Implementation of {@link IClientFluidTypeExtensions} using {@link FluidTexture} */
 @RequiredArgsConstructor

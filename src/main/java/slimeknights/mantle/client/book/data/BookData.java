@@ -19,7 +19,7 @@ import slimeknights.mantle.client.screen.book.BookScreen;
 import slimeknights.mantle.network.MantleNetwork;
 import slimeknights.mantle.network.packet.DropLecternBookPacket;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -204,7 +204,7 @@ public class BookData implements IDataItem, BookScreenOpener {
 
   /** Finds the section with the given name, advancement sensitive */
   @Nullable
-  public SectionData findSection(String name, @Nullable BookScreen.AdvancementCache advancementCache) {
+  public SectionData findSection(String name, BookScreen.@Nullable AdvancementCache advancementCache) {
     for (SectionData section : this.sections) {
       section.update(advancementCache);
 
@@ -217,7 +217,7 @@ public class BookData implements IDataItem, BookScreenOpener {
   }
 
   /** Gets the number corresponding to the first page */
-  public int getFirstPageNumber(SectionData section, @Nullable BookScreen.AdvancementCache advancementCache) {
+  public int getFirstPageNumber(SectionData section, BookScreen.@Nullable AdvancementCache advancementCache) {
     int pages = 0;
 
     for (SectionData sect : this.sections) {
@@ -239,7 +239,7 @@ public class BookData implements IDataItem, BookScreenOpener {
 
   /** Gets the page data for the given page number */
   @Nullable
-  public PageData findPage(int number, @Nullable BookScreen.AdvancementCache advancementCache) {
+  public PageData findPage(int number, BookScreen.@Nullable AdvancementCache advancementCache) {
     if (number < 0) {
       return null;
     }
@@ -266,7 +266,7 @@ public class BookData implements IDataItem, BookScreenOpener {
   /** Gets the page data for the given location */
   @SuppressWarnings("unused") // API
   @Nullable
-  public PageData findPage(String location, @Nullable BookScreen.AdvancementCache advancementCache) {
+  public PageData findPage(String location, BookScreen.@Nullable AdvancementCache advancementCache) {
     return this.findPage(this.findPageNumber(location, advancementCache), advancementCache);
   }
 
@@ -276,7 +276,7 @@ public class BookData implements IDataItem, BookScreenOpener {
   }
 
   /** Gets the page number for the given location, advancement sensitive */
-  public int findPageNumber(String location, @Nullable BookScreen.AdvancementCache advancementCache) {
+  public int findPageNumber(String location, BookScreen.@Nullable AdvancementCache advancementCache) {
     location = location.toLowerCase();
 
     int pages = 0;
@@ -314,7 +314,7 @@ public class BookData implements IDataItem, BookScreenOpener {
   }
 
   /** Gets the number of individual pages */
-  public int getPageCount(@Nullable BookScreen.AdvancementCache advancementCache) {
+  public int getPageCount(BookScreen.@Nullable AdvancementCache advancementCache) {
     int pages = 0;
     for (SectionData section : this.sections) {
       section.update(advancementCache);
@@ -325,12 +325,12 @@ public class BookData implements IDataItem, BookScreenOpener {
   }
 
   /** Gets the number of pages the book can be on, effectively half the individual page count */
-  public int getFullPageCount(@Nullable BookScreen.AdvancementCache advancementCache) {
+  public int getFullPageCount(BookScreen.@Nullable AdvancementCache advancementCache) {
     return (int) Math.ceil((this.getPageCount(advancementCache) - 1) / 2F) + 1;
   }
 
   /** Gets a list of all visible sections, sensitive to current advancements */
-  public List<SectionData> getVisibleSections(@Nullable BookScreen.AdvancementCache advancementCache) {
+  public List<SectionData> getVisibleSections(BookScreen.@Nullable AdvancementCache advancementCache) {
     List<SectionData> visible = new ArrayList<>();
 
     for (SectionData section : this.sections) {

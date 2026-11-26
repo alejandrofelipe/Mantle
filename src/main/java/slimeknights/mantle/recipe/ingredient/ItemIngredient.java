@@ -17,7 +17,7 @@ import slimeknights.mantle.data.loadable.field.RecordField;
 import slimeknights.mantle.data.loadable.field.UnsyncedField;
 import slimeknights.mantle.util.typed.TypedMap;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.stream.Stream;
 

@@ -7,7 +7,7 @@ import net.neoforged.neoforge.common.crafting.IngredientType;
 import slimeknights.mantle.data.loadable.record.RecordLoadable;
 import slimeknights.mantle.recipe.helper.LoadableIngredientSerializer;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /** Ingredient that shows all potion variants on the displayed item list */

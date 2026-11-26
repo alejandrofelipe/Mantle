@@ -20,7 +20,7 @@ import net.neoforged.neoforge.client.RenderTypeGroup;
 import net.neoforged.neoforge.client.model.NeoForgeModelProperties;
 import slimeknights.mantle.client.model.util.ColoredBlockModel.ColorData;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;

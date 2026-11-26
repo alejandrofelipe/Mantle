@@ -11,7 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import slimeknights.mantle.data.loadable.common.NBTLoadable;
 import slimeknights.mantle.recipe.helper.ItemOutput;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Extension of {@link ItemOutput} for datagen of recipes for compat. Should never be used in an actual recipe

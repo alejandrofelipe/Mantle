@@ -302,13 +302,15 @@ pwsh -NoProfile -File "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map\In
 
 Apply each repo's rename in its own commit, then fix the compiler-driven rest by hand.
 
-Three helpers live next to it (same folder, details in its README):
+Four helpers live next to it (same folder, details in its README):
 
 ```powershell
 # seed moved-class rules: imports of <repo> that no longer exist in the target jar (NeoForm raw.jar, after the first build)
 pwsh -NoProfile -File "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map\Find-MovedClasses.ps1" -Root "C:\Users\aleja\DEV\New Tinkers\tinkers" -Jar "<repo>\build\neoForm\neoFormJoined<version>-*\raw.jar"
 # 1.21.11: package-info.java -> JSpecify @NullMarked (dry run; add -Apply)
 pwsh -NoProfile -File "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map\Convert-PackageInfoToNullMarked.ps1" -Root "C:\Users\aleja\DEV\New Tinkers\tinkers"
+# M7 Phase 0.6: javax.annotation (jsr305) -> JSpecify @Nullable with type-use placement (dry run; add -Apply)
+pwsh -NoProfile -File "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map\Convert-NullableToJSpecify.ps1" -Root "C:\Users\aleja\DEV\New Tinkers\tinkers"
 # every access transformer entry must still exist in the target jar (exit 2 + MISSING CLASS / BAD METHOD / BAD FIELD lines)
 pwsh -NoProfile -File "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map\Find-StaleAccessTransformer.ps1" -At "<repo>\src\main\resources\META-INF\accesstransformer.cfg" -Jar "<repo>\build\neoForm\neoFormJoined<version>-*\raw.jar"
 ```
@@ -426,7 +428,7 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 Runs the JUnit 5 + Mockito unit suite (`src/test/java`, `slimeknights.tconstruct.*`) on a plain JVM —
-no Minecraft boot. Current suite (1.21.11) = 799 tests: 797 passing + 2 `@Disabled` (each carries its reason in-code).
+no Minecraft boot. Current suite (1.21.11) = 804 tests: 802 passing + 2 `@Disabled` (each carries its reason in-code).
 Mantle has no test source set: its unit tests (transfer helpers, `SingleFluidTank`, datagen cache keeper, …) live in this
 suite.
 Reports land in `build/reports/tests/test/` (HTML) and `build/test-results/test/` (JUnit XML).
@@ -453,8 +455,8 @@ test methods with its own `@TinkerGameTest(template, timeoutTicks)` and `TinkerG
 each as a `TEST_FUNCTION` + `FunctionGameTestInstance` (id `tconstruct:<method_name>`, structure
 `tconstruct:<template>`, environment `tconstruct:default`) on `RegisterGameTestsEvent`; the server runs every
 registered instance, so the old `neoforge.enabledGameTestNamespaces` property is gone. In-game (dev client):
-`/test run tconstruct:<name>`, `/test runfailed`, … Current suite (1.21.11) = 158 Tinkers tests (+ vanilla's built-in
-`minecraft:always_pass`, so the log says 159) — smeltery/alloyer/casting/tool-crafting
+`/test run tconstruct:<name>`, `/test runfailed`, … Current suite (1.21.11) = 161 Tinkers tests (+ vanilla's built-in
+`minecraft:always_pass`, so the log says 162) — smeltery/alloyer/casting/tool-crafting
 logic (castless casting included), capabilities and the native transfer API (`CapabilityGameTests`,
 `FluidTransferGameTests`, `SmelteryTransferGameTests`: transaction simulate/abort/commit, hopper/pipe interop, item
 `ItemAccess` capabilities), menu slots over native handlers (`MenuSlotGameTests`, incl. the `slot_safety_*` safety net),
@@ -475,9 +477,10 @@ never serializes; `client_synced_recipe_types_complete`: every recipe type the c
 `HandlerRegistrationGameTests` (every block entity type and item exposes exactly its expected item/fluid handlers), and
 since 1.21.11 `PermissionGameTests` (op levels through `MantleCommand.hasPermission`), `DeathGameTests` (soulbound with
 the `keep_inventory` game rule off/on), `ProjectileGameTests` (access-transformed arrow damage/pierce) and the equipment
-asset checks `armor_equipment_assets` / `jsonthings_armor_equipment_assets`. Every guard is mapped to its integration
-point in the boundary-contract catalogue. A green run takes ~1-4 min (cold) and prints
-`All 159 required tests passed :)` + `BUILD SUCCESSFUL` (1.21.11).
+asset checks `armor_equipment_assets` / `jsonthings_armor_equipment_assets`, and since M7 Phase 0.5c
+`DatapackCompletenessGameTests` (every shipped recipe, loot table and global loot modifier JSON whose `neoforge:conditions`
+pass is loaded). Every guard is mapped to its integration point in the boundary-contract catalogue. A green run takes ~1-4 min (cold) and prints
+`All 162 required tests passed :)` + `BUILD SUCCESSFUL` (1.21.11).
 
 > **Fresh world every run.** `runGameTestServer` depends on `cleanGameTestWorld`, which deletes
 > `run/gameTestServer/world` first — the 1.21.4 server reused that world forever (flat preset, seed 0), so
@@ -588,7 +591,7 @@ The suite logs `uitest: filtered to N of M scenario(s) via mantle.uitest.only=st
 logs a warning and finishes cleanly (no crash; the task passes with only `mantle:suite_setup` in the results). Property unset = all 48 scenarios run (the default).
 
 **gametest** — 1.21.5: `-PgametestOnly=<selector>` forwards to the gametest launcher's `--tests` (wildcards
-allowed), e.g. `runGameTestServer -PgametestOnly=tconstruct:smeltery_*`; unset = all 159 tests (158 Tinkers +
+allowed), e.g. `runGameTestServer -PgametestOnly=tconstruct:smeltery_*`; unset = all 162 tests (161 Tinkers +
 `minecraft:always_pass`).
 
 ---

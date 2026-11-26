@@ -11,7 +11,7 @@ import slimeknights.mantle.util.html.HtmlElement;
 import slimeknights.mantle.util.html.HtmlGroup;
 import slimeknights.mantle.util.html.HtmlSerializable;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -44,8 +44,7 @@ public class TextData implements IHTML {
   public boolean dropshadow = false;
   public float scale = 1;
   public String action = "";
-  @Nullable
-  public Component[] tooltip = null;
+  public Component @Nullable [] tooltip = null;
 
   public TextData(String text) {
     this.text = text;
@@ -114,7 +113,7 @@ public class TextData implements IHTML {
    * @param book parent BookData
    * @return HTML p and ul tags
    */
-  public static HtmlGroup toHtml(@Nullable TextData[] array, BookData book) {
+  public static HtmlGroup toHtml(TextData @Nullable [] array, BookData book) {
     HtmlGroup group = HtmlGroup.indent();
     if (array == null) return group;
 

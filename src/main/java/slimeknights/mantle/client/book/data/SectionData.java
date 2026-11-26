@@ -17,7 +17,7 @@ import slimeknights.mantle.util.DataLoadedConditionContext;
 import slimeknights.mantle.util.html.HtmlElement;
 import slimeknights.mantle.util.html.HtmlSerializable;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -106,7 +106,7 @@ public class SectionData implements IDataItem, IConditional, IHTML {
     return pages.stream().filter(PageData::isConditionMet).collect(Collectors.toCollection(ArrayList::new));
   }
 
-  public void update(@Nullable BookScreen.AdvancementCache advancementCache) {
+  public void update(BookScreen.@Nullable AdvancementCache advancementCache) {
   }
 
   public String getTitle() {
@@ -118,7 +118,7 @@ public class SectionData implements IDataItem, IConditional, IHTML {
     return this.pages.size();
   }
 
-  public boolean isUnlocked(@Nullable BookScreen.AdvancementCache advancementCache) {
+  public boolean isUnlocked(BookScreen.@Nullable AdvancementCache advancementCache) {
     if (advancementCache == null || this.requirements == null || this.requirements.size() == 0) {
       return true;
     }
@@ -132,7 +132,7 @@ public class SectionData implements IDataItem, IConditional, IHTML {
     return true;
   }
 
-  public static boolean requirementSatisfied(String requirement, @Nullable BookScreen.AdvancementCache advancementCache) {
+  public static boolean requirementSatisfied(String requirement, BookScreen.@Nullable AdvancementCache advancementCache) {
     if (advancementCache == null) {
       return true;
     }

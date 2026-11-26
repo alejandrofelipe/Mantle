@@ -6,7 +6,7 @@ import slimeknights.mantle.client.book.data.BookData;
 import slimeknights.mantle.client.screen.book.element.BookElement;
 import slimeknights.mantle.util.html.HtmlGroup;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 
 public class ContentBlank extends PageContent {

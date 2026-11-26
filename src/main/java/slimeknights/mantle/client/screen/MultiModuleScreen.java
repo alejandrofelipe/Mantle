@@ -16,7 +16,7 @@ import org.joml.Matrix3x2fStack;
 import slimeknights.mantle.inventory.MultiModuleContainerMenu;
 import slimeknights.mantle.inventory.WrapperSlot;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 

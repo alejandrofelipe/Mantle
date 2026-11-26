@@ -33,7 +33,7 @@ import slimeknights.mantle.data.loadable.RegistryJsonOps;
 import slimeknights.mantle.network.MantleNetwork;
 import slimeknights.mantle.util.JsonHelper;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

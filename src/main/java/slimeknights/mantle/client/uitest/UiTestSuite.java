@@ -9,7 +9,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.gamerules.GameRule;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
@@ -98,9 +99,11 @@ public class UiTestSuite {
   /** Server thread: disables mob spawning game rules and discards every mob already in a loaded level. */
   private static void applyWorldSetup(MinecraftServer server) {
     GameRules rules = server.overworld().getGameRules();
-    for (GameRules.Key<GameRules.BooleanValue> rule : List.of(GameRules.RULE_DOMOBSPAWNING, GameRules.RULE_DO_PATROL_SPAWNING,
-                                                              GameRules.RULE_DO_TRADER_SPAWNING, GameRules.RULE_DOINSOMNIA)) {
-      rules.getRule(rule).set(false, server);
+    // 1.21.11: SPAWN_MONSTERS is a sub-gate of SPAWN_MOBS (natural spawning and ServerLevel#isSpawningMonsters both
+    // require SPAWN_MOBS), so turning SPAWN_MOBS off already keeps monsters out
+    for (GameRule<Boolean> rule : List.of(GameRules.SPAWN_MOBS, GameRules.SPAWN_PATROLS,
+                                          GameRules.SPAWN_WANDERING_TRADERS, GameRules.SPAWN_PHANTOMS)) {
+      rules.set(rule, false, server);
     }
     int discarded = 0;
     for (ServerLevel level : server.getAllLevels()) {
@@ -119,8 +122,8 @@ public class UiTestSuite {
   /** Server thread: problems with the applied world setup, empty when fine. */
   private static String checkWorldSetup(MinecraftServer server) {
     List<String> problems = new ArrayList<>();
-    if (server.overworld().getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) {
-      problems.add("doMobSpawning is true");
+    if (server.overworld().getGameRules().get(GameRules.SPAWN_MOBS)) {
+      problems.add("spawn_mobs is true");
     }
     for (ServerLevel level : server.getAllLevels()) {
       int mobs = 0;

@@ -10,7 +10,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
@@ -49,7 +49,7 @@ public class MantleEvents {
     // this is the latest we can add slot markers to the items so we can return them to slots
     LivingEntity entity = event.getEntity();
     // 1.21.4: getGameRules() moved to ServerLevel; these death/drop events always fire server-side
-    if (entity.level() instanceof ServerLevel serverLevel && !serverLevel.getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY) && entity instanceof Player player && !(player instanceof FakePlayer)) {
+    if (entity.level() instanceof ServerLevel serverLevel && !serverLevel.getGameRules().get(GameRules.KEEP_INVENTORY) && entity instanceof Player player && !(player instanceof FakePlayer)) {
       Inventory inventory = player.getInventory();
 
       // just iterate the whole inventory, no slot specific behavior
@@ -69,7 +69,7 @@ public class MantleEvents {
   static void onPlayerDropItems(LivingDropsEvent event) {
     // only care about real players with keep inventory off
     LivingEntity entity = event.getEntity();
-    if (entity.level() instanceof ServerLevel serverLevel && !serverLevel.getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY) && entity instanceof Player player && !(entity instanceof FakePlayer)) {
+    if (entity.level() instanceof ServerLevel serverLevel && !serverLevel.getGameRules().get(GameRules.KEEP_INVENTORY) && entity instanceof Player player && !(entity instanceof FakePlayer)) {
       Collection<ItemEntity> drops = event.getDrops();
       Iterator<ItemEntity> iter = drops.iterator();
       Inventory inventory = player.getInventory();
@@ -126,7 +126,7 @@ public class MantleEvents {
     Player original = event.getOriginal();
     Player clone = event.getEntity();
     // inventory already copied
-    if (!(clone.level() instanceof ServerLevel serverLevel) || serverLevel.getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY) || original.isSpectator()) {
+    if (!(clone.level() instanceof ServerLevel serverLevel) || serverLevel.getGameRules().get(GameRules.KEEP_INVENTORY) || original.isSpectator()) {
       return;
     }
     // find items with the soulbound tag set and move them over

@@ -24,11 +24,11 @@ public class EntityIngredientHelper implements IIngredientHelper<EntityIngredien
 
   @Override
   public String getUid(EntityIngredient.EntityInput type, UidContext context) {
-    return getResourceLocation(type).toString();
+    return getIdentifier(type).toString();
   }
 
   @Override
-  public Identifier getResourceLocation(EntityIngredient.EntityInput type) {
+  public Identifier getIdentifier(EntityIngredient.EntityInput type) {
     return BuiltInRegistries.ENTITY_TYPE.getKey(type.type());
   }
 
@@ -42,6 +42,6 @@ public class EntityIngredientHelper implements IIngredientHelper<EntityIngredien
     if (type == null) {
       return "null";
     }
-    return getResourceLocation(type).toString();
+    return getIdentifier(type).toString();
   }
 }

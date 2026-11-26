@@ -78,7 +78,7 @@ public class RecipeHelper {
     return manager.getRecipes().stream()
                   .filter(holder -> holder.value().getType() == type)
                   // sort by holder ID to keep order consistent on both sides (ResourceKey is not Comparable, so compare its location), then unwrap to the recipe value
-                  .sorted(Comparator.comparing(holder -> holder.id().location()))
+                  .sorted(Comparator.comparing(holder -> holder.id().identifier()))
                   .map(RecipeHolder::value)
                   .filter(clazz::isInstance)
                   .map(clazz::cast)
@@ -103,7 +103,7 @@ public class RecipeHelper {
           if (m1 && !m2) return 1;
           if (!m1 && m2) return -1;
           // fall back to recipe ID (recipes no longer carry their own ID in 1.21, the holder does; 1.21.4 id is a ResourceKey, compare its location)
-          return h1.id().location().compareTo(h2.id().location());
+          return h1.id().identifier().compareTo(h2.id().identifier());
         })
         .flatMap((holder) -> {
           Recipe<?> recipe = holder.value();

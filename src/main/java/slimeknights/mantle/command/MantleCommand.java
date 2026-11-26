@@ -50,13 +50,13 @@ public class MantleCommand {
     // register interesting sources
     // 1.21: getLootData()/LootDataType were removed; loot tables are now a reloadable registry.
     // ReloadableServerRegistries.Holder#getKeys lists the ids for a given registry key.
-    SourcesCommand.register(Registries.LOOT_TABLE.location().getPath(), (context, builder)
+    SourcesCommand.register(Registries.LOOT_TABLE.identifier().getPath(), (context, builder)
       -> SharedSuggestionProvider.suggestResource(
-        context.getSource().getServer().reloadableRegistries().lookup().lookupOrThrow(Registries.LOOT_TABLE).listElementIds().map(ResourceKey::location), builder));
+        context.getSource().getServer().reloadableRegistries().lookup().lookupOrThrow(Registries.LOOT_TABLE).listElementIds().map(ResourceKey::identifier), builder));
     // 1.21: the datapack folder is now "recipe" (was "recipes"); the subcommand keeps its "recipes" literal
     SourcesCommand.register("recipes", "recipe", ".json", (context, builder)
       // 1.21.4: CommandSourceStack#getRecipeNames was removed; recipe ids come from the server's RecipeManager
-      -> SharedSuggestionProvider.suggestResource(context.getSource().getServer().getRecipeManager().getRecipes().stream().map(holder -> holder.id().location()), builder));
+      -> SharedSuggestionProvider.suggestResource(context.getSource().getServer().getRecipeManager().getRecipes().stream().map(holder -> holder.id().identifier()), builder));
 
     // add command listener
     NeoForge.EVENT_BUS.addListener(MantleCommand::registerCommand);

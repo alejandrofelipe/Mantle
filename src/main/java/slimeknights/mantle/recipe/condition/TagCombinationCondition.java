@@ -28,7 +28,7 @@ public record TagCombinationCondition<T>(List<TagKey<T>> match, @Nullable TagKey
   @SuppressWarnings("unchecked")
   public static final MapCodec<TagCombinationCondition<?>> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
     // default to item registry if registry is unset, save some space in JSON by not setting registry if item (most common)
-    Identifier.CODEC.optionalFieldOf("registry", Registries.ITEM.location()).forGetter(c -> c.match.get(0).registry().location()),
+    Identifier.CODEC.optionalFieldOf("registry", Registries.ITEM.identifier()).forGetter(c -> c.match.get(0).registry().identifier()),
     Identifier.CODEC.listOf().fieldOf("match").forGetter(c -> c.match.stream().map(TagKey::location).toList()),
     Identifier.CODEC.optionalFieldOf("ignore").forGetter(c -> Optional.ofNullable(c.ignore).map(TagKey::location))
   ).apply(inst, (registry, match, ignore) -> {

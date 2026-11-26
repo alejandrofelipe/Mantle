@@ -53,7 +53,7 @@ public abstract class TagCondition<T> implements ICondition {
   public static <C extends TagCondition<?>> MapCodec<C> makeCodec(Function<TagKey<?>,C> constructor) {
     return RecordCodecBuilder.mapCodec(inst -> inst.group(
       // default to item registry if registry is unset, save some space in JSON by not setting registry if item (most common)
-      Identifier.CODEC.optionalFieldOf("registry", Registries.ITEM.location()).forGetter(c -> c.getTag().registry().location()),
+      Identifier.CODEC.optionalFieldOf("registry", Registries.ITEM.identifier()).forGetter(c -> c.getTag().registry().identifier()),
       Identifier.CODEC.fieldOf("tag").forGetter(c -> c.getTag().location())
     ).apply(inst, (registry, tag) -> constructor.apply(TagKey.create(ResourceKey.createRegistryKey(registry), tag))));
   }

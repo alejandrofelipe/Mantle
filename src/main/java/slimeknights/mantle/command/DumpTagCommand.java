@@ -118,7 +118,7 @@ public class DumpTagCommand {
    * @throws CommandSyntaxException  If invalid values are passed
    */
   private static <T> int runGeneric(CommandContext<CommandSourceStack> context, TagSource<T> registry, Action action) throws CommandSyntaxException {
-    Identifier regName = registry.key().location();
+    Identifier regName = registry.key().identifier();
     Identifier name = context.getArgument("name", Identifier.class);
     ResourceManager manager = context.getSource().getServer().getResourceManager();
 

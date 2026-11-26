@@ -68,7 +68,7 @@ public class BlockStateDataMapLoader<T> extends SimpleJsonResourceReloadListener
 
     // parse through block registry, don't care about non-block entries
     for (Entry<ResourceKey<Block>,Block> entry : BuiltInRegistries.BLOCK.entrySet()) {
-      Identifier location = entry.getKey().location();
+      Identifier location = entry.getKey().identifier();
       JsonElement element = jsons.get(location);
       if (element != null) {
         try {

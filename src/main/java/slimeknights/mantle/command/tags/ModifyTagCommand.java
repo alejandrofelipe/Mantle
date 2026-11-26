@@ -87,7 +87,7 @@ public class ModifyTagCommand {
 
   /** Runs the command */
   private static <T> int modify(CommandContext<CommandSourceStack> context, TagSource<T> registry, Action action) throws CommandSyntaxException {
-    Identifier regName = registry.key().location();
+    Identifier regName = registry.key().identifier();
     Identifier tag = context.getArgument("tag", Identifier.class);
     ResourceOrTagKeyArgument.Result entry = ResourceOrTagKeyArgument.get(context, "entry");
 
@@ -151,7 +151,7 @@ public class ModifyTagCommand {
 
   /** Runs the command */
   private static <T> int clear(CommandContext<CommandSourceStack> context, TagSource<T> registry) throws CommandSyntaxException {
-    Identifier regName = registry.key().location();
+    Identifier regName = registry.key().identifier();
     Identifier tag = context.getArgument("tag", Identifier.class);
 
     // setup the pack

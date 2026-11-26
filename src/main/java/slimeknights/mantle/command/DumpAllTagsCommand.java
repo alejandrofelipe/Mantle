@@ -65,7 +65,7 @@ public class DumpAllTagsCommand {
     TagSource<?> registry = TagSourceArgument.get(context);
     int result = runForFolder(context, registry, output);
     // print result
-    context.getSource().sendSuccess(() -> Component.translatable("command.mantle.dump_all_tags.type_success", registry.key().location().toString(), GeneratePackHelper.getOutputComponent(output)), true);
+    context.getSource().sendSuccess(() -> Component.translatable("command.mantle.dump_all_tags.type_success", registry.key().identifier().toString(), GeneratePackHelper.getOutputComponent(output)), true);
     return result;
   }
 
@@ -78,7 +78,7 @@ public class DumpAllTagsCommand {
     Map<Identifier,List<TagLoader.EntryWithSource>> foundTags = Maps.newHashMap();
     MinecraftServer server = context.getSource().getServer();
     ResourceManager manager = server.getResourceManager();
-    Identifier tagType = registry.key().location();
+    Identifier tagType = registry.key().identifier();
 
     // iterate all tags from the datapack
     String dataPackFolder = registry.folder();

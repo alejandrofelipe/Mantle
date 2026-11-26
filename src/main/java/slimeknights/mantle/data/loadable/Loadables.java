@@ -110,7 +110,7 @@ public class Loadables {
 
   /** Creates a resource key loadable */
   public static <T> StringLoadable<ResourceKey<T>> resourceKey(ResourceKey<? extends Registry<T>> registry) {
-    return RESOURCE_LOCATION.flatXmap(key -> ResourceKey.create(registry, key), ResourceKey::location);
+    return RESOURCE_LOCATION.flatXmap(key -> ResourceKey.create(registry, key), ResourceKey::identifier);
   }
 
   /** Maps a loadable to a variant that disallows a particular value */

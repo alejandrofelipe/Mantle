@@ -78,7 +78,7 @@ public class RemoveRecipesCommand {
   /** Suggestion builder for recipe IDs */
   private static final SuggestionProvider<CommandSourceStack> SUGGESTS_RECIPES = (context, builder)
     // 1.21.4: the recipe manager lives on the server and recipe ids come from the holders (getRecipeIds was removed)
-    -> SharedSuggestionProvider.suggestResource(context.getSource().getServer().getRecipeManager().getRecipes().stream().map(holder -> holder.id().location()), builder);
+    -> SharedSuggestionProvider.suggestResource(context.getSource().getServer().getRecipeManager().getRecipes().stream().map(holder -> holder.id().identifier()), builder);
   /** Suggests presets for the command */
   private static final SuggestionProvider<CommandSourceStack> SUGGEST_PRESETS = SourcesCommand.suggestFolder(PRESETS);
 
@@ -191,13 +191,13 @@ public class RemoveRecipesCommand {
         if (removeResult == null || resultMatches(recipe, removeResult, slotContext)) {
           // no input predicate? we are done
           if (removeInput == null) {
-            recipes.add(holder.id().location());
+            recipes.add(holder.id().identifier());
           } else {
             // at least one ingredient must match the ingredient predicate
             ingredientLoop:
             for (Ingredient ingredient : recipe.placementInfo().ingredients()) {
               if (ingredient.items().anyMatch(item -> removeInput.test(item.value()))) {
-                recipes.add(holder.id().location());
+                recipes.add(holder.id().identifier());
                 break ingredientLoop;
               }
             }

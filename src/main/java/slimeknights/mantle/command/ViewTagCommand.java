@@ -45,7 +45,7 @@ public class ViewTagCommand {
     Collection<Identifier> values = registry.keysInTag(name);
     if (values != null) {
       // start building output message
-      MutableComponent output = Component.translatable("command.mantle.view_tag.success", registry.key().location().toString(), name.toString());
+      MutableComponent output = Component.translatable("command.mantle.view_tag.success", registry.key().identifier().toString(), name.toString());
 
       // if no values, print empty
       if (values.isEmpty()) {
@@ -58,7 +58,7 @@ public class ViewTagCommand {
       context.getSource().sendSuccess(() -> output, true);
       return values.size();
     }
-    throw TAG_NOT_FOUND.create(registry.key().location(), name);
+    throw TAG_NOT_FOUND.create(registry.key().identifier(), name);
   }
 
   /**

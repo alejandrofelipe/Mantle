@@ -121,7 +121,7 @@ public class TagsForCommand {
    * @return  Number of tags printed
    */
   private static <T> int printOwningTags(CommandContext<CommandSourceStack> context, TagSource<T> registry, T value, @Nullable Identifier key) {
-    MutableComponent output = Component.translatable("command.mantle.tags_for.success", registry.key().location().toString(), String.valueOf(key));
+    MutableComponent output = Component.translatable("command.mantle.tags_for.success", registry.key().identifier().toString(), String.valueOf(key));
     List<Identifier> tags = registry.tagsFor(value).map(TagKey::location).toList();
     if (tags.isEmpty()) {
       output.append("\n* ").append(NO_TAGS);
@@ -148,7 +148,7 @@ public class TagsForCommand {
     // first, fetch value
     T value = registry.getValue(name);
     if (value == null) {
-      throw VALUE_NOT_FOUND.create(registry.key().location(), name);
+      throw VALUE_NOT_FOUND.create(registry.key().identifier(), name);
     }
     return printOwningTags(context, registry, value, name);
   }

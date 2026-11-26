@@ -90,7 +90,7 @@ public class RegistryDataMapLoader<R,D> extends SimpleJsonResourceReloadListener
     // we only care about registry entry JSONs, so load by iterating the registry and seeing which ones have a JSON in the list
     // any in the list that are not in the registry may be used in parenting but won't be used directly.
     for (Entry<ResourceKey<R>,R> entry : registry.entrySet()) {
-      Identifier location = entry.getKey().location();
+      Identifier location = entry.getKey().identifier();
       JsonElement element = jsons.get(location);
       if (element != null) {
         try {

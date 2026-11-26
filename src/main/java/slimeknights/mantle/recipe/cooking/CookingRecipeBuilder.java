@@ -147,7 +147,7 @@ public class CookingRecipeBuilder<T extends CookingRecipeBuilder<T>> extends Abs
   @Override
   public void save(RecipeOutput output, ResourceKey<Recipe<?>> id) {
     // the convenience saveXxx helpers still take a Identifier path
-    Identifier location = id.location();
+    Identifier location = id.identifier();
     switch (type) {
       case SMELTING -> saveSmelting(output, location);
       case BLASTING -> saveBlasting(output, location);

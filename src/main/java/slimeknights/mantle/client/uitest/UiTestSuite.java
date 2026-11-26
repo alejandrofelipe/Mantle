@@ -130,7 +130,7 @@ public class UiTestSuite {
         }
       }
       if (mobs > 0) {
-        problems.add(mobs + " mob(s) in " + level.dimension().location());
+        problems.add(mobs + " mob(s) in " + level.dimension().identifier());
       }
     }
     return String.join("; ", problems);

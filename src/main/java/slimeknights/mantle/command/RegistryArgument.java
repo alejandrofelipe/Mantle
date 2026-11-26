@@ -41,7 +41,7 @@ public class RegistryArgument {
   @Internal
   static void registerSuggestions() {
     REGISTRY = register(getResource("registry"), (context, builder) ->
-      SharedSuggestionProvider.suggestResource(context.getSource().registryAccess().registries().map(entry -> entry.key().location()), builder));
+      SharedSuggestionProvider.suggestResource(context.getSource().registryAccess().registries().map(entry -> entry.key().identifier()), builder));
     // TODO 1.21: rename to "registry_tags"
     TAG = register(getResource("valid_tags"), (context, builder) -> {
       Registry<?> result = get(context);

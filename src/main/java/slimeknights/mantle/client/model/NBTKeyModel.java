@@ -154,6 +154,8 @@ public class NBTKeyModel extends AbstractUnbakedModel {
 
   /**
    * Gets all variant textures for this model: every texture defined along the resolved chain, then the registered extras.
+   * 1.21.11: these are unbaked materials on the {@link ModelManager#BLOCK_OR_ITEM} pseudo atlas; resolve them with the model
+   * baker's sprite getter or {@link ModelHelper#getSprite(Material)}, or use {@link Baked#getTexture(String)} for concrete atlases.
    * @param resolved  Resolved model using this model
    * @return  Map of variant name to texture
    */
@@ -222,17 +224,20 @@ public class NBTKeyModel extends AbstractUnbakedModel {
       RenderTypeGroup renderTypes = MantleItemLayerModel.getDefaultRenderType(additionalProperties.getOrDefault(NeoForgeModelProperties.RENDER_TYPE, RenderTypeGroup.EMPTY));
 
       // bake all variants now, the textures are all known
-      Map<String,Material> textures = nbtModel.getTextures(resolved);
-      Map<String,Variant> variants = new HashMap<>(textures.size());
-      for (Entry<String,Material> entry : textures.entrySet()) {
+      Map<String,Material> unbakedTextures = nbtModel.getTextures(resolved);
+      Map<String,Material> textures = new HashMap<>(unbakedTextures.size());
+      Map<String,Variant> variants = new HashMap<>(unbakedTextures.size());
+      for (Entry<String,Material> entry : unbakedTextures.entrySet()) {
         TextureAtlasSprite sprite = baker.sprites().get(entry.getValue(), resolved);
+        // 1.21.11: expose the atlas the sprite was found in rather than the block_or_item pseudo atlas, which AtlasManager#get rejects
+        textures.put(entry.getKey(), new Material(sprite.atlasLocation(), entry.getValue().texture()));
         variants.put(entry.getKey(), new Variant(bakeQuads(sprite, BlockModelRotation.IDENTITY, additionalProperties), new ModelRenderProperties(properties.usesBlockLight(), sprite, properties.transforms()), renderTypes));
       }
       Variant defaultVariant = variants.get("default");
       if (defaultVariant == null) {
         defaultVariant = new Variant(resolved.bakeTopGeometry(slots, baker, BlockModelRotation.IDENTITY).getAll(), properties, renderTypes);
       }
-      return new Baked(nbtModel.nbtKey, textures, Map.copyOf(variants), defaultVariant);
+      return new Baked(nbtModel.nbtKey, Map.copyOf(textures), Map.copyOf(variants), defaultVariant);
     }
   }
 
@@ -263,7 +268,7 @@ public class NBTKeyModel extends AbstractUnbakedModel {
     /**
      * Gets the given texture from the model, falling back to the default texture.
      * Look up the baked model with {@code ModelManager#getItemModel(itemModelId)} to use this, e.g. for JEI.
-     * 1.21.11: the material may use the {@link ModelManager#BLOCK_OR_ITEM} pseudo atlas, resolve it with {@link ModelHelper#getSprite(Material)}.
+     * 1.21.11: the material names the atlas the sprite was baked from (items or blocks), so {@code AtlasManager#get} resolves it.
      */
     @Nullable
     public Material getTexture(String name) {

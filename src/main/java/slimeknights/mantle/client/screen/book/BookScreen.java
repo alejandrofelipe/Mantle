@@ -105,9 +105,7 @@ public class BookScreen extends Screen {
     this.book = book;
     this.pageUpdater = pageUpdater;
     this.bookPickup = bookPickup;
-
-    this.minecraft = Minecraft.getInstance();
-    this.font = this.minecraft.font;
+    // 1.21.11: Screen#minecraft/font are final, Screen(Component) already sets them to Minecraft.getInstance() and its font
 
     this.advancementCache = new AdvancementCache();
     if (this.minecraft.player != null) {

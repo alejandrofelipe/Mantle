@@ -197,7 +197,8 @@ public class BookCommand {
 
       bookData.load();
       BookScreen screen = new BookScreen(Component.literal("Book"), bookData, "", null, null);
-      screen.init(Minecraft.getInstance(), width / scale, height / scale);
+      // 1.21.11: init(Minecraft, int, int) became init(int, int); the screen takes the Minecraft instance in its constructor
+      screen.init(width / scale, height / scale);
       screen.drawArrows = false;
       screen.mouseInput = false;
       screen.drawText = !html;
@@ -263,7 +264,8 @@ public class BookCommand {
           gameRenderer.getLighting().setupFor(Lighting.Entry.ITEMS_3D);
           GuiRenderState renderState = gameRenderer.guiRenderState;
           renderState.reset();
-          screen.render(new GuiGraphics(minecraft, renderState), 0, 0, 0);
+          // 1.21.11: GuiGraphics tracks the mouse for text hover effects; -1/-1 lies outside the export so nothing is hovered
+          screen.render(new GuiGraphics(minecraft, renderState, -1, -1), 0, 0, 0);
           // render resets the state once drawn
           gameRenderer.guiRenderer.render(gameRenderer.fogRenderer.getBuffer(FogRenderer.FogMode.NONE));
           // each page is a frame for the GUI renderer, so animated items in the item atlas redraw for the next page

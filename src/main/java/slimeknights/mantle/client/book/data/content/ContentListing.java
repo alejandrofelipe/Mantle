@@ -93,7 +93,7 @@ public class ContentListing extends PageContent {
       yOff = 16;
     }
     if (this.subText != null) {
-      yOff += sectionData.parent.fontRenderer.wordWrapHeight(this.subText, BookScreen.PAGE_WIDTH) * 12 / 9;
+      yOff += wordWrapHeight(sectionData.parent.fontRenderer, this.subText, BookScreen.PAGE_WIDTH) * 12 / 9;
     }
     return getColumnHeight(yOff) / LINE_HEIGHT;
   }
@@ -181,7 +181,7 @@ public class ContentListing extends PageContent {
 
       int yOff = 0;
       if (this.title != null) yOff = 16;
-      if (this.subText != null) yOff += book.fontRenderer.wordWrapHeight(subText, BookScreen.PAGE_WIDTH) * 12 / 9;
+      if (this.subText != null) yOff += wordWrapHeight(book.fontRenderer, subText, BookScreen.PAGE_WIDTH) * 12 / 9;
       int rows = getColumnHeight(yOff) / LINE_HEIGHT;
 
       for (List<TextData> entry : entries) {

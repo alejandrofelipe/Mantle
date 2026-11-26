@@ -70,7 +70,8 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
     }
     // TODO: this is a small ordering change, does it need another hook?
     for (ModuleScreen<?,?> module : this.modules) {
-      module.init(this.minecraft, width, height);
+      // 1.21.11: Screen#init(Minecraft, int, int) became init(int, int); the module got its minecraft/font in its constructor
+      module.init(width, height);
       this.updateSubmodule(module);
     }
   }
@@ -131,11 +132,11 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
   }
 
   @Override
-  public void resize(Minecraft mc, int width, int height) {
-    super.resize(mc, width, height);
+  public void resize(int width, int height) {
+    super.resize(width, height);
 
     for (ModuleScreen<?,?> module : this.modules) {
-      module.resize(mc, width, height);
+      module.resize(width, height);
       this.updateSubmodule(module);
     }
   }
@@ -237,7 +238,7 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
   }
 
   @Override
-  public void renderSlot(GuiGraphics graphics, Slot slotIn) {
+  public void renderSlot(GuiGraphics graphics, Slot slotIn, int mouseX, int mouseY) {
     ModuleScreen<?,?> module = this.getModuleForSlot(slotIn.index);
 
     if (module != null) {
@@ -258,7 +259,7 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
       slotIn.x = wrapper.parent.x;
       slotIn.y = wrapper.parent.y;
     }
-    super.renderSlot(graphics, slotIn);
+    super.renderSlot(graphics, slotIn, mouseX, mouseY);
   }
 
   // note: AbstractContainerScreen#isHovering(Slot, double, double) is now private in 1.21.1, so this no longer overrides it; kept as a public helper

@@ -2,6 +2,8 @@ package slimeknights.mantle.client.book.data.content;
 
 import lombok.Getter;
 import lombok.Setter;
+import net.minecraft.client.gui.Font;
+import net.minecraft.network.chat.Style;
 import slimeknights.mantle.client.book.IHTML;
 import slimeknights.mantle.client.book.data.BookData;
 import slimeknights.mantle.client.book.data.PageData;
@@ -136,6 +138,14 @@ public abstract class PageContent implements IHTML {
     list.add(new TextElement(x, y, w, isLarge ? 11 : 9, title));
   }
 
+  /**
+   * Height of the text word wrapped to the given width, as the removed {@code Font#wordWrapHeight(String, int)} computed it.
+   * 1.21.11 only keeps the {@code FormattedText} overload, which counts a trailing newline as an extra line; splitting the string keeps the old height.
+   */
+  protected static int wordWrapHeight(Font font, String text, int maxWidth) {
+    return font.lineHeight * font.getSplitter().splitLines(text, maxWidth, Style.EMPTY).size();
+  }
+
   /** Adds text to the book at the top */
   public void addText(ArrayList<BookElement> list, String subText, boolean dropShadow) {
     this.addText(list, subText, dropShadow, 0, 0);
@@ -162,7 +172,7 @@ public abstract class PageContent implements IHTML {
       subText.useOldColor = false;
       subText.rgbColor = color;
     }
-    int height = this.parent.parent.parent.fontRenderer.wordWrapHeight(text, BookScreen.PAGE_WIDTH) * 12 / 9;
+    int height = wordWrapHeight(this.parent.parent.parent.fontRenderer, text, BookScreen.PAGE_WIDTH) * 12 / 9;
     list.add(new TextElement(5, y, BookScreen.PAGE_WIDTH, height, subText));
     return height;
   }

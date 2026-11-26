@@ -345,8 +345,8 @@ test methods with its own `@TinkerGameTest(template, timeoutTicks)` and `TinkerG
 each as a `TEST_FUNCTION` + `FunctionGameTestInstance` (id `tconstruct:<method_name>`, structure
 `tconstruct:<template>`, environment `tconstruct:default`) on `RegisterGameTestsEvent`; the server runs every
 registered instance, so the old `neoforge.enabledGameTestNamespaces` property is gone. In-game (dev client):
-`/test run tconstruct:<name>`, `/test runfailed`, … Current suite (1.21.10) = 137 Tinkers tests (+ vanilla's built-in
-`minecraft:always_pass`, so the log says 138) — smeltery/alloyer/casting/tool-crafting
+`/test run tconstruct:<name>`, `/test runfailed`, … Current suite (1.21.10) = 142 Tinkers tests (+ vanilla's built-in
+`minecraft:always_pass`, so the log says 143) — smeltery/alloyer/casting/tool-crafting
 logic (castless casting included), capabilities and the native transfer API (`CapabilityGameTests`,
 `FluidTransferGameTests`, `SmelteryTransferGameTests`: transaction simulate/abort/commit, hopper/pipe interop, item
 `ItemAccess` capabilities), menu slots over native handlers (`MenuSlotGameTests`, incl. the `slot_safety_*` safety net),
@@ -363,7 +363,7 @@ entity and built-tool save → load round-trips checked against the 1.21.5 on-di
 `MantleCommandGameTests` (`/mantle` command suggestions and execution) and `RecipeSyncGameTests`
 (`synced_recipes_stream_codec_round_trip`: every client-synced recipe encoded → decoded → re-encoded with
 `RecipeHolder.STREAM_CODEC`, byte-equal — the only coverage of the dedicated-server network path, since singleplayer
-never serializes). A green run takes ~1-4 min (cold) and prints `All 138 required tests passed :)` +
+never serializes). A green run takes ~1-4 min (cold) and prints `All 143 required tests passed :)` +
 `BUILD SUCCESSFUL` (1.21.10).
 
 > **Fresh world every run.** `runGameTestServer` depends on `cleanGameTestWorld`, which deletes
@@ -471,7 +471,7 @@ The suite logs `uitest: filtered to N of M scenario(s) via mantle.uitest.only=st
 logs a warning and finishes cleanly (no crash; the task passes with only `mantle:suite_setup` in the results). Property unset = all 42 scenarios run (the default).
 
 **gametest** — 1.21.5: `-PgametestOnly=<selector>` forwards to the gametest launcher's `--tests` (wildcards
-allowed), e.g. `runGameTestServer -PgametestOnly=tconstruct:smeltery_*`; unset = all 138 tests (137 Tinkers +
+allowed), e.g. `runGameTestServer -PgametestOnly=tconstruct:smeltery_*`; unset = all 143 tests (142 Tinkers +
 `minecraft:always_pass`).
 
 ---

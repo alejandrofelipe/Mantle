@@ -222,6 +222,10 @@ Set-Location "C:\Users\aleja\DEV\New Tinkers\repo"; $env:JAVA_HOME = "C:\Users\a
   `repo\build\neoForm\neoFormJoined26.1.2-1\raw.jar`.
 - `runClientHotswap` needs a JetBrains Runtime 25 registered in `org.gradle.java.installations.paths` (Tinkers
   `gradle.properties`); the JBR 21 there no longer matches.
+- **Mechanical renames (D-TOOL)**: class rules come from the jar diff (`maps/26.1.2.txt`, regenerated from
+  `maps/26.1.2.overrides.txt`), member renames from the compiler-driven applier with `maps/26.1.2-members.tsv` — workflow
+  under [Mechanical renames](#mechanical-renames-between-versions-rename-map). Baseline proof on Mantle (Phase 0.5b, flow
+  gate, unique errors): 770 → 300 after the map → 263 → 261 after two applier passes (third pass: 0 edits).
 
 ## Task reference
 
@@ -285,7 +289,7 @@ easy to over-match.
 ## Mechanical renames between versions (rename-map)
 
 From M6 (MC 1.21.11) the scripted renames of a version bump (e.g. `ResourceLocation` → `Identifier`) go through
-`scripts/rename-map/`: a map file per milestone (`maps/<version>.txt`, rules `token`/`literal`) applied to
+`scripts/rename-map/`: a map file per milestone (`maps/<version>.txt`, rules `token`/`literal`/`class`) applied to
 `src/**/*.java`. Dry run by default (hits per rule/file + string-literal warnings); `-Apply` rewrites, keeping line endings
 and BOMs. Format, workflow and tests: [`scripts/rename-map/README.md`](../scripts/rename-map/README.md).
 
@@ -312,6 +316,29 @@ pwsh -NoProfile -File "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map\Fi
 None of the rename tools touches `accesstransformer.cfg`, and NeoForge skips a stale AT entry silently — run
 `Find-StaleAccessTransformer.ps1` on both repos after every version bump (needs `JAVA_HOME` for `javap`; see the
 [1.21.11 notes](#12111-notes-m6)).
+
+From M7 (MC 26.1.2) the class rules and the member renames are **derived from the jars**, not written by hand (two Java 25
+single-file programs, JDK `java.lang.classfile` API; `JAVA_HOME` = temurin25). Old jar = the previous version's NeoForm
+`raw.jar` (e.g. `neoFormJoined1.21.11-20251209.172050`), new jar = the target's (`neoFormJoined26.1.2-1`):
+
+```powershell
+$env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin25-jdk\current"; $rm = "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map"
+$old = "C:\Users\aleja\DEV\New Tinkers\repo\build\neoForm\neoFormJoined1.21.11-20251209.172050\raw.jar"
+$new = "C:\Users\aleja\DEV\New Tinkers\repo\build\neoForm\neoFormJoined26.1.2-1\raw.jar"
+# 1. jar diff -> maps/26.1.2.txt (class rules) + maps/26.1.2-members.tsv (member table); ~4 s; read the WARNING lines
+pwsh -NoProfile -File "$rm\Find-ApiRenames.ps1" -OldJar $old -NewJar $new -Overrides "$rm\maps\26.1.2.overrides.txt" -Out "$env:TEMP\apidiff" -MapOut "$rm\maps\26.1.2.txt" -MembersOut "$rm\maps\26.1.2-members.tsv" -Title "MC 1.21.11 -> MC 26.1.2"
+# 2. class rules (dry run first, then -Apply; own commit)
+pwsh -NoProfile -File "$rm\Invoke-RenameMap.ps1" -Root "C:\Users\aleja\DEV\New Tinkers\repo" -Map "$rm\maps\26.1.2.txt"
+# 3. loop: flow-gate compile -> member applier (dry run, then -Apply) -> compile ... until it reports edits=0
+& "C:\Users\aleja\DEV\New Tinkers\repo\gradlew.bat" -p "C:\Users\aleja\DEV\New Tinkers\repo" compileJava --init-script "$rm\flow.init.gradle" *> "$env:TEMP\compile.log"
+pwsh -NoProfile -File "$rm\Invoke-CompilerRenames.ps1" -Log "$env:TEMP\compile.log" -Members "$rm\maps\26.1.2-members.tsv" -Jar $new -Root "C:\Users\aleja\DEV\New Tinkers\repo"
+# Tinkers: -Root "<tinkers>,<repo>" (Mantle sources are indexed for supertypes)
+```
+
+The applier only touches identifiers javac reported (`cannot find symbol` member calls/fields, `does not override`
+declarations) and **reports** unresolved overrides (with the overrides file's hints), ambiguous spots, renames matched by
+descriptor alone (review once each) and possible dead overrides (un-`@Override`d methods whose supertype method was
+renamed/removed). Tests: `Test-FindApiRenames.ps1`, `Test-CompilerRenames.ps1`, `Test-RenameMap.ps1` (README).
 
 ## Git (port workflow)
 

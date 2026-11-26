@@ -12,6 +12,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.random.WeightedList;
+import net.minecraft.world.attribute.EnvironmentAttributeSystem;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -56,6 +57,11 @@ import java.util.function.Predicate;
  * World implementation for the book structures
  */
 public class TemplateLevel extends Level {
+  /**
+   * 1.21.11: environment attributes with no layers, so every attribute reads its default (full sky light, no weather, biome or time effects).
+   * Without layers the system holds no per-tick state, so one instance is shared by every template level.
+   */
+  private static final EnvironmentAttributeSystem ENVIRONMENT_ATTRIBUTES = EnvironmentAttributeSystem.builder().build();
 
   private final Map<MapId, MapItemSavedData> maps = new HashMap<>();
   private final Scoreboard scoreboard = new Scoreboard();
@@ -203,6 +209,11 @@ public class TemplateLevel extends Level {
   @Override
   public float getDayTimeFraction() {
     return 0;
+  }
+
+  @Override
+  public EnvironmentAttributeSystem environmentAttributes() {
+    return ENVIRONMENT_ATTRIBUTES;
   }
 
   @Override

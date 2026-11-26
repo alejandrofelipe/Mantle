@@ -4,6 +4,8 @@
 > `1.21.8` = the 1.21.8 release, `1.21.5` = the 1.21.5 release, `1.21.3` = the 1.21.4 release, `1.21.1` = the 1.21.1
 > release). The 1.21.1 notes below still apply except where the [1.21.4 notes](#1214-notes-m1),
 > [1.21.8 notes](#1218-notes-m4), [1.21.10 notes](#12110-notes-m5) or [1.21.11 notes](#12111-notes-m6) override them.
+> **M7 in progress on branch `26.1.2` (MC 26.1.2 / NeoForge 26.1.2.130): every Gradle command there needs Java 25** — see
+> the [26.1.2 notes](#2612-notes-m7).
 > Migration gotchas: [`1.21.1-to-1.21.4.md`](migration/1.21.1-to-1.21.4.md), [`1.21.4-to-1.21.5.md`](migration/1.21.4-to-1.21.5.md),
 > [`1.21.5-to-1.21.8.md`](migration/1.21.5-to-1.21.8.md), [`1.21.8-to-1.21.10.md`](migration/1.21.8-to-1.21.10.md),
 > [`1.21.10-to-1.21.11.md`](migration/1.21.10-to-1.21.11.md).
@@ -204,6 +206,22 @@ Set-Location "C:\Users\aleja\DEV\New Tinkers\repo"; $env:JAVA_HOME = "C:\Users\a
   atlas), 0 missing textures, no JEI broken-recipe or plugin errors. The 1.21.11 item atlas split fails silently otherwise.
 - JEI API jars for `javap` diffs live under the scoop Gradle home (`C:\Users\aleja\scoop\apps\gradle\current\.gradle\caches`),
   not `~/.gradle`.
+
+## 26.1.2 notes (M7)
+
+- **Java 25** (branch `26.1.2` and later): use `C:\Users\aleja\scoop\apps\temurin25-jdk\current` as `JAVA_HOME` wherever this
+  file says temurin21. Gradle 9.2.1 runs on it, and the build toolchain is 25 in both repos. NeoGradle 7.1.39 + Gradle 9.2.1
+  are unchanged (they match the official `MDK-26.1.2-NeoGradle`):
+  ```powershell
+  $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin25-jdk\current"; & "C:\Users\aleja\DEV\New Tinkers\repo\gradlew.bat" -p "C:\Users\aleja\DEV\New Tinkers\repo" <task>
+  ```
+- **No Parchment**: 26.1 ships unobfuscated with Mojang's parameter names, and the `parchment` block is gone.
+- **Lombok is pinned to 1.18.42** (`lombok { version = … }` in both `build.gradle`): the freefair 8.6 default, 1.18.32, crashes
+  javac 25 with `NoSuchFieldException: com.sun.tools.javac.code.TypeTag :: UNKNOWN`.
+- Cold Mantle setup + `compileJava` takes about 7 min (NeoForm `26.1.2-1`). NeoForm's jar for the rename tools is still
+  `repo\build\neoForm\neoFormJoined26.1.2-1\raw.jar`.
+- `runClientHotswap` needs a JetBrains Runtime 25 registered in `org.gradle.java.installations.paths` (Tinkers
+  `gradle.properties`); the JBR 21 there no longer matches.
 
 ## Task reference
 

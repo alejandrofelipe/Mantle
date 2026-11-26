@@ -13,7 +13,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -120,14 +120,14 @@ public class TagsForCommand {
    * @param <T>         Collection type
    * @return  Number of tags printed
    */
-  private static <T> int printOwningTags(CommandContext<CommandSourceStack> context, TagSource<T> registry, T value, @Nullable ResourceLocation key) {
+  private static <T> int printOwningTags(CommandContext<CommandSourceStack> context, TagSource<T> registry, T value, @Nullable Identifier key) {
     MutableComponent output = Component.translatable("command.mantle.tags_for.success", registry.key().location().toString(), String.valueOf(key));
-    List<ResourceLocation> tags = registry.tagsFor(value).map(TagKey::location).toList();
+    List<Identifier> tags = registry.tagsFor(value).map(TagKey::location).toList();
     if (tags.isEmpty()) {
       output.append("\n* ").append(NO_TAGS);
     } else {
       tags.stream()
-          .sorted(ResourceLocation::compareNamespaced)
+          .sorted(Identifier::compareNamespaced)
           .forEach(tag -> output.append("\n* " + tag));
     }
     context.getSource().sendSuccess(() -> output, true);
@@ -144,7 +144,7 @@ public class TagsForCommand {
 
   /** Runs the registry ID subcommand making generics happy */
   private static <T> int runForIdGeneric(CommandContext<CommandSourceStack> context, TagSource<T> registry) throws CommandSyntaxException {
-    ResourceLocation name = context.getArgument("name", ResourceLocation.class);
+    Identifier name = context.getArgument("name", Identifier.class);
     // first, fetch value
     T value = registry.getValue(name);
     if (value == null) {

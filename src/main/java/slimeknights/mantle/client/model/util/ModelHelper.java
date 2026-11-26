@@ -23,7 +23,7 @@ import net.minecraft.client.resources.model.ModelState;
 import net.minecraft.client.resources.model.ResolvedModel;
 import net.minecraft.core.BlockMath;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -50,7 +50,7 @@ import java.util.function.Function;
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class ModelHelper {
-  private static final Map<Block,ResourceLocation> TEXTURE_NAME_CACHE = new ConcurrentHashMap<>();
+  private static final Map<Block,Identifier> TEXTURE_NAME_CACHE = new ConcurrentHashMap<>();
   /** Listener instance to clear cache */
   public static final ResourceManagerReloadListener LISTENER = manager -> TEXTURE_NAME_CACHE.clear();
 
@@ -60,7 +60,7 @@ public class ModelHelper {
    * @return Texture name for the block
    */
   @SuppressWarnings("deprecation")
-  private static ResourceLocation getParticleTextureInternal(Block block) {
+  private static Identifier getParticleTextureInternal(Block block) {
     // 1.21.5: BlockStateModel#particleIcon() is the context-free particle (deprecated by NeoForge in favor of the level-aware overload)
     TextureAtlasSprite particle = Minecraft.getInstance().getModelManager().getBlockModelShaper().getBlockModel(block.defaultBlockState()).particleIcon();
     //noinspection ConstantConditions  dumb mods returning null particle icons
@@ -75,14 +75,14 @@ public class ModelHelper {
    * @param block Block to fetch
    * @return Texture name for the block
    */
-  public static ResourceLocation getParticleTexture(Block block) {
+  public static Identifier getParticleTexture(Block block) {
     return TEXTURE_NAME_CACHE.computeIfAbsent(block, ModelHelper::getParticleTextureInternal);
   }
 
   /* Texture references */
 
   /** Atlas used for the probe materials in {@link #findReferences(ResolvedModel, Collection, Collection)}, never a real atlas */
-  private static final ResourceLocation REFERENCE_PROBE = ResourceLocation.fromNamespaceAndPath("mantle", "reference_probe");
+  private static final Identifier REFERENCE_PROBE = Identifier.fromNamespaceAndPath("mantle", "reference_probe");
 
   /** Gets all texture names defined along the resolved model chain */
   public static Set<String> getTextureNames(ResolvedModel model) {
@@ -117,7 +117,7 @@ public class ModelHelper {
     Map<Material,String> probeTargets = new HashMap<>();
     int index = 0;
     for (String target : targets) {
-      Material probe = new Material(REFERENCE_PROBE, ResourceLocation.fromNamespaceAndPath("mantle", "probe_" + index));
+      Material probe = new Material(REFERENCE_PROBE, Identifier.fromNamespaceAndPath("mantle", "probe_" + index));
       index++;
       probes.addTexture(target, probe);
       probeTargets.put(probe, target);

@@ -6,7 +6,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.data.recipes.ShapedRecipeBuilder;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.neoforged.neoforge.common.conditions.ICondition;
@@ -21,14 +21,14 @@ import java.util.List;
 @RequiredArgsConstructor(staticName = "fallback")
 public class ShapedFallbackRecipeBuilder {
   private final ShapedRecipeBuilder base;
-  private final List<ResourceLocation> alternatives = new ArrayList<>();
+  private final List<Identifier> alternatives = new ArrayList<>();
 
   /**
    * Adds a single alternative to this recipe. Any matching alternative causes this recipe to fail
    * @param location  Alternative
    * @return  Builder instance
    */
-  public ShapedFallbackRecipeBuilder addAlternative(ResourceLocation location) {
+  public ShapedFallbackRecipeBuilder addAlternative(Identifier location) {
     this.alternatives.add(location);
     return this;
   }
@@ -38,7 +38,7 @@ public class ShapedFallbackRecipeBuilder {
    * @param locations  Alternative list
    * @return  Builder instance
    */
-  public ShapedFallbackRecipeBuilder addAlternatives(Collection<ResourceLocation> locations) {
+  public ShapedFallbackRecipeBuilder addAlternatives(Collection<Identifier> locations) {
     this.alternatives.addAll(locations);
     return this;
   }
@@ -48,13 +48,13 @@ public class ShapedFallbackRecipeBuilder {
    * @param output  Recipe output
    * @param id      Recipe ID
    */
-  public void build(RecipeOutput output, ResourceLocation id) {
+  public void build(RecipeOutput output, Identifier id) {
     // 1.21.4: vanilla RecipeBuilder#save takes a ResourceKey<Recipe<?>>
     base.save(new FallbackOutput(output, List.copyOf(alternatives)), ResourceKey.create(Registries.RECIPE, id));
   }
 
   /** Recipe output that wraps the built shaped recipe into a {@link ShapedFallbackRecipe} before forwarding */
-  private record FallbackOutput(RecipeOutput delegate, List<ResourceLocation> alternatives) implements RecipeOutput {
+  private record FallbackOutput(RecipeOutput delegate, List<Identifier> alternatives) implements RecipeOutput {
     @Override
     public void accept(ResourceKey<Recipe<?>> id, Recipe<?> recipe, @Nullable AdvancementHolder advancement) {
       accept(id, recipe, advancement, new ICondition[0]);

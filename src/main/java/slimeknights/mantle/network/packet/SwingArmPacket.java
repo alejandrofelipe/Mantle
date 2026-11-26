@@ -5,7 +5,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -17,7 +17,7 @@ import slimeknights.mantle.util.OffhandCooldownTracker;
 
 /** Packet to tell a client to swing an entity arm, as the vanilla one resets cooldown */
 public record SwingArmPacket(int entityId, InteractionHand hand) implements IThreadsafePacket {
-  public static final CustomPacketPayload.Type<SwingArmPacket> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Mantle.modId, "swing_arm"));
+  public static final CustomPacketPayload.Type<SwingArmPacket> TYPE = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(Mantle.modId, "swing_arm"));
   public static final StreamCodec<RegistryFriendlyByteBuf, SwingArmPacket> STREAM_CODEC = StreamCodec.composite(
     ByteBufCodecs.VAR_INT, SwingArmPacket::entityId,
     NeoForgeStreamCodecs.enumCodec(InteractionHand.class), SwingArmPacket::hand,

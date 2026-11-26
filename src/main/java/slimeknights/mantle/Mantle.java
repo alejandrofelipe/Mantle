@@ -1,6 +1,6 @@
 package slimeknights.mantle;
 
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
@@ -9,7 +9,7 @@ import net.minecraft.data.PackOutput;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.api.distmarker.Dist;
@@ -270,8 +270,8 @@ public class Mantle {
    * @param name  Name
    * @return  Resource location instance
    */
-  public static ResourceLocation getResource(String name) {
-    return ResourceLocation.fromNamespaceAndPath(modId, name);
+  public static Identifier getResource(String name) {
+    return Identifier.fromNamespaceAndPath(modId, name);
   }
 
   /**
@@ -279,8 +279,8 @@ public class Mantle {
    * @param name  Name
    * @return  Resource location instance
    */
-  public static ResourceLocation commonResource(String name) {
-    return ResourceLocation.fromNamespaceAndPath(COMMON, name);
+  public static Identifier commonResource(String name) {
+    return Identifier.fromNamespaceAndPath(COMMON, name);
   }
 
   /**

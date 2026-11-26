@@ -6,7 +6,7 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormatElement;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -71,7 +71,7 @@ public class MantleShaders {
     .build();
 
   /** Creates a pipeline location under Mantle's namespace */
-  private static ResourceLocation pipeline(String name) {
+  private static Identifier pipeline(String name) {
     return Mantle.getResource("pipeline/" + name);
   }
 

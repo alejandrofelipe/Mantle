@@ -2,9 +2,9 @@ package slimeknights.mantle.loot.condition;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.advancements.critereon.StatePropertiesPredicate;
+import net.minecraft.advancements.criterion.StatePropertiesPredicate;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -21,7 +21,7 @@ import java.util.Set;
 /** Variant of {@link net.minecraft.world.level.storage.loot.predicates.LootItemBlockStatePropertyCondition} that allows using a tag for block type instead of a block */
 public record BlockTagLootCondition(TagKey<Block> tag, Optional<StatePropertiesPredicate> properties) implements LootItemCondition {
   public static final MapCodec<BlockTagLootCondition> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-    ResourceLocation.CODEC.fieldOf("tag").forGetter(c -> c.tag.location()),
+    Identifier.CODEC.fieldOf("tag").forGetter(c -> c.tag.location()),
     StatePropertiesPredicate.CODEC.optionalFieldOf("properties").forGetter(BlockTagLootCondition::properties)
   ).apply(inst, (tag, properties) -> new BlockTagLootCondition(TagKey.create(Registries.BLOCK, tag), properties)));
 

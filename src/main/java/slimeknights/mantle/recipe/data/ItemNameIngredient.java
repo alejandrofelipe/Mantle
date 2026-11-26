@@ -2,7 +2,7 @@ package slimeknights.mantle.recipe.data;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.common.crafting.ICustomIngredient;
@@ -32,23 +32,23 @@ public class ItemNameIngredient implements ICustomIngredient {
     Loadables.RESOURCE_LOCATION.list(1).requiredField("names", ItemNameIngredient::getNames),
     ItemNameIngredient::new));
 
-  private final List<ResourceLocation> names;
-  protected ItemNameIngredient(List<ResourceLocation> names) {
+  private final List<Identifier> names;
+  protected ItemNameIngredient(List<Identifier> names) {
     this.names = names;
   }
 
   /** Creates a new ingredient from a list of names */
-  public static ItemNameIngredient from(List<ResourceLocation> names) {
+  public static ItemNameIngredient from(List<Identifier> names) {
     return new ItemNameIngredient(names);
   }
 
   /** Creates a new ingredient from a list of names */
-  public static ItemNameIngredient from(ResourceLocation... names) {
+  public static ItemNameIngredient from(Identifier... names) {
     return from(Arrays.asList(names));
   }
 
   /** Gets the names referenced by this ingredient */
-  public List<ResourceLocation> getNames() {
+  public List<Identifier> getNames() {
     return names;
   }
 

@@ -5,7 +5,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -21,7 +21,7 @@ import slimeknights.mantle.Mantle;
  * Packet to drop the book as item from lectern
  */
 public record DropLecternBookPacket(BlockPos pos) implements IThreadsafePacket {
-  public static final CustomPacketPayload.Type<DropLecternBookPacket> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Mantle.modId, "drop_lectern_book"));
+  public static final CustomPacketPayload.Type<DropLecternBookPacket> TYPE = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(Mantle.modId, "drop_lectern_book"));
   public static final StreamCodec<RegistryFriendlyByteBuf, DropLecternBookPacket> STREAM_CODEC = StreamCodec.composite(
     BlockPos.STREAM_CODEC, DropLecternBookPacket::pos,
     DropLecternBookPacket::new);

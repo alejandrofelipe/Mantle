@@ -4,7 +4,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -13,7 +13,7 @@ import slimeknights.mantle.client.book.BookHelper;
 
 /** Packet to update the page in a book in the players inventory */
 public record UpdateInventoryPagePacket(int slot, String page) implements IThreadsafePacket {
-  public static final CustomPacketPayload.Type<UpdateInventoryPagePacket> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Mantle.modId, "update_inventory_page"));
+  public static final CustomPacketPayload.Type<UpdateInventoryPagePacket> TYPE = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(Mantle.modId, "update_inventory_page"));
   public static final StreamCodec<RegistryFriendlyByteBuf, UpdateInventoryPagePacket> STREAM_CODEC = StreamCodec.composite(
     ByteBufCodecs.VAR_INT, UpdateInventoryPagePacket::slot,
     ByteBufCodecs.STRING_UTF8, UpdateInventoryPagePacket::page,

@@ -5,7 +5,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import slimeknights.mantle.Mantle;
@@ -16,7 +16,7 @@ import java.util.Set;
 
 /** Packet to sync fluid container transfer */
 public record FluidContainerTransferPacket(Set<Item> items) implements IThreadsafePacket {
-  public static final CustomPacketPayload.Type<FluidContainerTransferPacket> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Mantle.modId, "fluid_container_transfer"));
+  public static final CustomPacketPayload.Type<FluidContainerTransferPacket> TYPE = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(Mantle.modId, "fluid_container_transfer"));
   public static final StreamCodec<RegistryFriendlyByteBuf,FluidContainerTransferPacket> STREAM_CODEC = ByteBufCodecs.<RegistryFriendlyByteBuf,Item,Set<Item>>collection(HashSet::new, ByteBufCodecs.registry(Registries.ITEM))
     .map(FluidContainerTransferPacket::new, packet -> new HashSet<>(packet.items()));
 

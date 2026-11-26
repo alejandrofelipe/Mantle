@@ -11,7 +11,7 @@ import net.minecraft.data.AtlasIds;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
@@ -30,7 +30,7 @@ public class FluidRenderer {
    * @param sprite  Sprite name
    * @return  Sprite location
    */
-  public static TextureAtlasSprite getBlockSprite(ResourceLocation sprite) {
+  public static TextureAtlasSprite getBlockSprite(Identifier sprite) {
     return Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).getSprite(sprite);
   }
 
@@ -441,11 +441,11 @@ public class FluidRenderer {
   }
 
   /**
-   * Same as {@link net.minecraft.client.renderer.ScreenEffectRenderer#renderFluid(Minecraft, PoseStack, MultiBufferSource, ResourceLocation)} but with opacity and color control.
-   * 1.21.5: immediate mode drawing is gone, so this now draws through {@link RenderType#blockScreenEffect(ResourceLocation)} like vanilla,
+   * Same as {@link net.minecraft.client.renderer.ScreenEffectRenderer#renderFluid(Minecraft, PoseStack, MultiBufferSource, Identifier)} but with opacity and color control.
+   * 1.21.5: immediate mode drawing is gone, so this now draws through {@link RenderType#blockScreenEffect(Identifier)} like vanilla,
    * with the tint moved from the shader color into the vertex color.
    */
-  public static void renderCamera(Minecraft minecraft, PoseStack poseStack, MultiBufferSource bufferSource, ResourceLocation texture, float opacity, int color) {
+  public static void renderCamera(Minecraft minecraft, PoseStack poseStack, MultiBufferSource bufferSource, Identifier texture, float opacity, int color) {
     assert minecraft.player != null;
     BlockPos pos = BlockPos.containing(minecraft.player.getX(), minecraft.player.getEyeY(), minecraft.player.getZ());
     Level level = minecraft.player.level();

@@ -6,7 +6,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.data.AtlasIds;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import org.joml.Matrix3x2fStack;
 
@@ -23,7 +23,7 @@ public class SpriteElement extends SizedBookElement {
     this.sprite = sprite;
   }
 
-  public SpriteElement(int x, int y, float scale, ResourceLocation location) {
+  public SpriteElement(int x, int y, float scale, Identifier location) {
     this(x, y, scale, Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).getSprite(location));
   }
 

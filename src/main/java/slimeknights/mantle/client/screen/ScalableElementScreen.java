@@ -2,12 +2,12 @@ package slimeknights.mantle.client.screen;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 // TODO: class needs some rewrites
 public class ScalableElementScreen extends ElementScreen {
 
-  public ScalableElementScreen(ResourceLocation texture, int x, int y, int w, int h, int texW, int texH) {
+  public ScalableElementScreen(Identifier texture, int x, int y, int w, int h, int texW, int texH) {
     super(texture, x, y, w, h, texW, texH);
   }
 

@@ -7,7 +7,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import lombok.RequiredArgsConstructor;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -29,7 +29,7 @@ import java.util.function.Consumer;
 /** Fluid transfer info that fills a fluid into an item */
 @RequiredArgsConstructor
 public class FillFluidContainerTransfer implements IFluidContainerTransfer {
-  public static final ResourceLocation ID = Mantle.getResource("fill_item");
+  public static final Identifier ID = Mantle.getResource("fill_item");
 
   private final Ingredient input;
   private final ItemOutput result;

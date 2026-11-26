@@ -1,7 +1,7 @@
 package slimeknights.mantle.client.model.builder;
 
 import com.google.gson.JsonObject;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.client.model.generators.template.CustomLoaderBuilder;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.model.util.ColoredBlockModel.ColorData;
@@ -24,7 +24,7 @@ public class ColoredModelBuilder extends CustomLoaderBuilder {
     this(Mantle.getResource("colored_block"));
   }
 
-  protected ColoredModelBuilder(ResourceLocation loaderId) {
+  protected ColoredModelBuilder(Identifier loaderId) {
     super(loaderId, true);
   }
 

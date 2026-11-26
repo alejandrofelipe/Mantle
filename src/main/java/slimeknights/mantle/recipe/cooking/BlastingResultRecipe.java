@@ -28,7 +28,7 @@ public class BlastingResultRecipe extends BlastingRecipe implements CookingResul
     BlastingResultRecipe::new);
 
   private final ItemOutput result;
-  // 1.21: vanilla cooking recipes no longer carry a ResourceLocation id (the RecipeHolder does); constructor matches AbstractCookingRecipe(String, CookingBookCategory, Ingredient, ItemStack, float, int)
+  // 1.21: vanilla cooking recipes no longer carry a Identifier id (the RecipeHolder does); constructor matches AbstractCookingRecipe(String, CookingBookCategory, Ingredient, ItemStack, float, int)
   public BlastingResultRecipe(String group, CookingBookCategory category, Ingredient ingredient, ItemOutput result, float experience, int cookingTime) {
     super(group, category, ingredient, ItemStack.EMPTY, experience, cookingTime);
     this.result = result;

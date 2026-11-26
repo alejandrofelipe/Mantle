@@ -9,7 +9,7 @@ import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.data.AtlasIds;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
@@ -28,7 +28,7 @@ public class TextureColorHelper {
   private TextureColorHelper() {}
 
   /** Cache of the color of various textures */
-  private static final Object2IntMap<ResourceLocation> SPRITE_CACHE = new Object2IntOpenHashMap<>();
+  private static final Object2IntMap<Identifier> SPRITE_CACHE = new Object2IntOpenHashMap<>();
   /** Cache of the color of various textures */
   private static final Object2IntMap<Item> ITEM_CACHE = new Object2IntOpenHashMap<>();
   /** Cache of the color of various textures */
@@ -79,7 +79,7 @@ public class TextureColorHelper {
   }
 
   /** Getter mapping a block sprite texture to a single average color */
-  private static final ToIntFunction<ResourceLocation> COMPUTE_SPRITE_COLOR = key -> {
+  private static final ToIntFunction<Identifier> COMPUTE_SPRITE_COLOR = key -> {
     Minecraft mc = Minecraft.getInstance();
     TextureAtlasSprite sprite = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).getSprite(key);
     //noinspection ConstantValue  eh, its better to be safe
@@ -90,13 +90,13 @@ public class TextureColorHelper {
   };
 
   /** Gets the color for the given texture */
-  public static int getAverageColor(ResourceLocation texture) {
+  public static int getAverageColor(Identifier texture) {
     return SPRITE_CACHE.computeIfAbsent(texture, COMPUTE_SPRITE_COLOR);
   }
 
   /** Gets the color for the given sprite. Should be from {@link InventoryMenu#BLOCK_ATLAS} */
   public static int getAverageColor(TextureAtlasSprite sprite) {
-    ResourceLocation name = sprite.contents().name();
+    Identifier name = sprite.contents().name();
     if (SPRITE_CACHE.containsKey(name)) {
       return SPRITE_CACHE.get(name);
     }

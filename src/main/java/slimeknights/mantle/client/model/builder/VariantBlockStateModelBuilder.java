@@ -3,7 +3,7 @@ package slimeknights.mantle.client.model.builder;
 import net.minecraft.client.data.models.MultiVariant;
 import net.minecraft.client.renderer.block.model.Variant;
 import net.minecraft.client.renderer.block.model.VariantMutator;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.client.model.block.CustomUnbakedBlockStateModel;
 import net.neoforged.neoforge.client.model.generators.blockstate.CustomBlockStateModelBuilder;
 import net.neoforged.neoforge.client.model.generators.blockstate.UnbakedMutator;
@@ -31,12 +31,12 @@ public class VariantBlockStateModelBuilder extends CustomBlockStateModelBuilder 
   }
 
   /** Creates a builder for a {@code mantle:connected} block state model */
-  public static VariantBlockStateModelBuilder connected(ResourceLocation model) {
+  public static VariantBlockStateModelBuilder connected(Identifier model) {
     return new VariantBlockStateModelBuilder(ConnectedModel.Unbaked::new, new Variant(model));
   }
 
   /** Creates a builder for a {@code mantle:retextured} block state model */
-  public static VariantBlockStateModelBuilder retextured(ResourceLocation model) {
+  public static VariantBlockStateModelBuilder retextured(Identifier model) {
     return new VariantBlockStateModelBuilder(RetexturedModel.Unbaked::new, new Variant(model));
   }
 

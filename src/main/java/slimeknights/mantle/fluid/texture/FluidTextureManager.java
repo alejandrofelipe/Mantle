@@ -4,7 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.FileToIdConverter;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.ExtraCodecs;
@@ -31,7 +31,7 @@ public class FluidTextureManager implements IEarlySafeManagerReloadListener {
   /** Map of fluid type to texture */
   private Map<FluidType,FluidTexture> textures = Collections.emptyMap();
   /** Fallback texture instance */
-  private static final FluidTexture FALLBACK = new FluidTexture(ResourceLocation.parse("block/water_still"), ResourceLocation.parse("block/water_flow"), null, null, 0, -1, -1, false, false, 0, 0);
+  private static final FluidTexture FALLBACK = new FluidTexture(Identifier.parse("block/water_still"), Identifier.parse("block/water_flow"), null, null, 0, -1, -1, false, false, 0, 0);
 
   private FluidTextureManager() {}
 
@@ -47,7 +47,7 @@ public class FluidTextureManager implements IEarlySafeManagerReloadListener {
   public void onReloadSafe(ResourceManager resourceManager) {
     long time = System.nanoTime();
     // fetch JSONs
-    Map<ResourceLocation,JsonElement> jsons = new HashMap<>();
+    Map<Identifier,JsonElement> jsons = new HashMap<>();
     SimpleJsonResourceReloadListener.scanDirectory(resourceManager, FileToIdConverter.json(FOLDER), JsonOps.INSTANCE, ExtraCodecs.JSON, jsons);
 
     // start building fluid type map
@@ -55,8 +55,8 @@ public class FluidTextureManager implements IEarlySafeManagerReloadListener {
     Registry<FluidType> fluidTypeRegistry = NeoForgeRegistries.FLUID_TYPES;
 
 
-    for (Map.Entry<ResourceLocation,JsonElement> entry : jsons.entrySet()) {
-      ResourceLocation id = entry.getKey();
+    for (Map.Entry<Identifier,JsonElement> entry : jsons.entrySet()) {
+      Identifier id = entry.getKey();
       // first step is to find the matching fluid type, if there is none ignore the file
       FluidType type = fluidTypeRegistry.getValue(id);
       if (type == null || !id.equals(fluidTypeRegistry.getKey(type))) {
@@ -81,24 +81,24 @@ public class FluidTextureManager implements IEarlySafeManagerReloadListener {
   }
 
   /** Gets the still texture for the given fluid */
-  public static ResourceLocation getStillTexture(FluidType fluid) {
+  public static Identifier getStillTexture(FluidType fluid) {
     return getData(fluid).still();
   }
 
   /** Gets the flowing texture for the given fluid */
-  public static ResourceLocation getFlowingTexture(FluidType fluid) {
+  public static Identifier getFlowingTexture(FluidType fluid) {
     return getData(fluid).flowing();
   }
 
   /** Gets the overlay texture for the given fluid */
   @Nullable
-  public static ResourceLocation getOverlayTexture(FluidType fluid) {
+  public static Identifier getOverlayTexture(FluidType fluid) {
     return getData(fluid).overlay();
   }
 
   /** Gets the camera texture for the given fluid */
   @Nullable
-  public static ResourceLocation getCameraTexture(FluidType fluid) {
+  public static Identifier getCameraTexture(FluidType fluid) {
     return getData(fluid).camera();
   }
 

@@ -3,7 +3,7 @@ package slimeknights.mantle.recipe.data;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.common.crafting.ICustomIngredient;
@@ -32,26 +32,26 @@ public class NBTNameIngredient implements ICustomIngredient {
     new CodecLoadable<>(DataComponentPatch.CODEC).defaultField("components", DataComponentPatch.EMPTY, false, NBTNameIngredient::getComponents),
     NBTNameIngredient::new));
 
-  private final ResourceLocation name;
+  private final Identifier name;
   private final DataComponentPatch components;
 
-  protected NBTNameIngredient(ResourceLocation name, DataComponentPatch components) {
+  protected NBTNameIngredient(Identifier name, DataComponentPatch components) {
     this.name = name;
     this.components = components;
   }
 
   /** Creates an ingredient for the given name and component patch */
-  public static NBTNameIngredient from(ResourceLocation name, DataComponentPatch components) {
+  public static NBTNameIngredient from(Identifier name, DataComponentPatch components) {
     return new NBTNameIngredient(name, components);
   }
 
   /** Creates an ingredient for an item that must have no extra components */
-  public static NBTNameIngredient from(ResourceLocation name) {
+  public static NBTNameIngredient from(Identifier name) {
     return new NBTNameIngredient(name, DataComponentPatch.EMPTY);
   }
 
   /** Gets the referenced item name */
-  public ResourceLocation getName() {
+  public Identifier getName() {
     return name;
   }
 

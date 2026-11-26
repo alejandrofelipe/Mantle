@@ -28,7 +28,7 @@ public class SmeltingResultRecipe extends SmeltingRecipe implements CookingResul
     SmeltingResultRecipe::new);
 
   private final ItemOutput result;
-  // 1.21: cooking recipes no longer carry a ResourceLocation id (the RecipeHolder does)
+  // 1.21: cooking recipes no longer carry a Identifier id (the RecipeHolder does)
   public SmeltingResultRecipe(String group, CookingBookCategory category, Ingredient ingredient, ItemOutput result, float experience, int cookingTime) {
     super(group, category, ingredient, ItemStack.EMPTY, experience, cookingTime);
     this.result = result;

@@ -5,7 +5,7 @@ import lombok.NoArgsConstructor;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeInput;
@@ -37,8 +37,8 @@ public class RecipeHelper {
    * @param <C>      Return type
    * @return  Optional of the recipe, or empty if the recipe is missing
    */
-  public static <C extends Recipe<?>> Optional<C> getRecipe(RecipeManager manager, ResourceLocation name, Class<C> clazz) {
-    // 1.21.4: byKey takes a ResourceKey<Recipe<?>> rather than a ResourceLocation
+  public static <C extends Recipe<?>> Optional<C> getRecipe(RecipeManager manager, Identifier name, Class<C> clazz) {
+    // 1.21.4: byKey takes a ResourceKey<Recipe<?>> rather than a Identifier
     return manager.byKey(ResourceKey.create(Registries.RECIPE, name)).map(RecipeHolder::value).filter(clazz::isInstance).map(clazz::cast);
   }
 

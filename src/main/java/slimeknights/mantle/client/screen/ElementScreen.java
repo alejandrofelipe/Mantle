@@ -3,7 +3,7 @@ package slimeknights.mantle.client.screen;
 import lombok.AllArgsConstructor;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /**
  * Represents a GUI element INSIDE the graphics file.
@@ -12,7 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 @AllArgsConstructor
 public class ElementScreen {
   // TODO: can this be final?
-  public ResourceLocation texture;
+  public Identifier texture;
   public final int x;
   public final int y;
   public final int w;

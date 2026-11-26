@@ -5,7 +5,7 @@ import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import net.minecraft.client.renderer.block.model.BlockModel;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.GsonHelper;
 import net.neoforged.neoforge.client.model.UnbakedModelLoader;
 import net.neoforged.fml.ModList;
@@ -37,7 +37,7 @@ public enum FallbackModelLoader implements UnbakedModelLoader<BlockModel> {
       if (entry.has("fallback_mod_id")) {
         modId = GsonHelper.getAsString(entry, "fallback_mod_id");
       } else if (entry.has("loader")) {
-        ResourceLocation loader = ResourceLocation.parse(GsonHelper.getAsString(entry, "loader"));
+        Identifier loader = Identifier.parse(GsonHelper.getAsString(entry, "loader"));
         modId = loader.getNamespace();
       }
 

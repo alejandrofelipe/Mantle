@@ -9,7 +9,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -55,11 +55,11 @@ public final class RetexturedHelper {
    */
   public static final DeferredRegister.DataComponents COMPONENTS = DeferredRegister.createDataComponents(Registries.DATA_COMPONENT_TYPE, Mantle.modId);
   /** Data component storing the texture block id on an item stack, replacing the old {@link #TAG_TEXTURE} string NBT key. */
-  public static final DeferredHolder<DataComponentType<?>,DataComponentType<ResourceLocation>> TEXTURE = COMPONENTS.registerComponentType(
+  public static final DeferredHolder<DataComponentType<?>,DataComponentType<Identifier>> TEXTURE = COMPONENTS.registerComponentType(
     TAG_TEXTURE,
     builder -> builder
-      .persistent(ResourceLocation.CODEC)
-      .networkSynchronized(ResourceLocation.STREAM_CODEC));
+      .persistent(Identifier.CODEC)
+      .networkSynchronized(Identifier.STREAM_CODEC));
 
 
   /* Texture name */
@@ -82,7 +82,7 @@ public final class RetexturedHelper {
    * @return  Texture, or empty string if none
    */
   public static String getTextureName(ItemStack stack) {
-    ResourceLocation texture = stack.get(TEXTURE);
+    Identifier texture = stack.get(TEXTURE);
     return texture == null ? "" : texture.toString();
   }
 
@@ -108,9 +108,9 @@ public final class RetexturedHelper {
    */
   public static Block getBlock(String name) {
     if (!name.isEmpty()) {
-      ResourceLocation location = ResourceLocation.tryParse(name);
+      Identifier location = Identifier.tryParse(name);
       if (location != null) {
-        return BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(name));
+        return BuiltInRegistries.BLOCK.getValue(Identifier.parse(name));
       }
     }
     return Blocks.AIR;
@@ -152,7 +152,7 @@ public final class RetexturedHelper {
     if (name.isEmpty()) {
       stack.remove(TEXTURE);
     } else {
-      ResourceLocation location = ResourceLocation.tryParse(name);
+      Identifier location = Identifier.tryParse(name);
       if (location != null) {
         stack.set(TEXTURE, location);
       } else {

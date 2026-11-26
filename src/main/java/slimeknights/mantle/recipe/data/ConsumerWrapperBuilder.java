@@ -5,7 +5,7 @@ import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.neoforged.neoforge.common.conditions.ICondition;
@@ -21,7 +21,7 @@ import java.util.List;
  * ({@code type}) of the produced JSON. In NeoForge 1.21 recipes serialize through their own serializer codec rather than
  * a {@code FinishedRecipe}, and conditions are applied via {@link RecipeOutput#withConditions(ICondition...)}, so the
  * condition path is the supported behavior. The serializer-override variants are retained for API compatibility but no
- * longer rewrite the recipe type; see {@link #wrap(RecipeSerializer)} / {@link #wrap(ResourceLocation)}.
+ * longer rewrite the recipe type; see {@link #wrap(RecipeSerializer)} / {@link #wrap(Identifier)}.
  */
 @SuppressWarnings("unused")  // API
 public class ConsumerWrapperBuilder {
@@ -29,9 +29,9 @@ public class ConsumerWrapperBuilder {
   @Nullable
   private final RecipeSerializer<?> override;
   @Nullable
-  private final ResourceLocation overrideName;
+  private final Identifier overrideName;
 
-  private ConsumerWrapperBuilder(@Nullable RecipeSerializer<?> override, @Nullable ResourceLocation overrideName) {
+  private ConsumerWrapperBuilder(@Nullable RecipeSerializer<?> override, @Nullable Identifier overrideName) {
     this.override = override;
     this.overrideName = overrideName;
   }
@@ -62,7 +62,7 @@ public class ConsumerWrapperBuilder {
    * @param override Serializer override
    * @return Default serializer builder
    */
-  public static ConsumerWrapperBuilder wrap(ResourceLocation override) {
+  public static ConsumerWrapperBuilder wrap(Identifier override) {
     return new ConsumerWrapperBuilder(null, override);
   }
 

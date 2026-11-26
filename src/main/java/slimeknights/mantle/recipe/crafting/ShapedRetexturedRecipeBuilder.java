@@ -7,7 +7,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.data.recipes.ShapedRecipeBuilder;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -61,7 +61,7 @@ public class ShapedRetexturedRecipeBuilder {
    * @param output    Recipe output
    * @param location  Recipe location
    */
-  public void build(RecipeOutput output, ResourceLocation location) {
+  public void build(RecipeOutput output, Identifier location) {
     this.validate();
     // 1.21.4: vanilla RecipeBuilder#save takes a ResourceKey<Recipe<?>>
     parent.save(new RetexturedOutput(output, texture, matchAll), ResourceKey.create(Registries.RECIPE, location));

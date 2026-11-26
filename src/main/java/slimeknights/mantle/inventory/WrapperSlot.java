@@ -1,6 +1,6 @@
 package slimeknights.mantle.inventory;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -70,7 +70,7 @@ public class WrapperSlot extends Slot {
   }
 
   @Override
-  public ResourceLocation getNoItemIcon() {
+  public Identifier getNoItemIcon() {
     return this.parent.getNoItemIcon();
   }
 
@@ -90,7 +90,7 @@ public class WrapperSlot extends Slot {
   }
 
   @Override
-  public Slot setBackground(ResourceLocation sprite) {
+  public Slot setBackground(Identifier sprite) {
     return this.parent.setBackground(sprite);
   }
 

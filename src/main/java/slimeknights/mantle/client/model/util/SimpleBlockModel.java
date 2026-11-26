@@ -26,7 +26,7 @@ import net.minecraft.client.resources.model.SpriteGetter;
 import net.minecraft.client.resources.model.UnbakedGeometry;
 import net.minecraft.client.resources.model.UnbakedModel;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.context.ContextMap;
 import net.neoforged.neoforge.client.model.AbstractUnbakedModel;
@@ -124,7 +124,7 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
   /**
    * Finds the elements a resolved model bakes: the first element-based geometry along its parent chain. Unlike 1.21.4,
    * vanilla parents are readable here as {@link BlockModel} exposes its {@link SimpleUnbakedGeometry}.
-   * @param model  Resolved model, typically from {@link ModelBaker#getModel(ResourceLocation)}
+   * @param model  Resolved model, typically from {@link ModelBaker#getModel(Identifier)}
    * @return  Elements, or an empty list if the geometry is not element based (e.g. a custom loader)
    */
   public static List<BlockElement> findElements(@Nullable ResolvedModel model) {
@@ -339,11 +339,11 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
   /* Deserializing */
 
   /** Replicates the now-private {@code BlockModel.Deserializer} texture parsing: a leading '#' marks a reference, else a material */
-  private static Either<Material,String> parseTextureLocationOrReference(ResourceLocation atlas, String name) {
+  private static Either<Material,String> parseTextureLocationOrReference(Identifier atlas, String name) {
     if (!name.isEmpty() && name.charAt(0) == '#') {
       return Either.right(name.substring(1));
     }
-    ResourceLocation texture = ResourceLocation.tryParse(name);
+    Identifier texture = Identifier.tryParse(name);
     if (texture == null) {
       throw new JsonSyntaxException(name + " is not valid resource location");
     }
@@ -353,7 +353,7 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
   /** Parses the raw texture reference map from JSON */
   public static Map<String,Either<Material,String>> getTextures(JsonObject json) {
     if (json.has("textures")) {
-      ResourceLocation atlas = TextureAtlas.LOCATION_BLOCKS;
+      Identifier atlas = TextureAtlas.LOCATION_BLOCKS;
       JsonObject textures = GsonHelper.getAsJsonObject(json, "textures");
       Map<String,Either<Material,String>> builder = new HashMap<>(textures.size());
       for (Entry<String,JsonElement> entry : textures.entrySet()) {

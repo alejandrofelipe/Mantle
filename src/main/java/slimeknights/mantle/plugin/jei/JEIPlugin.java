@@ -7,7 +7,7 @@ import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.registration.IModIngredientRegistration;
 import mezz.jei.api.registration.IVanillaCategoryExtensionRegistration;
 import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.screen.MultiModuleScreen;
 import slimeknights.mantle.inventory.MultiModuleContainerMenu;
@@ -21,7 +21,7 @@ import java.util.List;
 @JeiPlugin
 public class JEIPlugin implements IModPlugin {
   @Override
-  public ResourceLocation getPluginUid() {
+  public Identifier getPluginUid() {
     return Mantle.getResource("jei");
   }
 

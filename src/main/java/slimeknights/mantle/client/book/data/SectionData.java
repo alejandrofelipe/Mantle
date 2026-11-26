@@ -3,7 +3,7 @@ package slimeknights.mantle.client.book.data;
 import com.google.common.collect.Sets;
 import com.google.gson.JsonElement;
 import net.minecraft.advancements.AdvancementProgress;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.neoforged.neoforge.common.conditions.AlwaysCondition;
 import net.neoforged.neoforge.common.conditions.ICondition;
@@ -36,7 +36,7 @@ public class SectionData implements IDataItem, IConditional, IHTML {
   public ICondition condition = AlwaysCondition.INSTANCE;
 
   /** Contains arbitrary data to be used by custom transformers and other things */
-  public Map<ResourceLocation, JsonElement> extraData = Collections.emptyMap();
+  public Map<Identifier, JsonElement> extraData = Collections.emptyMap();
 
   public transient int unnamedPageCounter = 0;
   public transient BookData parent;

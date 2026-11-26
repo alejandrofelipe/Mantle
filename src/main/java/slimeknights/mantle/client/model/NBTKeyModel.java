@@ -29,7 +29,7 @@ import net.minecraft.client.resources.model.ModelState;
 import net.minecraft.client.resources.model.QuadCollection;
 import net.minecraft.client.resources.model.ResolvedModel;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.entity.ItemOwner;
@@ -70,7 +70,7 @@ public class NBTKeyModel extends AbstractUnbakedModel {
   public static final UnbakedModelLoader<NBTKeyModel> LOADER = NBTKeyModel::deserialize;
 
   /** Map of statically registered extra textures, used for addon mods */
-  private static final Multimap<ResourceLocation,Pair<String,ResourceLocation>> EXTRA_TEXTURES = HashMultimap.create();
+  private static final Multimap<Identifier,Pair<String,Identifier>> EXTRA_TEXTURES = HashMultimap.create();
 
   /**
    * Registers an extra variant texture for the model with the given key. Note that resource packs can override the extra texture
@@ -79,7 +79,7 @@ public class NBTKeyModel extends AbstractUnbakedModel {
    * @param texture      Texture to use, same format as in resource packs
    */
   @SuppressWarnings("unused")  // API
-  public static void registerExtraTexture(ResourceLocation key, String textureName, ResourceLocation texture) {
+  public static void registerExtraTexture(Identifier key, String textureName, Identifier texture) {
     EXTRA_TEXTURES.put(key, Pair.of(textureName, texture));
   }
 
@@ -87,11 +87,11 @@ public class NBTKeyModel extends AbstractUnbakedModel {
   private final String nbtKey;
   /** Key denoting which extra textures to fetch from the map */
   @Nullable
-  private final ResourceLocation extraTexturesKey;
+  private final Identifier extraTexturesKey;
   /** Texture slots, with the particle defaulting to the default texture */
   private final TextureSlots.Data textureSlots;
 
-  public NBTKeyModel(StandardModelParameters parameters, String nbtKey, @Nullable ResourceLocation extraTexturesKey) {
+  public NBTKeyModel(StandardModelParameters parameters, String nbtKey, @Nullable Identifier extraTexturesKey) {
     super(parameters);
     this.nbtKey = nbtKey;
     this.extraTexturesKey = extraTexturesKey;
@@ -104,7 +104,7 @@ public class NBTKeyModel extends AbstractUnbakedModel {
   }
 
   /** Gets the extra textures registered for this model's key */
-  public Collection<Pair<String,ResourceLocation>> getExtraTextures() {
+  public Collection<Pair<String,Identifier>> getExtraTextures() {
     return extraTexturesKey != null ? EXTRA_TEXTURES.get(extraTexturesKey) : List.of();
   }
 
@@ -169,7 +169,7 @@ public class NBTKeyModel extends AbstractUnbakedModel {
       }
     }
     // fetch extra textures
-    for (Pair<String,ResourceLocation> extra : getExtraTextures()) {
+    for (Pair<String,Identifier> extra : getExtraTextures()) {
       textures.putIfAbsent(extra.getFirst(), new Material(TextureAtlas.LOCATION_BLOCKS, extra.getSecond()));
     }
     return Map.copyOf(textures);
@@ -179,7 +179,7 @@ public class NBTKeyModel extends AbstractUnbakedModel {
   public static NBTKeyModel deserialize(JsonObject json, JsonDeserializationContext context) {
     StandardModelParameters parameters = StandardModelParameters.parse(json, context);
     String key = GsonHelper.getAsString(json, "nbt_key");
-    ResourceLocation extraTexturesKey = null;
+    Identifier extraTexturesKey = null;
     if (json.has("extra_textures_key")) {
       extraTexturesKey = JsonHelper.getResourceLocation(json, "extra_textures_key");
     }
@@ -190,9 +190,9 @@ public class NBTKeyModel extends AbstractUnbakedModel {
    * Item model selecting the texture variant from the stack's custom data, registered as {@code mantle:nbt_key}.
    * The item JSON is {@code {"model":{"type":"mantle:nbt_key","model":"<nbt key model>"}}}.
    */
-  public record ItemUnbaked(ResourceLocation model) implements ItemModel.Unbaked {
+  public record ItemUnbaked(Identifier model) implements ItemModel.Unbaked {
     public static final MapCodec<ItemUnbaked> MAP_CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-      ResourceLocation.CODEC.fieldOf("model").forGetter(ItemUnbaked::model)
+      Identifier.CODEC.fieldOf("model").forGetter(ItemUnbaked::model)
     ).apply(inst, ItemUnbaked::new));
 
     @Override

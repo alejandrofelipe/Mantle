@@ -3,7 +3,7 @@ package slimeknights.mantle.loot.entry;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -21,11 +21,11 @@ import java.util.function.Consumer;
 /** Loot entry that returns the preferred item from a tag. See {@link TagPreference} */
 public class TagPreferenceLootEntry extends LootPoolSingletonContainer {
   public static final MapCodec<TagPreferenceLootEntry> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-    ResourceLocation.CODEC.fieldOf("tag").forGetter(entry -> entry.tag.location())
+    Identifier.CODEC.fieldOf("tag").forGetter(entry -> entry.tag.location())
   ).and(singletonFields(inst)).apply(inst, TagPreferenceLootEntry::new));
 
   private final TagKey<Item> tag;
-  protected TagPreferenceLootEntry(ResourceLocation tag, int weight, int quality, List<LootItemCondition> conditions, List<LootItemFunction> functions) {
+  protected TagPreferenceLootEntry(Identifier tag, int weight, int quality, List<LootItemCondition> conditions, List<LootItemFunction> functions) {
     this(TagKey.create(Registries.ITEM, tag), weight, quality, conditions, functions);
   }
 

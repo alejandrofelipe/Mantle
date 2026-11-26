@@ -5,7 +5,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -19,7 +19,7 @@ import slimeknights.mantle.util.BlockEntityHelper;
  * Packet to update the book page in a lectern
  */
 public record UpdateLecternPagePacket(BlockPos pos, String page) implements IThreadsafePacket {
-  public static final CustomPacketPayload.Type<UpdateLecternPagePacket> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Mantle.modId, "update_lectern_page"));
+  public static final CustomPacketPayload.Type<UpdateLecternPagePacket> TYPE = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(Mantle.modId, "update_lectern_page"));
   public static final StreamCodec<RegistryFriendlyByteBuf, UpdateLecternPagePacket> STREAM_CODEC = StreamCodec.composite(
     BlockPos.STREAM_CODEC, UpdateLecternPagePacket::pos,
     ByteBufCodecs.STRING_UTF8, UpdateLecternPagePacket::page,

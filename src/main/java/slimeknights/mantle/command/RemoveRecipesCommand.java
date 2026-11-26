@@ -12,14 +12,14 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.ResourceArgument;
-import net.minecraft.commands.arguments.ResourceLocationArgument;
+import net.minecraft.commands.arguments.IdentifierArgument;
 import net.minecraft.commands.arguments.ResourceOrTagKeyArgument;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.Resource;
@@ -91,7 +91,7 @@ public class RemoveRecipesCommand {
   public static void register(LiteralArgumentBuilder<CommandSourceStack> subCommand, CommandBuildContext context) {
     subCommand
       .then(Commands.literal("preset")
-        .then(Commands.argument("preset", ResourceLocationArgument.id()).suggests(SUGGEST_PRESETS)
+        .then(Commands.argument("preset", IdentifierArgument.id()).suggests(SUGGEST_PRESETS)
           .executes(RemoveRecipesCommand::runPreset)))
       .then(Commands.literal("result")
         .then(Commands.argument("recipe_type", ResourceArgument.resource(context, Registries.RECIPE_TYPE))
@@ -104,7 +104,7 @@ public class RemoveRecipesCommand {
           .then(Commands.argument("input", ResourceOrTagKeyArgument.resourceOrTagKey(Registries.ITEM))
             .executes(RemoveRecipesCommand::runByInput))))
       .then(Commands.literal("id")
-        .then(Commands.argument("recipe", ResourceLocationArgument.id()).suggests(SUGGESTS_RECIPES)
+        .then(Commands.argument("recipe", IdentifierArgument.id()).suggests(SUGGESTS_RECIPES)
           .executes(RemoveRecipesCommand::byId)));
   }
 
@@ -141,10 +141,10 @@ public class RemoveRecipesCommand {
   /** Runs the command using a JSON preset */
   private static int runPreset(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
     long startTime = System.nanoTime();
-    ResourceLocation preset = ResourceLocationArgument.getId(context, "preset");
+    Identifier preset = IdentifierArgument.getId(context, "preset");
 
     // load in the preset JSON
-    ResourceLocation presetLocation = PRESETS.idToFile(preset);
+    Identifier presetLocation = PRESETS.idToFile(preset);
     ServerLevel level = context.getSource().getLevel();
     Optional<Resource> resource = level.getServer().getResourceManager().getResource(presetLocation);
     if (resource.isPresent()) {
@@ -179,7 +179,7 @@ public class RemoveRecipesCommand {
     RecipeManager manager = level.recipeAccess();
     // 1.21.4: Recipe#getResultItem was removed, so results are resolved through the recipe display's result slot
     ContextMap slotContext = SlotDisplayContext.fromLevel(level);
-    List<ResourceLocation> recipes = new ArrayList<>();
+    List<Identifier> recipes = new ArrayList<>();
     for (RecipeType<?> recipeType : recipeTypes) {
       // 1.21.4: getAllRecipesFor was removed; iterate the full recipe list filtering by type. The id moved to the holder (now a ResourceKey)
       for (RecipeHolder<?> holder : manager.getRecipes()) {
@@ -217,7 +217,7 @@ public class RemoveRecipesCommand {
 
     int successes = 0;
     Path data = pack.resolve(PackType.SERVER_DATA.getDirectory());
-    for (ResourceLocation id : recipes) {
+    for (Identifier id : recipes) {
       // 1.21: datapack recipe folder is singular ("recipe")
       Path path = data.resolve(id.getNamespace() + "/recipe/" + id.getPath() + ".json");
       try {
@@ -253,7 +253,7 @@ public class RemoveRecipesCommand {
   /** Removes a recipe by ID */
   private static int byId(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
     long startTime = System.nanoTime();
-    ResourceLocation id = ResourceLocationArgument.getId(context, "recipe");
+    Identifier id = IdentifierArgument.getId(context, "recipe");
 
     // determine the path for the resulting datapack
     Path pack = GeneratePackHelper.getDatapackPath(context.getSource().getServer());

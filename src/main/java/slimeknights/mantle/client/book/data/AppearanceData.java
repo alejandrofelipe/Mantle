@@ -2,7 +2,7 @@ package slimeknights.mantle.client.book.data;
 
 import lombok.Getter;
 import lombok.Setter;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import slimeknights.mantle.client.screen.book.TextDataRenderer;
 import slimeknights.mantle.client.screen.book.Textures;
 
@@ -14,7 +14,7 @@ import java.util.Objects;
 public class AppearanceData implements IDataItem {
   // cover
   @Nullable
-  private ResourceLocation coverTexture;
+  private Identifier coverTexture;
   /** Title on the cover of the book */
   public String title = "";
   /** Smaller subtitle, typically author information */
@@ -29,7 +29,7 @@ public class AppearanceData implements IDataItem {
 
   // general book
   @Nullable
-  private ResourceLocation bookTexture;
+  private Identifier bookTexture;
   /** Color to tint navigation arrows */
   public int arrowColor = 0xFFFFD3;
   /** Color to tint hovered navigation arrows */
@@ -74,12 +74,12 @@ public class AppearanceData implements IDataItem {
   }
 
   /** Gets the book cover texture */
-  public ResourceLocation getCoverTexture() {
+  public Identifier getCoverTexture() {
     return Objects.requireNonNullElse(coverTexture, Textures.TEX_BOOKFRONT);
   }
 
   /** Gets texture for book pages and elements */
-  public ResourceLocation getBookTexture() {
+  public Identifier getBookTexture() {
     return Objects.requireNonNullElse(bookTexture, Textures.TEX_BOOK);
   }
 

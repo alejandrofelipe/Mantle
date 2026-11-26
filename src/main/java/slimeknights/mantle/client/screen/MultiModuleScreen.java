@@ -8,7 +8,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
@@ -116,7 +116,7 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
     }
   }
 
-  protected void drawBackground(GuiGraphics graphics, ResourceLocation background) {
+  protected void drawBackground(GuiGraphics graphics, Identifier background) {
     graphics.blit(RenderPipelines.GUI_TEXTURED, background, this.cornerX, this.cornerY, 0.0F, 0.0F, this.realWidth, this.realHeight, 256, 256);
   }
 

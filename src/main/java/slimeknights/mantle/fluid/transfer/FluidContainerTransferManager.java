@@ -12,7 +12,7 @@ import lombok.extern.log4j.Log4j2;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.FileToIdConverter;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.ExtraCodecs;
@@ -67,7 +67,7 @@ public class FluidContainerTransferManager extends SimpleJsonResourceReloadListe
   public static DynamicOps<JsonElement> DESERIALIZE_OPS = RegistryJsonOps.serialize();
   /** GSON instance */
   public static final Gson GSON = (new GsonBuilder())
-    .registerTypeAdapter(ResourceLocation.class, ResourceLocationSerializer.resourceLocation(ResourceLocation.DEFAULT_NAMESPACE))
+    .registerTypeAdapter(Identifier.class, ResourceLocationSerializer.resourceLocation(Identifier.DEFAULT_NAMESPACE))
     .registerTypeHierarchyAdapter(IFluidContainerTransfer.class, TRANSFER_LOADERS)
     .setPrettyPrinting()
     .disableHtmlEscaping()
@@ -114,7 +114,7 @@ public class FluidContainerTransferManager extends SimpleJsonResourceReloadListe
 
   /** Loads transfer from JSON */
   @Nullable
-  private IFluidContainerTransfer loadFluidTransfer(ResourceLocation key, JsonObject json) {
+  private IFluidContainerTransfer loadFluidTransfer(Identifier key, JsonObject json) {
     try {
       // TODO PORT (stage 5 recipe conditions): the Forge CraftingHelper.processConditions(JsonArray, IContext) gate is
       //  gone; NeoForge load conditions are codec-based and resolved via a ConditionalOps-backed decode using the
@@ -128,7 +128,7 @@ public class FluidContainerTransferManager extends SimpleJsonResourceReloadListe
   }
 
   @Override
-  protected void apply(Map<ResourceLocation,JsonElement> splashList, ResourceManager manager, ProfilerFiller profiler) {
+  protected void apply(Map<Identifier,JsonElement> splashList, ResourceManager manager, ProfilerFiller profiler) {
     long time = System.nanoTime();
     // NeoForge injects the reload's registry lookup (its lookupWithUpdatedTags, with the staged datapack item tags) into
     // every ContextAwareReloadListener; SimpleJsonResourceReloadListener is one. Build the deserialize ops from it so a

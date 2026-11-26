@@ -2,7 +2,7 @@ package slimeknights.mantle.client.screen;
 
 import com.google.common.collect.Lists;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
@@ -10,7 +10,7 @@ import java.util.List;
 @SuppressWarnings("unused")
 public class TabsWidget extends Widget {
 
-  private static final ResourceLocation creativeInventoryTabs = ResourceLocation.parse("textures/gui/container/creative_inventory/tabs.png");
+  private static final Identifier creativeInventoryTabs = Identifier.parse("textures/gui/container/creative_inventory/tabs.png");
 
   private final ElementScreen[] tabActive = new ElementScreen[3];
   private final ElementScreen[] tab = new ElementScreen[3];

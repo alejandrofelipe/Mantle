@@ -7,7 +7,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -32,7 +32,7 @@ import java.util.List;
 public class ShapedFallbackRecipe extends ShapedRecipe {
 
   /** Recipes to skip if they match */
-  private final List<ResourceLocation> alternatives;
+  private final List<Identifier> alternatives;
   private List<CraftingRecipe> alternativeCache;
 
   /**
@@ -40,7 +40,7 @@ public class ShapedFallbackRecipe extends ShapedRecipe {
    * @param base          Shaped recipe to copy data from
    * @param alternatives  List of recipe names to fail this match if they match
    */
-  public ShapedFallbackRecipe(ShapedRecipe base, List<ResourceLocation> alternatives) {
+  public ShapedFallbackRecipe(ShapedRecipe base, List<Identifier> alternatives) {
     // ShapedRecipe.pattern is public final; the result field is package-private and Recipe#getResultItem was removed in
     // 1.21.4, so read the stored result from the recipe's display (the only public accessor).
     super(base.group(), base.category(), base.pattern, baseResult(base), base.showNotification());
@@ -102,7 +102,7 @@ public class ShapedFallbackRecipe extends ShapedRecipe {
 
     private static final StreamCodec<RegistryFriendlyByteBuf,ShapedFallbackRecipe> STREAM_CODEC = StreamCodec.composite(
       ShapedRecipe.Serializer.STREAM_CODEC, r -> r,
-      ResourceLocation.STREAM_CODEC.apply(ByteBufCodecs.list()), r -> r.alternatives,
+      Identifier.STREAM_CODEC.apply(ByteBufCodecs.list()), r -> r.alternatives,
       ShapedFallbackRecipe::new);
 
     @Override

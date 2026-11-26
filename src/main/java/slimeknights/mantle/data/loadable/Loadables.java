@@ -6,7 +6,7 @@ import net.minecraft.core.particles.ParticleType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.damagesource.DamageType;
@@ -46,7 +46,7 @@ public class Loadables {
   private Loadables() {}
 
   /** Alias for the resource location loadable as it's a common need */
-  public static final StringLoadable<ResourceLocation> RESOURCE_LOCATION = ResourceLocationLoadable.DEFAULT;
+  public static final StringLoadable<Identifier> RESOURCE_LOCATION = ResourceLocationLoadable.DEFAULT;
   /** Loadable for an {@link ItemAbility} (the NeoForge replacement for the old tool action concept) */
   public static final StringLoadable<ItemAbility> TOOL_ACTION = StringLoadable.DEFAULT.flatXmap(ItemAbility::get, ItemAbility::name);
 

@@ -1,7 +1,7 @@
 package slimeknights.mantle.util;
 
 import lombok.RequiredArgsConstructor;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
@@ -22,7 +22,7 @@ import java.util.function.Function;
  */
 @RequiredArgsConstructor
 public class OffhandCooldownTracker {
-  public static final ResourceLocation KEY = Mantle.getResource("offhand_cooldown");
+  public static final Identifier KEY = Mantle.getResource("offhand_cooldown");
   /** @deprecated use {@link #get(Player)} */
   @Deprecated(forRemoval = true)
   public static final Function<OffhandCooldownTracker,Float> COOLDOWN_TRACKER = OffhandCooldownTracker::getCooldown;

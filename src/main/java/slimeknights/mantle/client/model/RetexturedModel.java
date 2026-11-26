@@ -32,7 +32,7 @@ import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ModelState;
 import net.minecraft.client.resources.model.ResolvedModel;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.ItemOwner;
@@ -117,7 +117,7 @@ public class RetexturedModel extends ColoredBlockModel {
     private final ElementModelData data;
     private final Set<String> retextured;
     /** Cache of baked variants keyed by the texture block's particle texture */
-    private final Map<ResourceLocation,SimpleModelWrapper> cache = new ConcurrentHashMap<>();
+    private final Map<Identifier,SimpleModelWrapper> cache = new ConcurrentHashMap<>();
 
     /**
      * @param data        Element data captured at bake time
@@ -148,7 +148,7 @@ public class RetexturedModel extends ColoredBlockModel {
      * PORT 1.21.5: runs on chunk meshing threads and reads the block atlas through {@link Material#sprite()}; verify
      * retextured tables in the uitest phase (texture blocks are only known at render time, so this cannot use the baker).
      */
-    private SimpleModelWrapper bake(ResourceLocation texture) {
+    private SimpleModelWrapper bake(Identifier texture) {
       Material material = new Material(TextureAtlas.LOCATION_BLOCKS, texture);
       Map<String,Material> replacements = new HashMap<>();
       for (String name : retextured) {
@@ -172,7 +172,7 @@ public class RetexturedModel extends ColoredBlockModel {
     public static final MapCodec<Unbaked> MAP_CODEC = Variant.MAP_CODEC.xmap(Unbaked::new, Unbaked::variant);
 
     /** Creates a retextured block state model for the given model location */
-    public Unbaked(ResourceLocation model) {
+    public Unbaked(Identifier model) {
       this(new Variant(model));
     }
 
@@ -250,7 +250,7 @@ public class RetexturedModel extends ColoredBlockModel {
     }
 
     /** Geometry key, the texture fully determines the geometry */
-    private record GeometryKey(Baked model, @Nullable ResourceLocation texture) {}
+    private record GeometryKey(Baked model, @Nullable Identifier texture) {}
   }
 
   /**
@@ -336,9 +336,9 @@ public class RetexturedModel extends ColoredBlockModel {
    * {@code RegisterItemModelsEvent}; the item JSON is {@code {"model":{"type":"mantle:retextured","model":"<block model>"}}}.
    * Without a texture on the stack, renders the base model like {@code minecraft:model}.
    */
-  public record ItemUnbaked(ResourceLocation model) implements ItemModel.Unbaked {
+  public record ItemUnbaked(Identifier model) implements ItemModel.Unbaked {
     public static final MapCodec<ItemUnbaked> MAP_CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-      ResourceLocation.CODEC.fieldOf("model").forGetter(ItemUnbaked::model)
+      Identifier.CODEC.fieldOf("model").forGetter(ItemUnbaked::model)
     ).apply(inst, ItemUnbaked::new));
 
     @Override

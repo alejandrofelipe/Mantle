@@ -17,7 +17,7 @@ import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.StringUtil;
 import slimeknights.mantle.client.book.repository.BookRepository;
 import slimeknights.mantle.recipe.ingredient.SizedIngredient;
@@ -142,7 +142,7 @@ public class IngredientData implements IDataElement {
         JsonPrimitive primitive = json.getAsJsonPrimitive();
 
         if(primitive.isString()) {
-          Item item = BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(primitive.getAsString()));
+          Item item = BuiltInRegistries.ITEM.getValue(Identifier.parse(primitive.getAsString()));
           return SizedIngredient.fromItems(item);
         }
       }

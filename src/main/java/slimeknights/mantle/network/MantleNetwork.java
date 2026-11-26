@@ -25,7 +25,7 @@ public class MantleNetwork {
    */
   public static void registerPayloads(RegisterPayloadHandlersEvent event) {
     // NOTE: RegisterPayloadHandlersEvent#registrar(String) takes the network VERSION (not a namespace);
-    // the payload namespace comes from each packet's CustomPacketPayload.Type ResourceLocation.
+    // the payload namespace comes from each packet's CustomPacketPayload.Type Identifier.
     PayloadRegistrar registrar = event.registrar(INSTANCE.version);
     // PLAY_TO_CLIENT
     registrar.playToClient(OpenLecternBookPacket.TYPE, OpenLecternBookPacket.STREAM_CODEC, (payload, context) -> payload.handle(context));

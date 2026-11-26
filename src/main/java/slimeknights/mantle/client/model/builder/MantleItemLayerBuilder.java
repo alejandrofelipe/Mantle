@@ -1,7 +1,7 @@
 package slimeknights.mantle.client.model.builder;
 
 import com.google.gson.JsonObject;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.client.model.generators.template.CustomLoaderBuilder;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.model.util.MantleItemLayerModel.LayerData;
@@ -14,7 +14,7 @@ import java.util.List;
 public class MantleItemLayerBuilder extends CustomLoaderBuilder {
   private final List<LayerData> layers = new ArrayList<>();
 
-  protected MantleItemLayerBuilder(ResourceLocation loaderId) {
+  protected MantleItemLayerBuilder(Identifier loaderId) {
     super(loaderId, false);
   }
 

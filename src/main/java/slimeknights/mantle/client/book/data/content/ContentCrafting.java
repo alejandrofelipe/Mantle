@@ -3,7 +3,7 @@ package slimeknights.mantle.client.book.data.content;
 import lombok.Getter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.NonNullList;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -38,7 +38,7 @@ import java.util.Optional;
 import static slimeknights.mantle.client.screen.book.Textures.TEX_CRAFTING;
 
 public class ContentCrafting extends PageContent {
-  public static final ResourceLocation ID = Mantle.getResource("crafting");
+  public static final Identifier ID = Mantle.getResource("crafting");
 
   public static final int TEX_SIZE = 256;
   public static final ImageData IMG_CRAFTING_LARGE = new ImageData(TEX_CRAFTING, 0, 0, 183, 114, TEX_SIZE, TEX_SIZE);
@@ -118,14 +118,14 @@ public class ContentCrafting extends PageContent {
   public void load() {
     super.load();
 
-    if (!StringUtils.isEmpty(recipe) && ResourceLocation.tryParse(recipe) != null) {
+    if (!StringUtils.isEmpty(recipe) && Identifier.tryParse(recipe) != null) {
       int w = 0, h = 0;
 
       Level level = Minecraft.getInstance().level;
       assert level != null;
       // the client level has no RecipeManager since 1.21.4 (recipeAccess() is only the recipe book container), so read the
       // integrated server's recipes in singleplayer or the synced recipe map on a remote server
-      Recipe<?> recipe = ClientRecipes.byKey(ResourceLocation.parse(this.recipe));
+      Recipe<?> recipe = ClientRecipes.byKey(Identifier.parse(this.recipe));
       if (recipe instanceof CraftingRecipe craftingRecipe) {
         if(grid_size.equalsIgnoreCase("auto")) {
           if(canCraftInDimensions(craftingRecipe, 2, 2)) {

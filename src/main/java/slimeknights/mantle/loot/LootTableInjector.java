@@ -4,7 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.mojang.serialization.JsonOps;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.GsonHelper;
@@ -49,14 +49,14 @@ public enum LootTableInjector implements IEarlyReloadListener {
   /** Condition context for preventing load */
   private IContext context = IContext.EMPTY;
   /** Map of injections to use on loot table load */
-  private Map<ResourceLocation,LootTableInjection> injections = Collections.emptyMap();
+  private Map<Identifier,LootTableInjection> injections = Collections.emptyMap();
 
   @Override
   public void onResourceManagerReload(ResourceManager manager) {
     long time = System.nanoTime();
-    Map<ResourceLocation,LootTableInjection.Builder> builders = new HashMap<>();
+    Map<Identifier,LootTableInjection.Builder> builders = new HashMap<>();
     int loaded = 0;
-    for (Entry<ResourceLocation,Resource> entry : manager.listResources(FOLDER, loc -> loc.getPath().endsWith(".json")).entrySet()) {
+    for (Entry<Identifier,Resource> entry : manager.listResources(FOLDER, loc -> loc.getPath().endsWith(".json")).entrySet()) {
       try (Reader reader = entry.getValue().openAsReader()) {
         JsonObject json = GsonHelper.fromJson(JsonHelper.DEFAULT_GSON, reader, JsonObject.class);
         if (json != null) {

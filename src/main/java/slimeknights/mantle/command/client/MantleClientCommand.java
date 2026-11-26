@@ -8,7 +8,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.synchronization.SuggestionProviders;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import slimeknights.mantle.Mantle;
@@ -26,10 +26,10 @@ public class MantleClientCommand {
   public static SuggestionProvider<CommandSourceStack> REGISTERED_BOOK_DOMAINS;
 
   /** Well-known vanilla atlas ids, used for {@code mantle sources atlases} suggestions since the live atlas set is private */
-  private static final java.util.List<ResourceLocation> VANILLA_ATLASES = java.util.stream.Stream.of(
+  private static final java.util.List<Identifier> VANILLA_ATLASES = java.util.stream.Stream.of(
     "blocks", "banner_patterns", "beds", "chests", "shield_patterns", "shulker_boxes",
     "signs", "mob_effects", "paintings", "particles", "armor_trims", "decorated_pot", "gui"
-  ).map(name -> ResourceLocation.fromNamespaceAndPath("minecraft", "textures/atlas/" + name + ".png")).toList();
+  ).map(name -> Identifier.fromNamespaceAndPath("minecraft", "textures/atlas/" + name + ".png")).toList();
 
 
   /** Registers all Mantle client command related content */
@@ -39,7 +39,7 @@ public class MantleClientCommand {
     REGISTERED_BOOKS = SuggestionProviders.register(Mantle.getResource("registered_books"), (context, builder) ->
       SharedSuggestionProvider.suggestResource(BookLoader.getAllBooks(), builder));
     REGISTERED_BOOK_DOMAINS = SuggestionProviders.register(Mantle.getResource("registered_book_domains"), (context, builder) ->
-      SharedSuggestionProvider.suggest(BookLoader.getAllBooks().stream().map(ResourceLocation::getNamespace).distinct(), builder));
+      SharedSuggestionProvider.suggest(BookLoader.getAllBooks().stream().map(Identifier::getNamespace).distinct(), builder));
 
     // source command suggestions
     // ModelManager#atlases (and AtlasSet#atlases) are private in 1.21.1 with no public enumeration API,

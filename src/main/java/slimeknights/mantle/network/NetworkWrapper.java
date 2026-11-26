@@ -3,7 +3,7 @@ package slimeknights.mantle.network;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -21,7 +21,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 @SuppressWarnings({"unused", "WeakerAccess"})
 public class NetworkWrapper {
   /** Unique channel name for this network, also used as the payload registrar namespace */
-  public final ResourceLocation channelName;
+  public final Identifier channelName;
   /** Network protocol version string */
   public final String version;
 
@@ -31,11 +31,11 @@ public class NetworkWrapper {
    * @deprecated Give your channel a version number.
    */
   @Deprecated
-  public NetworkWrapper(ResourceLocation channelName) {
+  public NetworkWrapper(Identifier channelName) {
     this(channelName, "1");
   }
 
-  public NetworkWrapper(ResourceLocation channelName, String version) {
+  public NetworkWrapper(Identifier channelName, String version) {
     this.channelName = channelName;
     this.version = version;
   }

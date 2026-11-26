@@ -29,7 +29,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
 import net.minecraft.core.Direction.Plane;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
@@ -120,8 +120,8 @@ public class ConnectedModel extends ColoredBlockModel {
       if (base == null) {
         continue;
       }
-      ResourceLocation atlas = base.atlasLocation();
-      ResourceLocation texture = base.texture();
+      Identifier atlas = base.atlasLocation();
+      Identifier texture = base.texture();
       String namespace = texture.getNamespace();
       String path = texture.getPath();
 
@@ -140,7 +140,7 @@ public class ConnectedModel extends ColoredBlockModel {
           if (override != null) {
             mat = override;
           } else {
-            mat = new Material(atlas, ResourceLocation.fromNamespaceAndPath(namespace, path + "/" + suffix));
+            mat = new Material(atlas, Identifier.fromNamespaceAndPath(namespace, path + "/" + suffix));
           }
           // cache the texture name, we use it a lot in rebaking
           extraTextures.put(suffixedName, mat);
@@ -159,7 +159,7 @@ public class ConnectedModel extends ColoredBlockModel {
     public static final MapCodec<Unbaked> MAP_CODEC = Variant.MAP_CODEC.xmap(Unbaked::new, Unbaked::variant);
 
     /** Creates a connected block state model for the given model location */
-    public Unbaked(ResourceLocation model) {
+    public Unbaked(Identifier model) {
       this(new Variant(model));
     }
 

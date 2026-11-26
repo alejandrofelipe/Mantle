@@ -4,7 +4,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
@@ -29,8 +29,8 @@ import java.util.Set;
 
 /** Helpers for attacking with weapons */
 public class CombatHelper {
-  /** Resource location id for the anti-knockback attribute modifier. 1.21 attribute modifiers are keyed by {@link ResourceLocation} instead of a UUID/name string. */
-  private static final ResourceLocation ANTI_KNOCKBACK_ID = Mantle.getResource("anti_knockback");
+  /** Resource location id for the anti-knockback attribute modifier. 1.21 attribute modifiers are keyed by {@link Identifier} instead of a UUID/name string. */
+  private static final Identifier ANTI_KNOCKBACK_ID = Mantle.getResource("anti_knockback");
   /** Attribute modifier to disable knockback on a target */
   private static final AttributeModifier ANTI_KNOCKBACK_MODIFIER = new AttributeModifier(ANTI_KNOCKBACK_ID, 1f, Operation.ADD_VALUE);
   /** Item ability to disable the base knockback of the weapon. Requires replacing left click behavior of your weapon. */
@@ -57,7 +57,7 @@ public class CombatHelper {
    * Note we use a map instead of a full attribute instance as we don't need the cache or other data structures.
    * <p>
    * TODO PORT (stage 8): 1.21 reworked the attribute system. {@link AttributeInstance#getModifiers()} now returns a flat
-   * collection keyed by {@link ResourceLocation}; there is no per-{@link Operation} getter ({@code getModifiersOrEmpty}
+   * collection keyed by {@link Identifier}; there is no per-{@link Operation} getter ({@code getModifiersOrEmpty}
    * was removed) and {@link AttributeModifier} is a record ({@code operation()}/{@code amount()}). The whole offhand
    * attribute computation mirrors Tinkers' combat reimplementation, which is out of scope for this shared-util port.
    * Reimplement against the 1.21 attribute API when porting the combat layer.

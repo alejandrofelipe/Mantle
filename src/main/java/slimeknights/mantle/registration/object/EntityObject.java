@@ -1,6 +1,6 @@
 package slimeknights.mantle.registration.object;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
@@ -11,12 +11,12 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import java.util.function.Supplier;
 
 /** Object holding an entity and it's egg */
-public class EntityObject<T extends Entity> implements Supplier<EntityType<T>>, ItemLike, IdAwareObject<ResourceLocation> {
-  private final ResourceLocation id;
+public class EntityObject<T extends Entity> implements Supplier<EntityType<T>>, ItemLike, IdAwareObject<Identifier> {
+  private final Identifier id;
   private final Supplier<? extends EntityType<T>> type;
   private final Supplier<? extends SpawnEggItem> spawnEgg;
 
-  public EntityObject(ResourceLocation id, Supplier<? extends EntityType<T>> type, Supplier<? extends SpawnEggItem> spawnEgg) {
+  public EntityObject(Identifier id, Supplier<? extends EntityType<T>> type, Supplier<? extends SpawnEggItem> spawnEgg) {
     this.id = id;
     this.type = type;
     this.spawnEgg = spawnEgg;
@@ -29,7 +29,7 @@ public class EntityObject<T extends Entity> implements Supplier<EntityType<T>>, 
   }
 
   @Override
-  public ResourceLocation getId() {
+  public Identifier getId() {
     return id;
   }
 

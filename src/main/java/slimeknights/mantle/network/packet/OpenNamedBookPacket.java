@@ -3,14 +3,14 @@ package slimeknights.mantle.network.packet;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import slimeknights.mantle.Mantle;
 
-public record OpenNamedBookPacket(ResourceLocation book) implements IThreadsafePacket {
-  public static final CustomPacketPayload.Type<OpenNamedBookPacket> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Mantle.modId, "open_named_book"));
+public record OpenNamedBookPacket(Identifier book) implements IThreadsafePacket {
+  public static final CustomPacketPayload.Type<OpenNamedBookPacket> TYPE = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(Mantle.modId, "open_named_book"));
   public static final StreamCodec<RegistryFriendlyByteBuf, OpenNamedBookPacket> STREAM_CODEC = StreamCodec.composite(
-    ResourceLocation.STREAM_CODEC, OpenNamedBookPacket::book,
+    Identifier.STREAM_CODEC, OpenNamedBookPacket::book,
     OpenNamedBookPacket::new);
 
   @Override
@@ -32,7 +32,7 @@ public record OpenNamedBookPacket(ResourceLocation book) implements IThreadsafeP
   }
 
   static class ClientOnly {
-    static void errorStatus(ResourceLocation book) {
+    static void errorStatus(Identifier book) {
       // TODO PORT (stage 6 client): BookCommand.bookNotFound not ported yet
     }
   }

@@ -1,7 +1,7 @@
 package slimeknights.mantle.recipe.ingredient;
 
 import net.minecraft.core.Holder;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -25,7 +25,7 @@ import java.util.stream.Stream;
 /** Ingredient that matches a container of fluid */
 @SuppressWarnings("unused")  // API
 public class FluidContainerIngredient implements ICustomIngredient {
-  public static final ResourceLocation ID = Mantle.getResource("fluid_container");
+  public static final Identifier ID = Mantle.getResource("fluid_container");
 
   /** Loadable field for the fluid ingredient */
   private static final LoadableField<FluidIngredient,FluidContainerIngredient> FLUID_FIELD = FluidIngredient.LOADABLE.requiredField("fluid", i -> i.fluidIngredient);

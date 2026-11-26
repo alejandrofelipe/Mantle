@@ -17,7 +17,7 @@ import net.minecraft.client.resources.model.QuadCollection;
 import net.minecraft.client.resources.model.UnbakedGeometry;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.context.ContextMap;
 import net.neoforged.neoforge.client.NamedRenderTypeManager;
 import net.neoforged.neoforge.client.NeoForgeRenderTypes;
@@ -552,7 +552,7 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
   /**
    * Class holding details about a single layer in the model
    */
-  public record LayerData(int color, int luminosity, boolean noTint, @Nullable ResourceLocation renderType) {
+  public record LayerData(int color, int luminosity, boolean noTint, @Nullable Identifier renderType) {
     public static final LayerData DEFAULT = new LayerData(-1, 0, false, null);
     public static final RecordLoadable<LayerData> LOADABLE = RecordLoadable.create(
       ColorLoadable.ALPHA.defaultField("color", false, LayerData::color),

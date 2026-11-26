@@ -3,7 +3,7 @@ package slimeknights.mantle.client.model.builder;
 import com.google.gson.JsonObject;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.client.model.generators.template.CustomLoaderBuilder;
 import slimeknights.mantle.Mantle;
 
@@ -12,7 +12,7 @@ import slimeknights.mantle.Mantle;
 @Accessors(fluent = true)
 public class NBTKeyModelBuilder extends CustomLoaderBuilder {
   private String key = null;
-  private ResourceLocation extraTexturesKey = null;
+  private Identifier extraTexturesKey = null;
 
   public NBTKeyModelBuilder() {
     super(Mantle.getResource("nbt_key"), false);

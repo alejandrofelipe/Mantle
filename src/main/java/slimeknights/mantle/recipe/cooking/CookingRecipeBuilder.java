@@ -6,7 +6,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.crafting.AbstractCookingRecipe;
@@ -64,7 +64,7 @@ public class CookingRecipeBuilder<T extends CookingRecipeBuilder<T>> extends Abs
 
 
   /**
-   * Sets the type used by {@link #save(RecipeOutput, ResourceLocation)}. You can also call
+   * Sets the type used by {@link #save(RecipeOutput, Identifier)}. You can also call
    * {@link #saveSmelting}, {@link #saveBlasting}, {@link #saveSmoking}, and {@link #saveCampfire} directly.
    */
   public T type(CookingType type) {
@@ -109,7 +109,7 @@ public class CookingRecipeBuilder<T extends CookingRecipeBuilder<T>> extends Abs
 
   /** Helper to save a recipe */
   @SuppressWarnings("unchecked")
-  private <R extends AbstractCookingRecipe> T save(RecipeOutput output, ResourceLocation id, CookingConstructor<R> constructor, int cookingTime) {
+  private <R extends AbstractCookingRecipe> T save(RecipeOutput output, Identifier id, CookingConstructor<R> constructor, int cookingTime) {
     if (ingredient == null) {
       throw new IllegalStateException("Ingredient must be set");
     }
@@ -120,22 +120,22 @@ public class CookingRecipeBuilder<T extends CookingRecipeBuilder<T>> extends Abs
   }
 
   /** Saves the smelting recipe */
-  public T saveSmelting(RecipeOutput output, ResourceLocation id) {
+  public T saveSmelting(RecipeOutput output, Identifier id) {
     return save(output, id, SmeltingResultRecipe::new, cookingTime);
   }
 
   /** Saves the blasting recipe */
-  public T saveBlasting(RecipeOutput output, ResourceLocation id) {
+  public T saveBlasting(RecipeOutput output, Identifier id) {
     return save(output, id, BlastingResultRecipe::new, cookingTime / 2);
   }
 
   /** Saves the smoking recipe */
-  public T saveSmoking(RecipeOutput output, ResourceLocation id) {
+  public T saveSmoking(RecipeOutput output, Identifier id) {
     return save(output, id, SmokingResultRecipe::new, cookingTime / 2);
   }
 
   /** Saves the campfire recipe */
-  public T saveCampfire(RecipeOutput output, ResourceLocation id) {
+  public T saveCampfire(RecipeOutput output, Identifier id) {
     return save(output, id, CampfireResultRecipe::new, cookingTime * 3);
   }
 
@@ -146,8 +146,8 @@ public class CookingRecipeBuilder<T extends CookingRecipeBuilder<T>> extends Abs
 
   @Override
   public void save(RecipeOutput output, ResourceKey<Recipe<?>> id) {
-    // the convenience saveXxx helpers still take a ResourceLocation path
-    ResourceLocation location = id.location();
+    // the convenience saveXxx helpers still take a Identifier path
+    Identifier location = id.location();
     switch (type) {
       case SMELTING -> saveSmelting(output, location);
       case BLASTING -> saveBlasting(output, location);
@@ -156,6 +156,6 @@ public class CookingRecipeBuilder<T extends CookingRecipeBuilder<T>> extends Abs
     }
   }
 
-  /** Helper to change the cooking type in {@link #save(RecipeOutput, ResourceLocation)} */
+  /** Helper to change the cooking type in {@link #save(RecipeOutput, Identifier)} */
   public enum CookingType { SMELTING, BLASTING, SMOKING, CAMPFIRE }
 }

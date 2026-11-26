@@ -1,7 +1,7 @@
 package slimeknights.mantle.registration.object;
 
 import net.minecraft.core.DefaultedRegistry;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.ItemLike;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -16,14 +16,14 @@ import java.util.function.Supplier;
  * @param <I>  Item class
  */
 @SuppressWarnings({"unused", "WeakerAccess"})
-public class ItemObject<I extends ItemLike> implements Supplier<I>, ItemLike, IdAwareObject<ResourceLocation> {
+public class ItemObject<I extends ItemLike> implements Supplier<I>, ItemLike, IdAwareObject<Identifier> {
   /** Supplier to the registry entry */
   private final Supplier<? extends I> entry;
   /** Registry name for this entry, allows fetching the name before the entry resolves if registry object is used */
-  private final ResourceLocation id;
+  private final Identifier id;
 
   /** Base constructor from a supplier and explicit id */
-  public ItemObject(Supplier<? extends I> entry, ResourceLocation id) {
+  public ItemObject(Supplier<? extends I> entry, Identifier id) {
     this.entry = entry;
     this.id = id;
   }
@@ -61,7 +61,7 @@ public class ItemObject<I extends ItemLike> implements Supplier<I>, ItemLike, Id
    * @throws NullPointerException  if not present
    */
   @Override
-  public ResourceLocation getId() {
+  public Identifier getId() {
     return id;
   }
 

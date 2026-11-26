@@ -1,8 +1,8 @@
 package slimeknights.mantle.recipe.data;
 
 import net.minecraft.advancements.Criterion;
-import net.minecraft.advancements.critereon.InventoryChangeTrigger;
-import net.minecraft.advancements.critereon.ItemPredicate;
+import net.minecraft.advancements.criterion.InventoryChangeTrigger;
+import net.minecraft.advancements.criterion.ItemPredicate;
 import net.minecraft.core.HolderGetter;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.data.recipes.RecipeCategory;
@@ -12,7 +12,7 @@ import net.minecraft.data.recipes.ShapedRecipeBuilder;
 import net.minecraft.data.recipes.ShapelessRecipeBuilder;
 import net.minecraft.data.recipes.SingleItemRecipeBuilder;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -33,7 +33,7 @@ import slimeknights.mantle.registration.object.WoodBlockObject;
  *
  * <p>PORT 1.21.4: {@code ShapedRecipeBuilder.shaped}/{@code ShapelessRecipeBuilder.shapeless} and
  * {@code ItemPredicate.Builder.of} now require a {@link HolderGetter}&lt;{@link Item}&gt;, and {@code save} now takes a
- * {@link ResourceKey}&lt;{@link Recipe}&gt; rather than a {@link ResourceLocation}. The item lookup is threaded through
+ * {@link ResourceKey}&lt;{@link Recipe}&gt; rather than a {@link Identifier}. The item lookup is threaded through
  * {@link #itemLookup()}, which an implementing {@link RecipeProvider} supplies from its {@code HolderLookup.Provider}
  * (e.g. {@code provider.lookupOrThrow(Registries.ITEM)}).
  */
@@ -43,7 +43,7 @@ public interface ICommonRecipeHelper extends IRecipeHelper {
   HolderGetter<Item> itemLookup();
 
   /** Wraps a recipe id in the {@code ResourceKey<Recipe<?>>} now required by the various {@code save} methods. */
-  default ResourceKey<Recipe<?>> recipeKey(ResourceLocation id) {
+  default ResourceKey<Recipe<?>> recipeKey(Identifier id) {
     return ResourceKey.create(Registries.RECIPE, id);
   }
 
@@ -79,7 +79,7 @@ public interface ICommonRecipeHelper extends IRecipeHelper {
    */
   default void packingRecipe(RecipeOutput consumer, RecipeCategory category, String largeName, ItemLike large, String smallName, ItemLike small, String folder) {
     // ingot to block
-    ResourceLocation largeId = id(large);
+    Identifier largeId = id(large);
     ShapedRecipeBuilder.shaped(itemLookup(), category, large)
                        .define('#', small)
                        .pattern("###")
@@ -89,7 +89,7 @@ public interface ICommonRecipeHelper extends IRecipeHelper {
                        .group(largeId.toString())
                        .save(consumer, recipeKey(wrap(largeId, folder, String.format("_from_%ss", smallName))));
     // block to ingot
-    ResourceLocation smallId = id(small);
+    Identifier smallId = id(small);
     ShapelessRecipeBuilder.shapeless(itemLookup(), category, small, 9)
                           .requires(large)
                           .unlockedBy("has_item", has(large))
@@ -110,7 +110,7 @@ public interface ICommonRecipeHelper extends IRecipeHelper {
   default void packingRecipe(RecipeOutput consumer, RecipeCategory category, String largeName, ItemLike largeItem, String smallName, ItemLike smallItem, TagKey<Item> smallTag, String folder) {
     // ingot to block
     // note our item is in the center, any mod allowed around the edges
-    ResourceLocation largeId = id(largeItem);
+    Identifier largeId = id(largeItem);
     ShapedRecipeBuilder.shaped(itemLookup(), category, largeItem)
                        .define('#', smallTag)
                        .define('*', smallItem)
@@ -121,7 +121,7 @@ public interface ICommonRecipeHelper extends IRecipeHelper {
                        .group(largeId.toString())
                        .save(consumer, recipeKey(wrap(largeId, folder, String.format("_from_%ss", smallName))));
     // block to ingot
-    ResourceLocation smallId = id(smallItem);
+    Identifier smallId = id(smallItem);
     ShapelessRecipeBuilder.shapeless(itemLookup(), category, smallItem, 9)
                           .requires(largeItem)
                           .unlockedBy("has_item", has(largeItem))
@@ -151,7 +151,7 @@ public interface ICommonRecipeHelper extends IRecipeHelper {
    */
   default void slabStairsCrafting(RecipeOutput consumer, BuildingBlockObject building, String folder, boolean addStonecutter) {
     Item item = building.asItem();
-    ResourceLocation itemId = id(item);
+    Identifier itemId = id(item);
     Criterion<InventoryChangeTrigger.TriggerInstance> hasBlock = has(item);
     // slab
     ItemLike slab = building.getSlab();
@@ -193,7 +193,7 @@ public interface ICommonRecipeHelper extends IRecipeHelper {
     slabStairsCrafting(consumer, building, folder, addStonecutter);
     // wall
     Item item = building.asItem();
-    ResourceLocation itemId = id(item);
+    Identifier itemId = id(item);
     Criterion<InventoryChangeTrigger.TriggerInstance> hasBlock = has(item);
     ItemLike wall = building.getWall();
     ShapedRecipeBuilder.shaped(itemLookup(), RecipeCategory.BUILDING_BLOCKS, wall, 6)

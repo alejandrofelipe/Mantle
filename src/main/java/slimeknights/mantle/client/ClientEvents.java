@@ -17,7 +17,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
@@ -82,10 +82,10 @@ import java.util.List;
 @EventBusSubscriber(modid = Mantle.modId, value = Dist.CLIENT)
 public class ClientEvents {
   // 1.21.1: attack indicator GUI atlas coordinates were replaced by named HUD sprites (mirrors the private constants in vanilla Gui)
-  private static final ResourceLocation CROSSHAIR_ATTACK_INDICATOR_BACKGROUND_SPRITE = ResourceLocation.withDefaultNamespace("hud/crosshair_attack_indicator_background");
-  private static final ResourceLocation CROSSHAIR_ATTACK_INDICATOR_PROGRESS_SPRITE = ResourceLocation.withDefaultNamespace("hud/crosshair_attack_indicator_progress");
-  private static final ResourceLocation HOTBAR_ATTACK_INDICATOR_BACKGROUND_SPRITE = ResourceLocation.withDefaultNamespace("hud/hotbar_attack_indicator_background");
-  private static final ResourceLocation HOTBAR_ATTACK_INDICATOR_PROGRESS_SPRITE = ResourceLocation.withDefaultNamespace("hud/hotbar_attack_indicator_progress");
+  private static final Identifier CROSSHAIR_ATTACK_INDICATOR_BACKGROUND_SPRITE = Identifier.withDefaultNamespace("hud/crosshair_attack_indicator_background");
+  private static final Identifier CROSSHAIR_ATTACK_INDICATOR_PROGRESS_SPRITE = Identifier.withDefaultNamespace("hud/crosshair_attack_indicator_progress");
+  private static final Identifier HOTBAR_ATTACK_INDICATOR_BACKGROUND_SPRITE = Identifier.withDefaultNamespace("hud/hotbar_attack_indicator_background");
+  private static final Identifier HOTBAR_ATTACK_INDICATOR_PROGRESS_SPRITE = Identifier.withDefaultNamespace("hud/hotbar_attack_indicator_progress");
   /** Gauge tooltip found during the crosshair layer this frame, drawn once the HUD is done. Cleared on RenderGuiEvent.Pre so a frame that fails mid-HUD cannot leak it into the next */
   @Nullable
   private static List<Component> pendingGaugeTooltip;
@@ -184,7 +184,7 @@ public class ClientEvents {
     }
 
     // only care about hotbar and crosshair
-    ResourceLocation overlay = event.getName();
+    Identifier overlay = event.getName();
     // will be true for hotbar, false for crosshair
     boolean isHotbar = VanillaGuiLayers.HOTBAR.equals(overlay);
     if (!isHotbar && !VanillaGuiLayers.CROSSHAIR.equals(overlay)) {
@@ -290,7 +290,7 @@ public class ClientEvents {
       tooltip = List.of(GaugeBlock.formatCapacity(capacity));
     } else if (RegistryHelper.contains(BuiltInRegistries.BLOCK_ENTITY_TYPE, MantleTags.BlockEntities.HIDES_GAUGE_AMOUNT, gaugeContainer.getType())) {
       // in the tag, don't show capacity
-      ResourceLocation id = BuiltInRegistries.FLUID.getKey(fluid.getFluid());
+      Identifier id = BuiltInRegistries.FLUID.getKey(fluid.getFluid());
       tooltip = new ArrayList<>(3);
       tooltip.add(fluid.getHoverName());
       FluidTooltipHandler.appendAdvanced(id, tooltip);

@@ -11,7 +11,7 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -36,7 +36,7 @@ import java.util.Set;
  */
 @RequiredArgsConstructor
 public class EntityIngredientRenderer implements IIngredientRenderer<EntityIngredient.EntityInput> {
-  private static final ResourceLocation MISSING = Mantle.getResource("textures/item/missingno.png");
+  private static final Identifier MISSING = Mantle.getResource("textures/item/missingno.png");
   /** Entity types that will not render, as they either errored or are the wrong type */
   private static final Set<EntityType<?>> IGNORED_ENTITIES = new HashSet<>();
 

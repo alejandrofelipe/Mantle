@@ -4,7 +4,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.TextureManager;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import org.joml.Matrix3x2fStack;
 import slimeknights.mantle.client.book.data.element.ImageData;
@@ -90,7 +90,7 @@ public class ImageElement extends SizedBookElement {
   public void draw(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks, Font fontRenderer, int tint) {
     if (this.image.item == null) {
       int color = ARGB.multiply(0xFF000000 | (this.colorMultiplier & 0xFFFFFF), tint);
-      ResourceLocation texture = requireNonNullElse(this.image.location, TextureManager.INTENTIONAL_MISSING_TEXTURE);
+      Identifier texture = requireNonNullElse(this.image.location, TextureManager.INTENTIONAL_MISSING_TEXTURE);
       graphics.blit(RenderPipelines.GUI_TEXTURED, texture, this.x, this.y, (float) this.image.u, (float) this.image.v, this.width, this.height, this.image.uw, this.image.vh, this.image.texWidth, this.image.texHeight, color);
     }
     else {

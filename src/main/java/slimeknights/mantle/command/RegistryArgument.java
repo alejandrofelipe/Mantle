@@ -9,11 +9,11 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraft.commands.arguments.ResourceLocationArgument;
+import net.minecraft.commands.arguments.IdentifierArgument;
 import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import org.jetbrains.annotations.ApiStatus.Internal;
 
@@ -54,12 +54,12 @@ public class RegistryArgument {
   }
 
   /** Creates an argument instance */
-  public static ArgumentType<ResourceLocation> registry() {
-    return ResourceLocationArgument.id();
+  public static ArgumentType<Identifier> registry() {
+    return IdentifierArgument.id();
   }
 
   /** Creates an argument builder with the given name */
-  public static RequiredArgumentBuilder<CommandSourceStack,ResourceLocation> argument() {
+  public static RequiredArgumentBuilder<CommandSourceStack,Identifier> argument() {
     return Commands.argument("type", registry()).suggests(REGISTRY);
   }
 
@@ -68,7 +68,7 @@ public class RegistryArgument {
    * TODO 1.21: rename to {@code get}
    */
   public static Registry<?> getResult(CommandContext<? extends SharedSuggestionProvider> context, String name) throws CommandSyntaxException {
-    ResourceLocation id = context.getArgument(name, ResourceLocation.class);
+    Identifier id = context.getArgument(name, Identifier.class);
     return context.getSource().registryAccess()
                    .lookup(ResourceKey.createRegistryKey(id))
                    .orElseThrow(() -> NOT_FOUND.create(id));

@@ -4,7 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeMap;
@@ -46,7 +46,7 @@ public final class ClientRecipes {
 
   /** Looks up a recipe by ID, or null if it is not available on the client */
   @Nullable
-  public static Recipe<?> byKey(ResourceLocation id) {
+  public static Recipe<?> byKey(Identifier id) {
     RecipeHolder<?> holder = getRecipeMap().byKey(ResourceKey.create(Registries.RECIPE, id));
     return holder != null ? holder.value() : null;
   }

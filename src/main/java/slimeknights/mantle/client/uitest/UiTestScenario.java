@@ -1,11 +1,11 @@
 package slimeknights.mantle.client.uitest;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /** One automated GUI capture: prepare a rig, open a screen, settle, screenshot, close. */
 public interface UiTestScenario {
   /** Stable id; the last path segment names the PNG. */
-  ResourceLocation id();
+  Identifier id();
 
   /** Build the scene (server-side mutations go through {@link UiTestContext#runOnServer}). */
   void prepare(UiTestContext ctx);

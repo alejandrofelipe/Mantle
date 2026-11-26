@@ -3,13 +3,13 @@ package slimeknights.mantle.data.client;
 import com.google.common.hash.Hashing;
 import com.google.gson.JsonObject;
 import com.mojang.blaze3d.platform.NativeImage;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.data.CachedOutput;
 import net.minecraft.data.DataProvider;
 import net.minecraft.data.PackOutput;
 import net.minecraft.data.PackOutput.PathProvider;
 import net.minecraft.data.PackOutput.Target;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import slimeknights.mantle.Mantle;
@@ -42,12 +42,12 @@ public abstract class GenericTextureGenerator extends GenericDataProvider {
   }
 
   /** Saves the given image to the given location */
-  protected CompletableFuture<?> saveImage(CachedOutput cache, ResourceLocation location, NativeImage image) {
+  protected CompletableFuture<?> saveImage(CachedOutput cache, Identifier location, NativeImage image) {
     return saveImage(cache, pathProvider, location, image);
   }
 
   /** Saves metadata for the given image */
-  protected CompletableFuture<?> saveMetadata(CachedOutput cache, ResourceLocation location, JsonObject metadata) {
+  protected CompletableFuture<?> saveMetadata(CachedOutput cache, Identifier location, JsonObject metadata) {
     return DataProvider.saveStable(cache, metadata, this.pathProvider.file(location, "png.mcmeta"));
   }
 
@@ -55,8 +55,8 @@ public abstract class GenericTextureGenerator extends GenericDataProvider {
   /* Helpers */
 
   /** Reads an image from disk. Note the caller is responsible for closing the resource */
-  public static NativeImage read(ResourceManager resourceManager, String folder, ResourceLocation path) throws IOException {
-    ResourceLocation full = ResourceLocation.fromNamespaceAndPath(path.getNamespace(), folder + '/' + path.getPath() + ".png");
+  public static NativeImage read(ResourceManager resourceManager, String folder, Identifier path) throws IOException {
+    Identifier full = Identifier.fromNamespaceAndPath(path.getNamespace(), folder + '/' + path.getPath() + ".png");
     try {
       Resource resource = resourceManager.getResource(full).orElseThrow(() -> new NoSuchElementException("Missing texture resource " + full));
       try (InputStream stream = resource.open()) {
@@ -73,7 +73,7 @@ public abstract class GenericTextureGenerator extends GenericDataProvider {
    * keeps it, skips rewriting it when unchanged, and deletes it once no longer generated.
    */
   @SuppressWarnings("deprecation") // sha1 is what the data cache hashes with
-  public static CompletableFuture<?> saveImage(CachedOutput cache, PathProvider pathProvider, ResourceLocation location, NativeImage image) {
+  public static CompletableFuture<?> saveImage(CachedOutput cache, PathProvider pathProvider, Identifier location, NativeImage image) {
     return CompletableFuture.runAsync(() -> {
       try {
         byte[] bytes = encodePng(image);

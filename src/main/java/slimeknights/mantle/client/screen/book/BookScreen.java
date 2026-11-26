@@ -14,7 +14,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.multiplayer.ClientAdvancements;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import org.joml.Matrix3x2fStack;
@@ -259,7 +259,7 @@ public class BookScreen extends Screen {
   private void renderCover(GuiGraphics graphics, Vector3f coverColor) {
     Font fontRenderer = getFontRenderer();
 
-    ResourceLocation cover = book.appearance.getCoverTexture();
+    Identifier cover = book.appearance.getCoverTexture();
 
     int centerX = this.width / 2 - PAGE_WIDTH_UNSCALED / 2;
     int centerY = this.height / 2 - PAGE_HEIGHT_UNSCALED / 2;
@@ -782,18 +782,18 @@ public class BookScreen extends Screen {
 
   public static class AdvancementCache implements ClientAdvancements.Listener {
 
-    // 1.21.1: advancements are tracked via AdvancementNode/AdvancementHolder keyed by their ResourceLocation id
-    private final HashMap<ResourceLocation, AdvancementProgress> progress = new HashMap<>();
-    private final HashMap<ResourceLocation, AdvancementHolder> nameCache = new HashMap<>();
+    // 1.21.1: advancements are tracked via AdvancementNode/AdvancementHolder keyed by their Identifier id
+    private final HashMap<Identifier, AdvancementProgress> progress = new HashMap<>();
+    private final HashMap<Identifier, AdvancementHolder> nameCache = new HashMap<>();
 
     @Nullable
     public AdvancementProgress getProgress(String id) {
-      return this.progress.get(ResourceLocation.parse(id));
+      return this.progress.get(Identifier.parse(id));
     }
 
     @Nullable
     public AdvancementHolder getAdvancement(String id) {
-      return this.nameCache.get(ResourceLocation.parse(id));
+      return this.nameCache.get(Identifier.parse(id));
     }
 
     @Override

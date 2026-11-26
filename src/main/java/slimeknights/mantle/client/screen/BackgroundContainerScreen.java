@@ -42,10 +42,10 @@ public class BackgroundContainerScreen<T extends AbstractContainerMenu> extends 
 	}
 
 	@Override
-	public void render(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
+	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
 		// 1.21: super.render already runs renderBackground (which draws the container bg) — no explicit call
-		super.render(graphics, mouseX, mouseY, partialTicks);
-		this.renderTooltip(graphics, mouseX, mouseY);
+		super.extractRenderState(graphics, mouseX, mouseY, partialTicks);
+		this.extractTooltip(graphics, mouseX, mouseY);
 	}
 
 	@Override

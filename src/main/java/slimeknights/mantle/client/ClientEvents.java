@@ -319,6 +319,6 @@ public class ClientEvents {
     int x = graphics.guiWidth() / 2;
     int y = graphics.guiHeight() / 2;
     graphics.nextStratum();
-    graphics.renderTooltip(font, ClientHooks.gatherTooltipComponents(ItemStack.EMPTY, tooltip, x, graphics.guiWidth(), graphics.guiHeight(), font), x, y, DefaultTooltipPositioner.INSTANCE, null);
+    graphics.tooltip(font, ClientHooks.gatherTooltipComponents(ItemStack.EMPTY, tooltip, x, graphics.guiWidth(), graphics.guiHeight(), font), x, y, DefaultTooltipPositioner.INSTANCE, null);
   }
 }

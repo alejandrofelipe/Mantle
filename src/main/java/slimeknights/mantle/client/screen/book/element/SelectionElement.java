@@ -68,7 +68,7 @@ public class SelectionElement extends SizedBookElement {
         int textW = fontRenderer.width(splitTitle[i]);
         int textX = this.x + WIDTH / 2 - textW / 2;
         int textY = this.y + HEIGHT - fontRenderer.lineHeight / 2 + fontRenderer.lineHeight * i;
-        graphics.drawString(fontRenderer, splitTitle[i], textX, textY, hover ? 0xFF000000 : 0x7F000000, false);
+        graphics.text(fontRenderer, splitTitle[i], textX, textY, hover ? 0xFF000000 : 0x7F000000, false);
       }
     }
   }

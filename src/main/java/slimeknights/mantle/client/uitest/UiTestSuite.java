@@ -87,7 +87,7 @@ public class UiTestSuite {
   }
 
   private static boolean isBlockedMob(Entity entity) {
-    return entity instanceof Mob && !entity.getTags().contains(ALLOW_MOB_TAG);
+    return entity instanceof Mob && !entity.entityTags().contains(ALLOW_MOB_TAG);
   }
 
   private static void onEntityJoinLevel(EntityJoinLevelEvent event) {

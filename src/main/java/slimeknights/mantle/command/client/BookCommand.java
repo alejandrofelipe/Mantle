@@ -265,11 +265,11 @@ public class BookCommand {
           GuiRenderState renderState = gameRenderer.guiRenderState;
           renderState.reset();
           // 1.21.11: GuiGraphicsExtractor tracks the mouse for text hover effects; -1/-1 lies outside the export so nothing is hovered
-          screen.render(new GuiGraphicsExtractor(minecraft, renderState, -1, -1), 0, 0, 0);
+          screen.extractRenderState(new GuiGraphicsExtractor(minecraft, renderState, -1, -1), 0, 0, 0);
           // render resets the state once drawn
           gameRenderer.guiRenderer.render(gameRenderer.fogRenderer.getBuffer(FogRenderer.FogMode.NONE));
           // each page is a frame for the GUI renderer, so animated items in the item atlas redraw for the next page
-          gameRenderer.guiRenderer.incrementFrameNumber();
+          gameRenderer.guiRenderer.endFrame();
 
           try (NativeImage image = RenderTargetCapture.capture(target, true)) {
             String pageFormat = page < 0 ? "cover" :  (html ? "clean_" : "page_") + page;

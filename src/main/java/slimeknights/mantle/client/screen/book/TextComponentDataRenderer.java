@@ -138,7 +138,7 @@ public class TextComponentDataRenderer {
       }
 
       if (atY >= y + boxHeight) {
-        graphics.drawString(fr, "...", atX, atY, 0xFF000000, item.dropShadow);
+        graphics.text(fr, "...", atX, atY, 0xFF000000, item.dropShadow);
         break;
       }
 
@@ -200,7 +200,7 @@ public class TextComponentDataRenderer {
     poseStack.scale(scale, scale);
 
     // base color must be opaque since 1.21.6: component style colors take their alpha from it, and alpha 0 skips the draw
-    graphics.drawString(font, Language.getInstance().getVisualOrder(textComponent), 0, 0, 0xFF000000, dropShadow);
+    graphics.text(font, Language.getInstance().getVisualOrder(textComponent), 0, 0, 0xFF000000, dropShadow);
     poseStack.popMatrix();
   }
 }

@@ -153,27 +153,27 @@ public class BookScreen extends Screen {
   }
 
   @Override
-  public void render(GuiGraphicsExtractor graphics, int mouseX ,int mouseY, float partialTicks) {
+  public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX ,int mouseY, float partialTicks) {
     if(this.minecraft == null) {
       return;
     }
 
     // book content is drawn in renderBackground below: super.render runs it before the widgets
-    super.render(graphics, mouseX, mouseY, partialTicks);
+    super.extractRenderState(graphics, mouseX, mouseY, partialTicks);
   }
 
   @Override
-  public void renderBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
+  public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
     // 1.21 blurs the whole framebuffer inside Screen.renderBackground, so it must run before any book content or the book renders blurred
     if (this.drawScreenBackground) {
-      super.renderBackground(graphics, mouseX, mouseY, partialTicks);
+      super.extractBackground(graphics, mouseX, mouseY, partialTicks);
     }
 
     Font fontRenderer = getFontRenderer();
 
     if (debug) {
       graphics.fill(0, 0, fontRenderer.width("DEBUG") + 4, fontRenderer.lineHeight + 4, 0x55000000);
-      graphics.drawString(this.font, "DEBUG", 2, 2, 0xFFFFFFFF, false);
+      graphics.text(this.font, "DEBUG", 2, 2, 0xFFFFFFFF, false);
     }
 
     // blending and colors are carried by each GUI draw (render pipeline + ARGB color), there is no global render state to set up here
@@ -206,7 +206,7 @@ public class BookScreen extends Screen {
           drawerTransform(matrixStack, false);
           // 1.21.8: drawString only takes int positions, translate to keep the half-pixel centering of the float overload
           matrixStack.translate((PAGE_WIDTH - fontRenderer.width(pNum)) / 2f, 0);
-          graphics.drawString(fontRenderer, pNum, 0, PAGE_HEIGHT - 10, 0xFFAAAAAA, false);
+          graphics.text(fontRenderer, pNum, 0, PAGE_HEIGHT - 10, 0xFFAAAAAA, false);
           matrixStack.popMatrix();
         }
         if (renderRight) {
@@ -214,7 +214,7 @@ public class BookScreen extends Screen {
           matrixStack.pushMatrix();
           drawerTransform(matrixStack, true);
           matrixStack.translate((PAGE_WIDTH - fontRenderer.width(pNum)) / 2f, 0);
-          graphics.drawString(fontRenderer, pNum, 0, PAGE_HEIGHT - 10, 0xFFAAAAAA, false);
+          graphics.text(fontRenderer, pNum, 0, PAGE_HEIGHT - 10, 0xFFAAAAAA, false);
           matrixStack.popMatrix();
         }
       }
@@ -276,7 +276,7 @@ public class BookScreen extends Screen {
 
       matrixStack.scale(scale, scale);
 
-      graphics.drawString(this.font, this.book.appearance.title, (int)((this.width / 2F) / scale + 3 - width / 2F), (int)((this.height / 2F - fontRenderer.lineHeight / 2F) / scale - 4), this.book.appearance.getCoverTextColor(), true);
+      graphics.text(this.font, this.book.appearance.title, (int)((this.width / 2F) / scale + 3 - width / 2F), (int)((this.height / 2F - fontRenderer.lineHeight / 2F) / scale - 4), this.book.appearance.getCoverTextColor(), true);
       matrixStack.popMatrix();
     }
 
@@ -287,7 +287,7 @@ public class BookScreen extends Screen {
       float scale = Mth.clamp((float)PAGE_WIDTH / width, 0F, 1.5F);
 
       matrixStack.scale(scale, scale);
-      graphics.drawString(this.font, this.book.appearance.subtitle, (int)((this.width / 2F) / scale + 7 - width / 2F), (int)((this.height / 2F + 100 - fontRenderer.lineHeight * 2) / scale), this.book.appearance.getCoverTextColor(), true);
+      graphics.text(this.font, this.book.appearance.subtitle, (int)((this.width / 2F) / scale + 7 - width / 2F), (int)((this.height / 2F + 100 - fontRenderer.lineHeight * 2) / scale), this.book.appearance.getCoverTextColor(), true);
       matrixStack.popMatrix();
     }
   }

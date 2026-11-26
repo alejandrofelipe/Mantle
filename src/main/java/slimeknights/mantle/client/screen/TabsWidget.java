@@ -141,7 +141,7 @@ public class TabsWidget extends Widget {
 
       ItemStack icon = this.icons.get(i);
       if (icon != null) {
-        graphics.renderItem(icon, x + (actualTab.w - 16) / 2, y + (actualTab.h - 16) / 2);
+        graphics.item(icon, x + (actualTab.w - 16) / 2, y + (actualTab.h - 16) / 2);
       }
     }
   }

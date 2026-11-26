@@ -82,7 +82,7 @@ public class NBTNameIngredient implements ICustomIngredient {
   public Stream<Holder<Item>> items() {
     // Holder<Item> cannot carry the component patch, so report just the referenced item; test() still enforces components
     ItemStack stack = makeStack();
-    return stack.isEmpty() ? Stream.empty() : Stream.of(stack.getItemHolder());
+    return stack.isEmpty() ? Stream.empty() : Stream.of(stack.typeHolder());
   }
 
   @Override

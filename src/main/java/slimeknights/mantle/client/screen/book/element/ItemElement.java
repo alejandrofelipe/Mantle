@@ -107,10 +107,10 @@ public class ItemElement extends SizedBookElement {
       matrices.scale(scale, scale);
 
       ItemStack stack = this.itemCycle.get(this.currentItem);
-      graphics.renderItem(stack, 0, 0);
+      graphics.item(stack, 0, 0);
       Font font = IClientItemExtensions.of(stack).getFont(stack, FontContext.TOOLTIP);
       if (font == null) font = mc.font;
-      graphics.renderItemDecorations(font, stack, 0, 0);
+      graphics.itemDecorations(font, stack, 0, 0);
 
       matrices.popMatrix();
     }

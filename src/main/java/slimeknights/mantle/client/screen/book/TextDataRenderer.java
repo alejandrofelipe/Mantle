@@ -173,7 +173,7 @@ public class TextDataRenderer {
       }
 
       if (atY >= y + boxHeight) {
-        graphics.drawString(fr, "...", atX, atY, 0xFF000000, item.dropshadow);
+        graphics.text(fr, "...", atX, atY, 0xFF000000, item.dropshadow);
         break;
       }
       y = atY;
@@ -255,7 +255,7 @@ public class TextDataRenderer {
     poseStack.scale(scale, scale);
 
     // color is often RRGGBB (book JSON TextData#rgbColor, external callers), and is also the alpha base for legacy formatting codes in the text
-    graphics.drawString(font, text, 0, 0, legacyTextColor(color), dropShadow);
+    graphics.text(font, text, 0, 0, legacyTextColor(color), dropShadow);
 
     poseStack.popMatrix();
   }

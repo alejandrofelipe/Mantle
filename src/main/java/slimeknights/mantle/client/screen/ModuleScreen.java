@@ -92,14 +92,14 @@ public abstract class ModuleScreen<P extends MultiModuleScreen<?>, C extends Abs
    * Callback to draw foreground elements
    */
   public void handleDrawGuiContainerForegroundLayer(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-    this.renderLabels(graphics, mouseX, mouseY);
+    this.extractLabels(graphics, mouseX, mouseY);
   }
 
   /**
    * Callback to draw hovering tooltips
    */
   public void handleRenderHoveredTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-    this.renderTooltip(graphics, mouseX, mouseY);
+    this.extractTooltip(graphics, mouseX, mouseY);
   }
 
   /**

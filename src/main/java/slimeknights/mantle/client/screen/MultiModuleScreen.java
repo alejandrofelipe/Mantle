@@ -94,7 +94,7 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
   }
 
   @Override
-  protected void renderLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+  protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
     this.drawContainerName(graphics);
     this.drawPlayerInventoryName(graphics);
 
@@ -109,8 +109,8 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
   }
 
   @Override
-  protected void renderTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-    super.renderTooltip(graphics, mouseX, mouseY);
+  protected void extractTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+    super.extractTooltip(graphics, mouseX, mouseY);
 
     for (ModuleScreen<?,?> module : this.modules) {
       module.handleRenderHoveredTooltip(graphics, mouseX, mouseY);
@@ -122,13 +122,13 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
   }
 
   protected void drawContainerName(GuiGraphicsExtractor graphics) {
-    graphics.drawString(this.font, this.getTitle().getVisualOrderText(), 8, 6, 0xFF404040, false);
+    graphics.text(this.font, this.getTitle().getVisualOrderText(), 8, 6, 0xFF404040, false);
   }
 
   protected void drawPlayerInventoryName(GuiGraphicsExtractor graphics) {
     assert Minecraft.getInstance().player != null;
     Component localizedName = Minecraft.getInstance().player.getInventory().getDisplayName();
-    graphics.drawString(this.font, localizedName.getVisualOrderText(), 8, this.imageHeight - 96 + 2, 0xFF404040, false);
+    graphics.text(this.font, localizedName.getVisualOrderText(), 8, this.imageHeight - 96 + 2, 0xFF404040, false);
   }
 
   @Override
@@ -142,20 +142,20 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
   }
 
   @Override
-  public void renderBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
+  public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
     // 1.21.6+: Screen.render no longer calls renderBackground; Screen#renderWithTooltip calls it separately, before render.
     // AbstractContainerScreen's renderBackground runs renderBg, which up to 1.21.5 ran inside render's corrected bounds,
     // so wrap it in the same main-window corner here to keep renderBg seeing the same leftPos/topPos/imageWidth/imageHeight.
     // Note NeoForge's ContainerScreenEvent.Render.Background is now posted by Screen#renderWithTooltip after this, outside the corrected bounds.
-    this.withCorrectedBounds(() -> super.renderBackground(graphics, mouseX, mouseY, partialTicks));
+    this.withCorrectedBounds(() -> super.extractBackground(graphics, mouseX, mouseY, partialTicks));
   }
 
   @Override
-  public void render(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
+  public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
     // Wrap super.render (and the explicit tooltip pass, which vanilla still leaves to subclasses) in the bounds corrected to the main-window corner
     this.withCorrectedBounds(() -> {
-      super.render(graphics, mouseX, mouseY, partialTicks);
-      this.renderTooltip(graphics, mouseX, mouseY);
+      super.extractRenderState(graphics, mouseX, mouseY, partialTicks);
+      this.extractTooltip(graphics, mouseX, mouseY);
     });
   }
 
@@ -238,7 +238,7 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
   }
 
   @Override
-  public void renderSlot(GuiGraphicsExtractor graphics, Slot slotIn, int mouseX, int mouseY) {
+  public void extractSlot(GuiGraphicsExtractor graphics, Slot slotIn, int mouseX, int mouseY) {
     ModuleScreen<?,?> module = this.getModuleForSlot(slotIn.index);
 
     if (module != null) {
@@ -259,7 +259,7 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
       slotIn.x = wrapper.parent.x;
       slotIn.y = wrapper.parent.y;
     }
-    super.renderSlot(graphics, slotIn, mouseX, mouseY);
+    super.extractSlot(graphics, slotIn, mouseX, mouseY);
   }
 
   // note: AbstractContainerScreen#isHovering(Slot, double, double) is now private in 1.21.1, so this no longer overrides it; kept as a public helper

@@ -244,6 +244,22 @@ The Scoop `grep` and Git-Bash `find`/`sed` are present and work in the **Bash** 
 reviewable. Do **not** rely on `sed` in-place edits as the primary mechanism — they are hard to review and
 easy to over-match.
 
+## Mechanical renames between versions (rename-map)
+
+From M6 (MC 1.21.11) the scripted renames of a version bump (e.g. `ResourceLocation` → `Identifier`) go through
+`scripts/rename-map/`: a map file per milestone (`maps/<version>.txt`, rules `token`/`literal`) applied to
+`src/**/*.java`. Dry run by default (hits per rule/file + string-literal warnings); `-Apply` rewrites, keeping line endings
+and BOMs. Format, workflow and tests: [`scripts/rename-map/README.md`](../scripts/rename-map/README.md).
+
+```powershell
+# Mantle (dry run; add -Apply to rewrite)
+pwsh -NoProfile -File "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map\Invoke-RenameMap.ps1" -Root "C:\Users\aleja\DEV\New Tinkers\repo" -Map "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map\maps\1.21.11.txt"
+# Tinkers (same tool, from ../repo/scripts/rename-map/)
+pwsh -NoProfile -File "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map\Invoke-RenameMap.ps1" -Root "C:\Users\aleja\DEV\New Tinkers\tinkers" -Map "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map\maps\1.21.11.txt"
+```
+
+Apply each repo's rename in its own commit, then fix the compiler-driven rest by hand.
+
 ## Git (port workflow)
 
 The `1.21.1` branch already exists. The plan commits after every green step.

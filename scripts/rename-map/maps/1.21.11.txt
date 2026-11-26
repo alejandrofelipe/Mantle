@@ -1,0 +1,25 @@
+# Rename map MC 1.21.10 -> MC 1.21.11 (NeoForge 21.10 -> 21.11).
+# Source: NeoForge 21.11 / MC 1.21.11 primer (ResourceLocation -> Identifier rename) and the M6 plan,
+# decision D-R1 steps 1-2: tinkers/docs/superpowers/plans/2026-11-25-m6-1.21.11-port.md.
+# Format: <kind> <old> <new>  (see Invoke-RenameMap.ps1 / README.md). Rules apply top to bottom.
+#
+# NOT here on purpose:
+# - D-R1 step 3, ResourceKey#location() -> identifier(), is compiler-driven (TagKey/SoundEvent keep location()).
+# - D-R2: our own public names (ResourceLocationLoadable, ResourceLocationSerializer, Loadables.RESOURCE_LOCATION,
+#   JsonHelper.getResourceLocation, ...) keep their names; the token rules use word boundaries, so they are untouched.
+# - Static factories (fromNamespaceAndPath, parse, tryParse, tryBuild, withDefaultNamespace, CODEC, STREAM_CODEC)
+#   keep their names.
+
+# --- step 2: related vanilla classes and members (specific rules first) ---
+literal net.minecraft.ResourceLocationException                      net.minecraft.IdentifierException
+token   ResourceLocationException                                    IdentifierException
+literal net.minecraft.commands.arguments.ResourceLocationArgument    net.minecraft.commands.arguments.IdentifierArgument
+token   ResourceLocationArgument                                     IdentifierArgument
+token   isAllowedInResourceLocation                                  isAllowedInIdentifier
+# FriendlyByteBuf calls
+literal readResourceLocation(                                        readIdentifier(
+literal writeResourceLocation(                                       writeIdentifier(
+
+# --- step 1: the class itself (code, comments and javadoc) ---
+literal net.minecraft.resources.ResourceLocation                     net.minecraft.resources.Identifier
+token   ResourceLocation                                             Identifier

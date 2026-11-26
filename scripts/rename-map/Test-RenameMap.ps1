@@ -1,0 +1,161 @@
+<#
+.SYNOPSIS
+  Self-contained tests for Invoke-RenameMap.ps1 (no Pester). Builds fixtures in a temp dir, runs the tool
+  in a child pwsh, prints PASS/FAIL per case and exits nonzero on any failure.
+
+.EXAMPLE
+  pwsh -NoProfile -File Test-RenameMap.ps1
+#>
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+
+$tool = Join-Path $PSScriptRoot 'Invoke-RenameMap.ps1'
+$tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("rename-map-test-" + [guid]::NewGuid().ToString('N'))
+$script:failures = 0
+
+function Assert-Case([string] $name, [bool] $ok, [string] $detail = '') {
+  if ($ok) { Write-Host "PASS  $name" }
+  else { $script:failures++; Write-Host "FAIL  $name $(if ($detail) { "-- $detail" })" }
+}
+
+function Invoke-Tool([string] $root, [string] $map, [switch] $Apply) {
+  $toolArgs = @('-NoProfile', '-File', $tool, '-Root', $root, '-Map', $map)
+  if ($Apply) { $toolArgs += '-Apply' }
+  $out = & pwsh @toolArgs 2>&1 | Out-String
+  [pscustomobject]@{ Exit = $LASTEXITCODE; Out = $out }
+}
+
+$utf8 = [System.Text.UTF8Encoding]::new($false)
+function New-Fixture([string] $root, [string] $rel, [string[]] $lines, [string] $eol, [bool] $bom) {
+  $path = Join-Path $root $rel
+  New-Item -ItemType Directory -Force (Split-Path $path) | Out-Null
+  $bytes = $utf8.GetBytes(($lines -join $eol) + $eol)
+  if ($bom) { $bytes = [byte[]](0xEF, 0xBB, 0xBF) + $bytes }
+  [System.IO.File]::WriteAllBytes($path, $bytes)
+  $path
+}
+function Get-Text([string] $path) { $utf8.GetString([System.IO.File]::ReadAllBytes($path)).TrimStart([char]0xFEFF) }
+function Get-Sha([string] $path) { (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash }
+
+try {
+  $root = Join-Path $tmp 'repo'
+  $java = @(
+    'package demo;'
+    'import net.minecraft.resources.ResourceLocation;'
+    'import slimeknights.mantle.data.loadable.primitive.ResourceLocationLoadable;'
+    '/** Uses {@link ResourceLocation}. */'
+    'class Demo {'
+    '  ResourceLocation id = ResourceLocation.fromNamespaceAndPath("a", "b");'
+    '  ResourceLocationLoadable loadable; MyResourceLocation mine; Object c = Loadables.RESOURCE_LOCATION;'
+    '  void io(FriendlyByteBuf buf) { buf.writeResourceLocation(buf.readResourceLocation()); }'
+    '  String s = "ResourceLocation in a string";'
+    '}'
+  )
+  $crlf = New-Fixture $root 'src/main/java/demo/Crlf.java' $java "`r`n" $false
+  $lf = New-Fixture $root 'src/main/java/demo/Lf.java' $java "`n" $false
+  $bom = New-Fixture $root 'src/test/java/demo/Bom.java' $java "`r`n" $true
+  $untouched = New-Fixture $root 'src/main/java/demo/Other.java' @('class Other { int x; }') "`n" $false
+  $notJava = New-Fixture $root 'src/main/resources/data.json' @('{"id": "ResourceLocation"}') "`n" $false
+
+  $map = Join-Path $tmp 'map.txt'
+  [System.IO.File]::WriteAllText($map, @(
+      '# test map'
+      ''
+      'literal net.minecraft.resources.ResourceLocation net.minecraft.resources.Identifier'
+      'literal readResourceLocation( readIdentifier('
+      '  literal   writeResourceLocation(   writeIdentifier(  '
+      'token ResourceLocation Identifier'
+    ) -join "`n")
+
+  $before = @{}
+  foreach ($p in $crlf, $lf, $bom, $untouched, $notJava) { $before[$p] = Get-Sha $p }
+
+  # --- dry run ---
+  $dry = Invoke-Tool $root $map
+  Assert-Case 'dry run exits 0' ($dry.Exit -eq 0) "exit=$($dry.Exit)"
+  $unchanged = @($crlf, $lf, $bom, $untouched, $notJava | Where-Object { (Get-Sha $_) -ne $before[$_] }).Count -eq 0
+  Assert-Case 'dry run changes nothing on disk' $unchanged
+  # per file: import literal 1 + read 1 + write 1 + token (javadoc 1, field 2) = 6 (string hit included)
+  #           + 1 string hit = 7 hits per file; 3 files
+  Assert-Case 'dry run summary line' ($dry.Out -match 'rules=4 files=3 hits=21 stringHits=3') ($dry.Out -split "`n" | Select-String 'rules=' | Out-String)
+  Assert-Case 'dry run flags string-literal hits' ($dry.Out -match 'WARNING: 3 hit\(s\) inside a string literal' -and $dry.Out -match 'Lf\.java:9') ''
+  Assert-Case 'dry run lists per-rule hits' ($dry.Out -match 'Hits per rule' -and $dry.Out -match 'Hits per file \(top 20 of 3 files\)')
+  Assert-Case 'includes default to src/**/*.java (json ignored)' ($dry.Out -match '\(4 files scanned\)' -and $dry.Out -notmatch 'data\.json') ''
+
+  # --- apply ---
+  $app = Invoke-Tool $root $map -Apply
+  Assert-Case 'apply exits 0' ($app.Exit -eq 0) "exit=$($app.Exit) $($app.Out)"
+  Assert-Case 'apply writes only changed files' ($app.Out -match 'written=3' -and (Get-Sha $untouched) -eq $before[$untouched] -and (Get-Sha $notJava) -eq $before[$notJava])
+
+  $text = Get-Text $lf
+  Assert-Case 'token renames ResourceLocation' ($text -match 'Identifier id = Identifier\.fromNamespaceAndPath' -and $text -match '\{@link Identifier\}')
+  Assert-Case 'token keeps ResourceLocationLoadable' ($text -match 'ResourceLocationLoadable loadable' -and $text -match 'primitive\.ResourceLocationLoadable;')
+  Assert-Case 'token keeps MyResourceLocation' ($text -match 'MyResourceLocation mine')
+  Assert-Case 'token keeps RESOURCE_LOCATION' ($text -match 'Loadables\.RESOURCE_LOCATION')
+  Assert-Case 'literal rules (read/write calls)' ($text -match 'buf\.writeIdentifier\(buf\.readIdentifier\(\)\)')
+  Assert-Case 'import literal + token rename the import, no ResourceLocation token left' ($text -match 'import net\.minecraft\.resources\.Identifier;' -and $text -notmatch '(?<![\w$])ResourceLocation(?![\w$])')
+  Assert-Case 'string-literal hit still replaced' ($text -match '"Identifier in a string"')
+
+  $crlfBytes = [System.IO.File]::ReadAllBytes($crlf); $crlfText = $utf8.GetString($crlfBytes)
+  Assert-Case 'apply keeps CRLF as CRLF' (($crlfText -split "`r`n").Count -eq 11 -and ($crlfText -replace "`r`n", '') -notmatch "`n")
+  $lfText = $utf8.GetString([System.IO.File]::ReadAllBytes($lf))
+  Assert-Case 'apply keeps LF as LF' ($lfText -notmatch "`r" -and ($lfText -split "`n").Count -eq 11)
+  $bomBytes = [System.IO.File]::ReadAllBytes($bom)
+  Assert-Case 'apply keeps BOM when present' ($bomBytes[0] -eq 0xEF -and $bomBytes[1] -eq 0xBB -and $bomBytes[2] -eq 0xBF -and $bomBytes[3] -ne 0xEF)
+  Assert-Case 'apply adds no BOM when absent' ($crlfBytes[0] -eq [byte][char]'p')
+
+  $again = Invoke-Tool $root $map -Apply
+  Assert-Case 'second apply is a no-op' ($again.Exit -eq 0 -and $again.Out -match 'written=0' -and $again.Out -match 'hits=0')
+
+  # --- token rule escapes its input ($ and . are literal) ---
+  $root2 = Join-Path $tmp 'repo2'
+  $f2 = New-Fixture $root2 'src/A.java' @('a.b x; aXb y; a.bc z; Foo$Bar q;') "`n" $false
+  $map2 = Join-Path $tmp 'map2.txt'
+  [System.IO.File]::WriteAllText($map2, "token a.b NEW`ntoken Foo`$Bar Baz`$Qux`n")
+  $r2 = Invoke-Tool $root2 $map2 -Apply
+  Assert-Case 'token old is literal (escaped) and $ in new is literal' ($r2.Exit -eq 0 -and (Get-Text $f2) -eq "NEW x; aXb y; a.bc z; Baz`$Qux q;`n") (Get-Text $f2)
+
+  # --- rule order: rules run top to bottom, each on the previous output ---
+  $root3 = Join-Path $tmp 'repo3'
+  $f3 = New-Fixture $root3 'src/B.java' @('Foo.bar(1);') "`n" $false
+  $map3 = Join-Path $tmp 'map3.txt'
+  [System.IO.File]::WriteAllText($map3, "literal Foo.bar( Foo.baz(`ntoken Foo Qux`n")
+  $null = Invoke-Tool $root3 $map3 -Apply
+  $forward = Get-Text $f3
+  $f3 = New-Fixture $root3 'src/B.java' @('Foo.bar(1);') "`n" $false
+  [System.IO.File]::WriteAllText($map3, "token Foo Qux`nliteral Foo.bar( Foo.baz(`n")
+  $null = Invoke-Tool $root3 $map3 -Apply
+  $reversed = Get-Text $f3
+  Assert-Case 'rule order: literal first, then token' ($forward -eq "Qux.baz(1);`n" -and $reversed -eq "Qux.bar(1);`n") "forward=$forward reversed=$reversed"
+
+  # --- string-literal heuristic edge cases ---
+  $root4 = Join-Path $tmp 'repo4'
+  $null = New-Fixture $root4 'src/C.java' @(
+    'x("a", ResourceLocation.ID);'              # after a closed string: code
+    'x("say \"ResourceLocation\" here");'        # inside a string with escaped quotes: flagged
+    'char q = ''"''; ResourceLocation r;'        # quote char literal: code
+    'x("\\", ResourceLocation.ID);'             # string ending in an escaped backslash: code
+  ) "`r`n" $false
+  $map4 = Join-Path $tmp 'map4.txt'
+  [System.IO.File]::WriteAllText($map4, "token ResourceLocation Identifier`n")
+  $r4 = Invoke-Tool $root4 $map4
+  Assert-Case 'string heuristic: only the real in-string hit is flagged' ($r4.Out -match 'hits=4 stringHits=1' -and $r4.Out -match 'C\.java:2 ') ($r4.Out -split "`n" | Select-String 'C.java|rules=' | Out-String)
+
+  # --- bad map syntax ---
+  foreach ($bad in @('token OnlyTwo', 'rename A B', 'token A B # trailing comment')) {
+    $badMap = Join-Path $tmp 'bad.txt'
+    [System.IO.File]::WriteAllText($badMap, "token Good Fine`n$bad`n")
+    $r = Invoke-Tool $root $badMap
+    Assert-Case "bad map line '$bad' exits nonzero" ($r.Exit -ne 0 -and $r.Out -match 'bad map syntax' -and $r.Out -match 'line 2') "exit=$($r.Exit)"
+  }
+  $r = Invoke-Tool $root (Join-Path $tmp 'missing.txt')
+  Assert-Case 'missing map exits nonzero' ($r.Exit -ne 0)
+}
+finally {
+  Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+Write-Host ''
+if ($script:failures -gt 0) { Write-Host "$script:failures test(s) FAILED"; exit 1 }
+Write-Host 'All tests PASSED'
+exit 0

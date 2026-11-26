@@ -29,7 +29,7 @@ public class SourcesCommand {
 
   /** Registers this command with the builder */
   public static void register(LiteralArgumentBuilder<CommandSourceStack> subCommand) {
-    subCommand = subCommand.requires(source -> source.hasPermission(MantleCommand.PERMISSION_EDIT_SPAWN));
+    subCommand = subCommand.requires(source -> MantleCommand.hasPermission(source, MantleCommand.PERMISSION_EDIT_SPAWN));
     subCommand.then(Commands.literal("path")
       .then(Commands.argument("path", IdentifierArgument.id())
         .executes(context -> run(context, context.getSource().getServer().getResourceManager(), IdentifierArgument.getId(context, "path")))));

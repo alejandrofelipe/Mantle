@@ -40,7 +40,7 @@ public class DumpLootModifiers {
    * @param subCommand  Command builder
    */
   public static void register(LiteralArgumentBuilder<CommandSourceStack> subCommand) {
-    subCommand.requires(sender -> sender.hasPermission(MantleCommand.PERMISSION_EDIT_SPAWN))
+    subCommand.requires(sender -> MantleCommand.hasPermission(sender, MantleCommand.PERMISSION_EDIT_SPAWN))
               .then(Commands.literal("save").executes(source -> run(source, true)))
               .then(Commands.literal("log").executes(source -> run(source, false)));
   }

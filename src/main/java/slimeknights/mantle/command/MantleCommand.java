@@ -8,7 +8,10 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.server.permissions.PermissionSet;
+import net.minecraft.server.permissions.Permissions;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import slimeknights.mantle.command.argument.TagSourceArgument;
@@ -86,7 +89,7 @@ public class MantleCommand {
     register(builder, "dump_loot_modifiers", DumpLootModifiers::register);
     register(builder, "harvest_tiers", HarvestTiersCommand::register);
     register(builder, "remove", b -> {
-      b = b.requires(sender -> sender.hasPermission(MantleCommand.PERMISSION_GAME_COMMANDS));
+      b = b.requires(sender -> hasPermission(sender, PERMISSION_GAME_COMMANDS));
       register(b, "recipes", b2 -> RemoveRecipesCommand.register(b2, context));
       RemoveDataCommand.register(b);
     });
@@ -110,6 +113,42 @@ public class MantleCommand {
    * @return  True if the command can be run
    */
   public static boolean requiresDebugInfoOrOp(CommandSourceStack source, int reducedDebugLevel) {
-    return !source.getLevel().getGameRules().getBoolean(GameRules.RULE_REDUCEDDEBUGINFO) || source.hasPermission(reducedDebugLevel);
+    return !source.getLevel().getGameRules().get(GameRules.REDUCED_DEBUG_INFO) || hasPermission(source, reducedDebugLevel);
+  }
+
+  /**
+   * Checks if the command source has the given operator permission level.
+   * <p>
+   * Exists so Mantle and downstream mods keep expressing permissions as the stable integer op levels ({@link #PERMISSION_EDIT_SPAWN} and friends)
+   * instead of naming the vanilla permission types, which changed in 1.21.11 ({@code PermissionSet}/{@code Permission}) and may change again.
+   * Use as {@code requires(source -> MantleCommand.hasPermission(source, MantleCommand.PERMISSION_GAME_COMMANDS))}.
+   * @param source  Command source
+   * @param level   Op level, 0 to 4, matching the old {@code CommandSourceStack#hasPermission(int)}
+   * @return  True if the source has at least that level
+   */
+  public static boolean hasPermission(CommandSourceStack source, int level) {
+    return hasPermission(source.permissions(), level);
+  }
+
+  /**
+   * Checks if the player has the given operator permission level, replacing the removed {@code Player#hasPermissions(int)}.
+   * @param player  Player to check
+   * @param level   Op level, 0 to 4
+   * @return  True if the player has at least that level
+   * @see #hasPermission(CommandSourceStack, int)
+   */
+  public static boolean hasPermission(Player player, int level) {
+    return hasPermission(player.permissions(), level);
+  }
+
+  /** Maps an op level to the matching vanilla permission; like the old int check, levels at or below 0 always pass and levels above 4 never do */
+  private static boolean hasPermission(PermissionSet permissions, int level) {
+    return switch (level) {
+      case PERMISSION_EDIT_SPAWN -> permissions.hasPermission(Permissions.COMMANDS_MODERATOR);
+      case PERMISSION_GAME_COMMANDS -> permissions.hasPermission(Permissions.COMMANDS_GAMEMASTER);
+      case PERMISSION_PLAYER_COMMANDS -> permissions.hasPermission(Permissions.COMMANDS_ADMIN);
+      case PERMISSION_OWNER -> permissions.hasPermission(Permissions.COMMANDS_OWNER);
+      default -> level <= 0;
+    };
   }
 }

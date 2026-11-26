@@ -21,7 +21,7 @@ public class TagPreferenceCommand {
    * @param subCommand  Command builder
    */
   public static void register(LiteralArgumentBuilder<CommandSourceStack> subCommand) {
-    subCommand.requires(sender -> sender.hasPermission(MantleCommand.PERMISSION_EDIT_SPAWN))
+    subCommand.requires(sender -> MantleCommand.hasPermission(sender, MantleCommand.PERMISSION_EDIT_SPAWN))
       .then(RegistryArgument.argument().then(TagSourceArgument.tagArgument("name").executes(TagPreferenceCommand::run)));
   }
 

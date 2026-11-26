@@ -8,8 +8,8 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.SpawnEggItem;
+import org.jspecify.annotations.Nullable;
 import slimeknights.mantle.data.loadable.IAmLoadable;
 import slimeknights.mantle.data.loadable.Loadable;
 import slimeknights.mantle.data.loadable.Loadables;
@@ -20,7 +20,6 @@ import slimeknights.mantle.util.RegistryHelper;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -127,7 +126,7 @@ public abstract class EntityIngredient implements Predicate<EntityType<?>>, IAmL
   /* JEI */
 
   private List<EntityInput> display;
-  private List<ItemStack> eggs;
+  private List<@Nullable ItemStack> eggs;
 
   /** Gets the list of eggs matching this ingredient, used for display in JEI as it cannot do entity type */
   public List<EntityInput> getDisplay() {
@@ -137,11 +136,18 @@ public abstract class EntityIngredient implements Predicate<EntityType<?>>, IAmL
     return display;
   }
 
-  /** Gets the list of eggs matching this ingredient, used for focus links in JEI */
-  public List<ItemStack> getEggs() {
+  /**
+   * Gets the list of eggs matching this ingredient, used for focus links in JEI. Same order and size as {@link #getDisplay()},
+   * with a null entry for each entity type without a spawn egg (e.g. the player): JEI keeps null entries as empty positions
+   * but drops empty stacks, which would break the focus link's equal slot sizes.
+   */
+  public List<@Nullable ItemStack> getEggs() {
     if (eggs == null) {
       // use getDisplay to guarantee order is the same, just in case
-      eggs = getDisplay().stream().map(type -> new ItemStack(Objects.requireNonNullElse(SpawnEggItem.byId(type.type), Items.AIR))).toList();
+      eggs = getDisplay().stream().map(type -> {
+        SpawnEggItem egg = SpawnEggItem.byId(type.type);
+        return egg == null ? null : new ItemStack(egg);
+      }).toList();
     }
     return eggs;
   }

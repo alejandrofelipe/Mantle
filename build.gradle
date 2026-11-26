@@ -30,7 +30,9 @@ group = 'slimeknights.mantle'
 base {
     archivesName = 'Mantle'
 }
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+// the freefair 8.6 default (Lombok 1.18.32) crashes javac 25 (TypeTag.UNKNOWN is gone); 1.18.40+ supports JDK 25
+lombok { version = '1.18.42' }
 
 // sets version to the slimeKnights version format
 task buildInfo {
@@ -58,13 +60,6 @@ println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty '
 minecraft {
     accessTransformers {
         file('src/main/resources/META-INF/accesstransformer.cfg')
-    }
-}
-
-subsystems {
-    parchment {
-        minecraftVersion = parchment_minecraft
-        mappingsVersion = parchment_version
     }
 }
 

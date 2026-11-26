@@ -54,3 +54,12 @@ Add `-Apply` to rewrite. Narrow with `-Include "src/main/**/*.java,src/test/**/*
    string-literal warning.
 3. Apply, per repo, in **its own commit** (no other change in it; review the diff for strings and javadoc).
 4. Compile and fix the rest by hand (compiler-driven renames, cascades).
+
+## Seeding moved-class rules from the jar (`Find-MovedClasses.ps1`)
+
+Primers are non-exhaustive about classes that changed package. `Find-MovedClasses.ps1 -Root <repo> -Jar <target raw.jar>`
+lists every `net.minecraft`/`com.mojang` import of the repo that no longer exists in the target jar and, when exactly one
+class with the same simple name exists there, prints `literal <old>;`/`literal <old>.` rules for it (ambiguous and
+removed classes are printed as comments). Review the output and append it to the milestone's map. The jar is NeoForm's
+`repo/build/neoForm/neoFormJoined<version>-*/raw.jar` (exists after the first build on the new version). M6 used it for
+Tinkers' 33 moved classes (entity/projectile/model subpackages, `RenderType`, `GameRules`).

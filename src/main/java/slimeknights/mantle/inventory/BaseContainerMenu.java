@@ -18,6 +18,8 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import slimeknights.mantle.util.BlockEntityHelper;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 
 public class BaseContainerMenu<TILE extends BlockEntity> extends AbstractContainerMenu {
 
@@ -240,10 +242,12 @@ public class BaseContainerMenu<TILE extends BlockEntity> extends AbstractContain
           int target = Math.min(before + stack.getCount(), limit);
 
           if (target > before) {
+            ItemStack old = itemstack1.copy();
+            List<ItemStack> others = copyOtherSlots(slot);
             itemstack1.setCount(target);
             slot.setChanged();
-            // take from the source only what the slot now holds: a slot may refuse the change (e.g. one over a native handler)
-            int accepted = acceptedBySlot(slot, stack, before, target);
+            // take from the source only what the slot took: a slot may refuse the change (e.g. one over a native handler)
+            int accepted = acceptedBySlot(slot, stack, old, target, others);
             if (accepted > 0) {
               stack.shrink(accepted);
               flag1 = true;
@@ -285,10 +289,14 @@ public class BaseContainerMenu<TILE extends BlockEntity> extends AbstractContain
       if (itemstack1.isEmpty() && slot.mayPlace(stack) && this.canTakeItemForPickAll(stack, slot)) {
         int count = Math.min(stack.getCount(), slot.getMaxStackSize(stack));
         if (count > 0) {
+          List<ItemStack> others = copyOtherSlots(slot);
           slot.set(stack.copyWithCount(count));
+          // take from the source only what the slot took: a slot may refuse the set (e.g. one over a native handler). Measured before
+          // notifying: a slot working on copies (NeoForge's StackCopySlot) writes back on setChanged the stack it was last set to, which
+          // a container that consumed or moved it in setItem no longer holds (a casting tank processing its input into its output), so
+          // writing it back would credit the item twice; reading the slot first refreshes that copy to the real contents
+          int accepted = acceptedBySlot(slot, stack, ItemStack.EMPTY, count, others);
           slot.setChanged();
-          // take from the source only what the slot now holds: a slot may refuse the set (e.g. one over a native handler)
-          int accepted = acceptedBySlot(slot, stack, 0, count);
           if (accepted > 0) {
             stack.shrink(accepted);
             flag1 = true;
@@ -311,18 +319,48 @@ public class BaseContainerMenu<TILE extends BlockEntity> extends AbstractContain
   }
 
   /**
-   * Measures how many items a merge into the slot really added. The merges above change the slot before shrinking the source, so a slot
-   * refusing or capping the change (a menu slot over a native handler, which can reject a set) never makes the source lose items.
+   * Copies the contents of every slot of this menu except the given one, for {@link #acceptedBySlot}. The given slot is not read: on a
+   * slot working on copies (NeoForge's StackCopySlot), reading it would replace the copy the refill merge changes and writes back.
+   */
+  private List<ItemStack> copyOtherSlots(Slot slot) {
+    List<ItemStack> copies = new ArrayList<>(this.slots.size());
+    for (Slot other : this.slots) {
+      copies.add(other == slot ? ItemStack.EMPTY : other.getItem().copy());
+    }
+    return copies;
+  }
+
+  /**
+   * Measures how many items a merge into the slot took. The merges above change the slot before shrinking the source, so a slot refusing
+   * or capping the change (a menu slot over a native handler, which can reject a set) never makes the source lose items, while a container
+   * consuming or transforming what it is given in {@code setItem} (a casting tank processing its input into its output slot, leaving the
+   * input as empty as before) still takes them:
+   * <ul>
+   *   <li>another slot of the menu changed: the container took the items, all of them are taken;</li>
+   *   <li>the slot still holds the merged item: the increase is taken (capped or refused when it is less than requested);</li>
+   *   <li>the slot is unchanged: refused, nothing is taken;</li>
+   *   <li>the slot holds something else: the container transformed the items, all of them are taken.</li>
+   * </ul>
    * @param slot    Slot merged into
    * @param stack   Source stack, of the item merged
-   * @param before  Amount the slot held before the merge
+   * @param before  Copy of what the slot held before the merge, empty or the merged item
    * @param target  Amount the slot was set to
+   * @param others  Contents of the other slots before the merge, from {@link #copyOtherSlots(Slot)}
    * @return  Items to take from the source, between 0 and {@code target - before}
    */
-  private static int acceptedBySlot(Slot slot, ItemStack stack, int before, int target) {
-    ItemStack placed = slot.getItem();
-    int now = ItemStack.isSameItemSameComponents(placed, stack) ? placed.getCount() : 0;
-    return Math.max(0, Math.min(now, target) - before);
+  private int acceptedBySlot(Slot slot, ItemStack stack, ItemStack before, int target, List<ItemStack> others) {
+    ItemStack after = slot.getItem();
+    int requested = target - before.getCount();
+    for (int i = 0; i < this.slots.size(); i++) {
+      Slot other = this.slots.get(i);
+      if (other != slot && !ItemStack.matches(other.getItem(), others.get(i))) {
+        return requested;
+      }
+    }
+    if (ItemStack.isSameItemSameComponents(after, stack)) {
+      return Math.max(0, Math.min(after.getCount(), target) - before.getCount());
+    }
+    return ItemStack.matches(after, before) ? 0 : requested;
   }
 
   /**

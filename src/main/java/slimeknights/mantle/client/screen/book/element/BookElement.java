@@ -20,7 +20,7 @@ import org.joml.Vector2i;
 import org.joml.Vector2ic;
 import slimeknights.mantle.client.screen.book.BookScreen;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;

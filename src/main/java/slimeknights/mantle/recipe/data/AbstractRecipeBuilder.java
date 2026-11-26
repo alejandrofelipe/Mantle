@@ -11,8 +11,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.Recipe;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -29,7 +28,6 @@ public abstract class AbstractRecipeBuilder<T extends AbstractRecipeBuilder<T>> 
   /** Criteria for the recipe advancement, by name. Insertion-ordered to keep datagen output stable. */
   protected final Map<String,Criterion<?>> criteria = new LinkedHashMap<>();
   /** Group for this recipe */
-  @Nonnull
   protected String group = "";
 
   /**

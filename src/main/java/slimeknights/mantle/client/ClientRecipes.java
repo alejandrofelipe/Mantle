@@ -14,7 +14,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RecipesReceivedEvent;
 import slimeknights.mantle.Mantle;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Client-side recipe lookup. Since 1.21.4 the client level has no {@link net.minecraft.world.item.crafting.RecipeManager}

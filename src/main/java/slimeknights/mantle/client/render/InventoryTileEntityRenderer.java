@@ -11,7 +11,7 @@ import net.minecraft.world.Container;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
@@ -32,7 +32,7 @@ public class InventoryTileEntityRenderer<T extends BlockEntity & Container> impl
   }
 
   @Override
-  public void extractRenderState(T inventory, InventoryRenderState state, float partialTicks, Vec3 cameraPos, @Nullable ModelFeatureRenderer.CrumblingOverlay breakProgress) {
+  public void extractRenderState(T inventory, InventoryRenderState state, float partialTicks, Vec3 cameraPos, ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress) {
     BlockEntityRenderer.super.extractRenderState(inventory, state, partialTicks, cameraPos, breakProgress);
     if (!inventory.isEmpty()) {
       state.extractItems(itemModelResolver, RenderItem.REGISTRY.get(state.blockState.getBlock(), List.of()), inventory::getItem, inventory.getLevel());

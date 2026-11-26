@@ -7,9 +7,9 @@ import com.google.common.collect.Multiset;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.NonNull;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.AbstractCollection;
 import java.util.Collection;
 import java.util.Collections;
@@ -27,10 +27,10 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class SingleKeyMultimap<K,V> implements Multimap<K,V> {
   @Getter
-  @Nonnull
+  @NonNull
   private final K key;
   @Getter
-  @Nonnull
+  @NonNull
   private final Collection<V> values;
 
   /** Validates the given key is the correct one for this map */

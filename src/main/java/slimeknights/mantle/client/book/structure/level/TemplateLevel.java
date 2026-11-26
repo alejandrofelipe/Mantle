@@ -44,8 +44,7 @@ import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.ticks.BlackholeTickAccess;
 import net.minecraft.world.ticks.LevelTickAccess;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -81,7 +80,7 @@ public class TemplateLevel extends Level {
   }
 
   @Override
-  public void sendBlockUpdated(@Nonnull BlockPos pos, @Nonnull BlockState oldState, @Nonnull BlockState newState, int flags) {}
+  public void sendBlockUpdated(BlockPos pos, BlockState oldState, BlockState newState, int flags) {}
 
   // 1.21.5: the sound and level event sources widened from Player to Entity
   @Override
@@ -103,29 +102,26 @@ public class TemplateLevel extends Level {
 
   @Nullable
   @Override
-  public MapItemSavedData getMapData(@Nonnull MapId mapId) {
+  public MapItemSavedData getMapData(MapId mapId) {
     return this.maps.get(mapId);
   }
 
   // 1.21.5: setMapData/getFreeMapId moved off Level (server-side map storage), nothing to override
 
   @Override
-  public void destroyBlockProgress(int breakerId, @Nonnull BlockPos pos, int progress) {}
+  public void destroyBlockProgress(int breakerId, BlockPos pos, int progress) {}
 
-  @Nonnull
   @Override
   public Scoreboard getScoreboard() {
     return this.scoreboard;
   }
 
-  @Nonnull
   @Override
   public RecipeAccess recipeAccess() {
     // 1.21.4: Level#getRecipeManager became Level#recipeAccess; delegate to the real client level
     return Objects.requireNonNull(Minecraft.getInstance().level).recipeAccess();
   }
 
-  @Nonnull
   @Override
   public FuelValues fuelValues() {
     // 1.21.4: new abstract Level method; delegate to the real client level
@@ -136,7 +132,6 @@ public class TemplateLevel extends Level {
   public void explode(@Nullable Entity entity, @Nullable DamageSource damageSource, @Nullable ExplosionDamageCalculator calculator, double x, double y, double z, float radius, boolean fire, Level.ExplosionInteraction interaction, ParticleOptions smallParticle, ParticleOptions largeParticle, WeightedList<ExplosionParticleInfo> blockParticles, Holder<SoundEvent> sound) {}
 
   /** 1.21.9: the world border moved off Level into the client/server levels */
-  @Nonnull
   @Override
   public WorldBorder getWorldBorder() {
     return this.worldBorder;
@@ -153,7 +148,6 @@ public class TemplateLevel extends Level {
     return this.levelData.getRespawnData();
   }
 
-  @Nonnull
   @Override
   public Collection<PartEntity<?>> dragonParts() {
     return List.of();
@@ -164,19 +158,16 @@ public class TemplateLevel extends Level {
     return FakeEntityGetter.INSTANCE;
   }
 
-  @Nonnull
   @Override
   public LevelTickAccess<Block> getBlockTicks() {
     return BlackholeTickAccess.emptyLevelList();
   }
 
-  @Nonnull
   @Override
   public LevelTickAccess<Fluid> getFluidTicks() {
     return BlackholeTickAccess.emptyLevelList();
   }
 
-  @Nonnull
   @Override
   public ChunkSource getChunkSource() {
     return this.chunkSource;
@@ -190,7 +181,7 @@ public class TemplateLevel extends Level {
   }
 
   @Override
-  public void levelEvent(@Nullable Entity entity, int type, @Nonnull BlockPos pos, int data) {}
+  public void levelEvent(@Nullable Entity entity, int type, BlockPos pos, int data) {}
 
   @Override
   public void gameEvent(Holder<GameEvent> pEvent, Vec3 pPosition, Context pContext) {}
@@ -232,7 +223,7 @@ public class TemplateLevel extends Level {
   }
 
   @Override
-  public float getShade(@Nonnull Direction p_230487_1_, boolean p_230487_2_) {
+  public float getShade(Direction p_230487_1_, boolean p_230487_2_) {
     return 1;
   }
 
@@ -242,13 +233,11 @@ public class TemplateLevel extends Level {
     return 63;
   }
 
-  @Nonnull
   @Override
   public List<? extends Player> players() {
     return List.of();
   }
 
-  @Nonnull
   @Override
   public Holder<Biome> getUncachedNoiseBiome(int x, int y, int z) {
     return registryAccess().lookupOrThrow(Registries.BIOME).getOrThrow(Biomes.PLAINS);

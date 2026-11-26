@@ -7,7 +7,7 @@ import net.minecraft.resources.Identifier;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.util.RegistryHelper;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Registry loadable for a registry that may not exist immediately upon game launch, such as a Forge registry.

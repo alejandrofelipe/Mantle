@@ -47,7 +47,7 @@ import slimeknights.mantle.client.model.util.ElementModelData;
 import slimeknights.mantle.client.model.util.ModelHelper;
 import slimeknights.mantle.client.model.util.SimpleBlockModel;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;

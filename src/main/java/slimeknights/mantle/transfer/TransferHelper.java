@@ -17,7 +17,7 @@ import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemUtil;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Null-safe lookups of the NeoForge 21.9+ transfer capabilities ({@link Capabilities.Fluid}, {@link Capabilities.Item}), helpers for

@@ -11,7 +11,7 @@ import slimeknights.mantle.data.loadable.record.RecordLoadable;
 import slimeknights.mantle.data.registry.DefaultingLoaderRegistry;
 import slimeknights.mantle.util.DataLoadedConditionContext;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /** Extension of generic loader registry providing default implementations for common predicates */

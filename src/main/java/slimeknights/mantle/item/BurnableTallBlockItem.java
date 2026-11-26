@@ -6,7 +6,7 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.FuelValues;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public class BurnableTallBlockItem extends DoubleHighBlockItem {
   private final int burnTime;

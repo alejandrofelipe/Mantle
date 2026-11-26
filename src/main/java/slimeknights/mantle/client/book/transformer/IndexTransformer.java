@@ -11,7 +11,7 @@ import slimeknights.mantle.client.book.data.content.ContentBlank;
 import slimeknights.mantle.client.book.data.content.ContentSectionList;
 import slimeknights.mantle.client.screen.book.BookScreen;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -31,7 +31,7 @@ public class IndexTransformer extends BookTransformer {
     return result;
   }
 
-  private List<SectionData> getVisibleSections(@Nullable BookScreen.AdvancementCache advancementCache, BookData book) {
+  private List<SectionData> getVisibleSections(BookScreen.@Nullable AdvancementCache advancementCache, BookData book) {
     return filterHiddenSections(book.getVisibleSections(advancementCache));
   }
 
@@ -40,7 +40,7 @@ public class IndexTransformer extends BookTransformer {
     int sectionsPerPage = book.appearance.drawFourColumnIndex ? 12 : 9;
     SectionData index = new SectionData(true) {
       @Override
-      public void update(@Nullable BookScreen.AdvancementCache advancementCache) {
+      public void update(BookScreen.@Nullable AdvancementCache advancementCache) {
         this.pages.clear();
 
         // find how many other sections to draw

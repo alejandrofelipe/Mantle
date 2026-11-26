@@ -1,6 +1,6 @@
 package slimeknights.mantle.util.typed;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;

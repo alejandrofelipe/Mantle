@@ -16,8 +16,7 @@ import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 import net.minecraft.world.level.lighting.LevelLightEngine;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -48,7 +47,7 @@ public class TemplateChunkSource extends ChunkSource {
 
   @Nullable
   @Override
-  public ChunkAccess getChunk(int chunkX, int chunkZ, @Nonnull ChunkStatus requiredStatus, boolean load) {
+  public ChunkAccess getChunk(int chunkX, int chunkZ, ChunkStatus requiredStatus, boolean load) {
     return this.chunks.computeIfAbsent(new ChunkPos(chunkX, chunkZ), p -> new EmptyLevelChunk(level, p, level.registryAccess().lookupOrThrow(Registries.BIOME).getOrThrow(Biomes.PLAINS)));
   }
 
@@ -65,7 +64,6 @@ public class TemplateChunkSource extends ChunkSource {
     return chunks.size();
   }
 
-  @Nonnull
   @Override
   public LevelLightEngine getLightEngine() {
     return this.lightManager;

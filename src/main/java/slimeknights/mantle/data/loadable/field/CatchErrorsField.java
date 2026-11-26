@@ -7,7 +7,7 @@ import slimeknights.mantle.Mantle;
 import slimeknights.mantle.data.loadable.LegacyLoadable;
 import slimeknights.mantle.util.typed.TypedMap;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Field that catches parse exceptions instead of propigating them, allowing a default value to be passed to the parent.

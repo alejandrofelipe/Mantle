@@ -17,7 +17,6 @@ import slimeknights.mantle.data.loadable.primitive.BooleanLoadable;
 import slimeknights.mantle.data.loadable.record.RecordLoadable;
 import slimeknights.mantle.util.typed.TypedMap;
 
-import javax.annotation.Nonnull;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -136,7 +135,6 @@ public record FaucetFluid(List<FluidCuboid> side, List<FluidCuboid> center, bool
       return dataLoader;
     }
 
-    @Nonnull
     @Override
     public FaucetFluid get(BlockState state) {
       return get(state, defaultInstance);

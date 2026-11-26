@@ -8,7 +8,7 @@ import net.minecraft.resources.Identifier;
 import slimeknights.mantle.plugin.jei.MantleJEIConstants;
 import slimeknights.mantle.recipe.ingredient.EntityIngredient;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Handler for working with entity types as ingredients */
 public class EntityIngredientHelper implements IIngredientHelper<EntityIngredient.EntityInput> {
@@ -38,7 +38,7 @@ public class EntityIngredientHelper implements IIngredientHelper<EntityIngredien
   }
 
   @Override
-  public String getErrorInfo(@Nullable EntityIngredient.EntityInput type) {
+  public String getErrorInfo(EntityIngredient.@Nullable EntityInput type) {
     if (type == null) {
       return "null";
     }

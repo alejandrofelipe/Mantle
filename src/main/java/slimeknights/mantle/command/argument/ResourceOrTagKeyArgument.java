@@ -21,7 +21,7 @@ import net.minecraft.tags.TagEntry;
 import net.minecraft.tags.TagKey;
 import slimeknights.mantle.command.argument.ResourceOrTagKeyArgument.Result;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;

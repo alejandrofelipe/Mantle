@@ -13,8 +13,7 @@ import slimeknights.mantle.Mantle;
 import slimeknights.mantle.recipe.helper.FluidOutput;
 import slimeknights.mantle.recipe.ingredient.FluidIngredient;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -26,7 +25,6 @@ import java.util.function.Supplier;
 @SuppressWarnings("WeakerAccess")
 public class FluidObject<F extends Fluid> implements Supplier<F>, ItemLike, IdAwareObject<Identifier> {
   /** Fluid name, used for tag creation */
-  @Nonnull
   protected final Identifier id;
 
   /** Tag in the forge namespace, crafting equivalence */
@@ -44,7 +42,6 @@ public class FluidObject<F extends Fluid> implements Supplier<F>, ItemLike, IdAw
   }
 
   @Override
-  @Nonnull
   public Identifier getId() {
     return id;
   }

@@ -19,7 +19,7 @@ import net.minecraft.util.GsonHelper;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.util.JsonHelper;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;

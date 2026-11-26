@@ -19,7 +19,7 @@ import slimeknights.mantle.recipe.helper.LoadableIngredientSerializer;
 import slimeknights.mantle.registration.object.FluidObject;
 import slimeknights.mantle.transfer.TransferHelper;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.stream.Stream;
 
 /** Ingredient that matches a container of fluid */

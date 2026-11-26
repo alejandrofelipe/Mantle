@@ -13,7 +13,7 @@ import slimeknights.mantle.client.book.data.content.ContentPadding.ContentRightP
 import slimeknights.mantle.client.screen.book.BookScreen;
 import slimeknights.mantle.client.screen.book.TextDataRenderer;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 

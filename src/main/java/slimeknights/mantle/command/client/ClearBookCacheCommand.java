@@ -10,7 +10,7 @@ import net.minecraft.resources.Identifier;
 import slimeknights.mantle.client.book.BookLoader;
 import slimeknights.mantle.client.book.data.BookData;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Command that clears the cache of a book or all books, faster than resource pack reloading for book writing */
 public class ClearBookCacheCommand {

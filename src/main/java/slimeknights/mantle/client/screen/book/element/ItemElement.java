@@ -15,7 +15,7 @@ import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions.Fon
 import org.joml.Matrix3x2fStack;
 import slimeknights.mantle.client.book.action.StringActionProcessor;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.Collection;
 import java.util.List;
 

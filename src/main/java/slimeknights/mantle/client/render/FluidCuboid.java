@@ -14,7 +14,7 @@ import slimeknights.mantle.data.loadable.mapping.CollectionLoadable;
 import slimeknights.mantle.data.loadable.primitive.BooleanLoadable;
 import slimeknights.mantle.data.loadable.record.RecordLoadable;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;

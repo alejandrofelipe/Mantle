@@ -29,7 +29,7 @@ import slimeknights.mantle.Mantle;
 import slimeknights.mantle.transfer.TransferHelper;
 import slimeknights.mantle.util.TranslationHelper;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import static net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING;
 import static slimeknights.mantle.util.TranslationHelper.COMMA_FORMAT;

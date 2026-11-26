@@ -10,8 +10,7 @@ import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.fluids.FluidType;
 import slimeknights.mantle.recipe.ingredient.FluidIngredient;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -22,7 +21,7 @@ import java.util.function.Supplier;
 @SuppressWarnings("WeakerAccess")
 public class FlowingFluidObject<F extends FlowingFluid> extends FluidObject<F> {
   /** Tag in the mod namespace, exact match */
-  @Getter @Nonnull
+  @Getter
   private final TagKey<Fluid> localTag;
   private final Supplier<? extends F> flowing;
   @Nullable

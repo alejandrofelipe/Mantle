@@ -4,7 +4,7 @@ import net.minecraft.resources.Identifier;
 import slimeknights.mantle.client.book.action.protocol.ActionProtocol;
 import slimeknights.mantle.client.screen.book.BookScreen;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 
 public class StringActionProcessor {

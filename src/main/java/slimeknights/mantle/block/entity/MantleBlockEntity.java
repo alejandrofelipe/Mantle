@@ -15,7 +15,7 @@ import net.minecraft.world.level.storage.ValueOutput;
 import org.slf4j.Logger;
 import slimeknights.mantle.block.InventoryBlock;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public class MantleBlockEntity extends BlockEntity {
   private static final Logger LOGGER = LogUtils.getLogger();

@@ -30,7 +30,7 @@ import slimeknights.mantle.registration.object.FenceBuildingBlockObject;
 import slimeknights.mantle.registration.object.WallBuildingBlockObject;
 import slimeknights.mantle.registration.object.WoodBlockObject;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -56,7 +56,7 @@ public class ItemRegistryAdapter extends EnumRegistryAdapter<Item> {
    * @param registry      Item registry instance
    * @param defaultProps  Default item properties
    */
-  public ItemRegistryAdapter(Registry<Item> registry, @Nullable Item.Properties defaultProps) {
+  public ItemRegistryAdapter(Registry<Item> registry, Item.@Nullable Properties defaultProps) {
     super(registry);
     this.defaultProps = Objects.requireNonNullElseGet(defaultProps, Properties::new);
   }
@@ -67,7 +67,7 @@ public class ItemRegistryAdapter extends EnumRegistryAdapter<Item> {
    * @param modid         Mod ID override
    * @param defaultProps  Default item properties
    */
-  public ItemRegistryAdapter(Registry<Item> registry, String modid, @Nullable Item.Properties defaultProps) {
+  public ItemRegistryAdapter(Registry<Item> registry, String modid, Item.@Nullable Properties defaultProps) {
     super(registry, modid);
     this.defaultProps = Objects.requireNonNullElseGet(defaultProps, Properties::new);
   }

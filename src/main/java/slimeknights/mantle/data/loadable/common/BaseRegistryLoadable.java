@@ -9,7 +9,7 @@ import net.minecraft.resources.Identifier;
 import slimeknights.mantle.data.loadable.primitive.ResourceLocationLoadable;
 import slimeknights.mantle.util.typed.TypedMap;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Common logic for {@link RegistryLoadable} and {@link LazyRegistryLoadable} */
 public interface BaseRegistryLoadable<T> extends ResourceLocationLoadable<T> {

@@ -6,7 +6,7 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.FuelValues;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public class BurnableSignItem extends SignItem {
   private final int burnTime;

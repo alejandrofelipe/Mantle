@@ -27,7 +27,7 @@ import slimeknights.mantle.block.entity.MantleBlockEntity;
 import slimeknights.mantle.inventory.BaseContainerMenu;
 import slimeknights.mantle.transfer.TransferHelper;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Base class for blocks with an inventory

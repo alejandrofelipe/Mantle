@@ -6,7 +6,7 @@ import net.minecraft.client.gui.render.state.pip.PictureInPictureRenderState;
 import slimeknights.mantle.client.book.structure.StructureInfo;
 import slimeknights.mantle.client.book.structure.level.TemplateLevel;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Picture-in-picture state for a book structure preview, drawn by {@link StructurePiPRenderer}.

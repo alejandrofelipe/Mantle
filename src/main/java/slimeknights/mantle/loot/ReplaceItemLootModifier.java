@@ -15,7 +15,6 @@ import net.neoforged.neoforge.common.loot.IGlobalLootModifier;
 import net.neoforged.neoforge.common.loot.LootModifier;
 import slimeknights.mantle.recipe.helper.ItemOutput;
 
-import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
@@ -52,7 +51,6 @@ public class ReplaceItemLootModifier extends LootModifier {
     return new Builder(original, replacement);
   }
 
-  @Nonnull
   @Override
   protected ObjectArrayList<ItemStack> doApply(ObjectArrayList<ItemStack> generatedLoot, LootContext context) {
     ListIterator<ItemStack> iterator = generatedLoot.listIterator();

@@ -15,7 +15,7 @@ import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.neoforged.neoforge.common.conditions.ICondition;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 // PORT NOTE (stage 7 datagen): the 1.20 builder allowed referencing a key-char from the shaped pattern as the texture source
 //   (setSource(char)). In 1.21 the ShapedRecipePattern is opaque so the texture is always a full Ingredient. setSource(char)

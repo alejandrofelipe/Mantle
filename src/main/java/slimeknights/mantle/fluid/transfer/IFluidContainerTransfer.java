@@ -10,7 +10,7 @@ import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import slimeknights.mantle.data.gson.GenericRegisteredSerializer.IJsonSerializable;
 import slimeknights.mantle.fluid.FluidTransferHelper;
 
-import javax.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 import java.util.function.Consumer;
 
 /** Interface for transferring fluid either to or from an item */

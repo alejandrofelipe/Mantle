@@ -4,34 +4,46 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.mojang.math.MatrixUtil;
+import com.mojang.math.Quadrant;
 import com.mojang.math.Transformation;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.Sheets;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.TextureSlots;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.item.BlockModelWrapper;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
+import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.resources.model.AtlasManager;
 import net.minecraft.client.resources.model.BlockModelRotation;
 import net.minecraft.client.resources.model.Material;
+import net.minecraft.client.resources.model.ModelBaker;
+import net.minecraft.client.resources.model.ModelManager;
 import net.minecraft.client.resources.model.ModelState;
 import net.minecraft.client.resources.model.ResolvedModel;
 import net.minecraft.core.BlockMath;
 import net.minecraft.core.Direction;
+import net.minecraft.data.AtlasIds;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.util.GsonHelper;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.neoforged.neoforge.client.RenderTypeGroup;
+import net.neoforged.neoforge.client.model.quad.BakedColors;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
+import org.joml.Vector3fc;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
@@ -154,7 +166,7 @@ public class ModelHelper {
    * @return  The added layer, for further customization such as tint layers
    */
   public static ItemStackRenderState.LayerRenderState addItemLayer(ItemStackRenderState renderState, ItemStack stack, ItemDisplayContext displayContext, List<BakedQuad> quads,
-                                                                   ModelRenderProperties properties, @Nullable RenderType renderType, Supplier<Vector3f[]> extents, boolean animated) {
+                                                                   ModelRenderProperties properties, @Nullable RenderType renderType, Supplier<Vector3fc[]> extents, boolean animated) {
     // 1.21.6+: GUI items are drawn once into an atlas keyed by the render state's model identity, so every distinct
     // look must append a distinct element (vanilla appends the BlockModelWrapper itself). Without one, all dynamic items
     // share the empty identity and show whichever was drawn first. The memoized extents supplier is unique per variant
@@ -172,10 +184,95 @@ public class ModelHelper {
       renderState.setAnimated();
     }
     layer.setExtents(extents);
-    layer.setRenderType(renderType != null ? renderType : ItemBlockRenderTypes.getRenderType(stack));
+    layer.setRenderType(renderType != null ? renderType : getDefaultItemRenderType(stack, quads));
     properties.applyToLayer(layer, displayContext);
     layer.prepareQuadList().addAll(quads);
     return layer;
+  }
+
+  /**
+   * Gets the default render type for item quads, matching vanilla {@code BlockModelWrapper#detectRenderType}: quads from the
+   * items atlas (or no quads) use {@link Sheets#translucentItemSheet()}, quads from the blocks atlas use
+   * {@link Sheets#cutoutBlockSheet()} for non-translucent block items and {@link Sheets#translucentBlockItemSheet()} otherwise.
+   * 1.21.11: replaces {@code ItemBlockRenderTypes.getRenderType(ItemStack)}; item textures moved to their own atlas, so the
+   * render type must bind the atlas the sprites came from. Unlike vanilla, mixed atlases do not throw: the first quad decides.
+   */
+  public static RenderType getDefaultItemRenderType(ItemStack stack, List<BakedQuad> quads) {
+    if (quads.isEmpty() || !quads.getFirst().sprite().atlasLocation().equals(TextureAtlas.LOCATION_BLOCKS)) {
+      return Sheets.translucentItemSheet();
+    }
+    if (stack.getItem() instanceof BlockItem blockItem) {
+      @SuppressWarnings("deprecation")  // same call as vanilla BlockModelWrapper
+      ChunkSectionLayer layer = ItemBlockRenderTypes.getChunkRenderType(blockItem.getBlock().defaultBlockState());
+      if (layer != ChunkSectionLayer.TRANSLUCENT) {
+        return Sheets.cutoutBlockSheet();
+      }
+    }
+    return Sheets.translucentBlockItemSheet();
+  }
+
+  /**
+   * Picks the entity render type of a render type group for the given item quads by the atlas of their sprites, matching
+   * NeoForge's {@code RenderTypeHelper#detectItemModelRenderType}: blocks atlas uses {@link RenderTypeGroup#entityBlock()},
+   * anything else (items atlas, no quads) uses {@link RenderTypeGroup#entityItem()}. Replaces the 1.21.10 {@code RenderTypeGroup#entity()}.
+   * Unlike NeoForge, mixed atlases do not throw: the first quad decides.
+   * @param group  Render type group, must not be empty
+   * @param quads  Quads that will be rendered with the type
+   * @return  Entity render type binding the atlas of the quads
+   */
+  public static RenderType getEntityRenderType(RenderTypeGroup group, List<BakedQuad> quads) {
+    if (!quads.isEmpty() && quads.getFirst().sprite().atlasLocation().equals(TextureAtlas.LOCATION_BLOCKS)) {
+      return group.entityBlock();
+    }
+    return group.entityItem();
+  }
+
+
+  /* Quads */
+
+  /**
+   * Part cache for {@link net.minecraft.client.renderer.block.model.FaceBakery#bakeQuad} outside the model bakery, which
+   * only exists during baking. The bakery's cache interns positions to save memory; this one keeps them as baked, so the
+   * quads are identical either way.
+   */
+  public static final ModelBaker.PartCache UNCACHED_PARTS = vector -> vector;
+
+  /**
+   * Copies a quad with new baked colors. Replaces writing the vertex colors through NeoForge's removed {@code IQuadTransformer}.
+   * @param quad    Quad to copy
+   * @param colors  Colors in ARGB format, multiplied with the tint at render time
+   * @return  Quad with the given colors
+   */
+  public static BakedQuad withColors(BakedQuad quad, BakedColors colors) {
+    if (quad.bakedColors().equals(colors)) {
+      return quad;
+    }
+    return new BakedQuad(quad.position0(), quad.position1(), quad.position2(), quad.position3(),
+                         quad.packedUV0(), quad.packedUV1(), quad.packedUV2(), quad.packedUV3(),
+                         quad.tintIndex(), quad.direction(), quad.sprite(), quad.shade(), quad.lightEmission(),
+                         quad.bakedNormals(), colors, quad.hasAmbientOcclusion());
+  }
+
+
+  /* Sprites */
+
+  /**
+   * Gets a sprite for a material at runtime, outside the model bake. Unlike {@link AtlasManager#get(Material)}, supports
+   * {@link ModelManager#BLOCK_OR_ITEM}, the atlas vanilla assigns to every texture parsed from a model JSON since 1.21.11:
+   * like the model bakery's sprite getter, the items atlas is checked first, then the blocks atlas (missing sprite if neither).
+   * @param material  Material to fetch
+   * @return  Sprite, or the missing sprite of the atlas
+   */
+  public static TextureAtlasSprite getSprite(Material material) {
+    AtlasManager atlases = Minecraft.getInstance().getAtlasManager();
+    if (material.atlasLocation().equals(ModelManager.BLOCK_OR_ITEM)) {
+      TextureAtlasSprite sprite = atlases.getAtlasOrThrow(AtlasIds.ITEMS).getTextures().get(material.texture());
+      if (sprite != null) {
+        return sprite;
+      }
+      return atlases.getAtlasOrThrow(AtlasIds.BLOCKS).getSprite(material.texture());
+    }
+    return atlases.get(material);
   }
 
   /** Checks if any of the quads uses an animated sprite, matching vanilla's {@code BlockModelWrapper} constructor. Call once per baked variant, not per render. */
@@ -231,9 +328,13 @@ public class ModelHelper {
    * Returns the vanilla {@link BlockModelRotation} when the transformation is one of the 90 degree rotations.
    */
   public static ModelState modelState(Transformation transformation, boolean uvlock) {
-    for (BlockModelRotation rotation : BlockModelRotation.values()) {
-      if (rotation.transformation().equals(transformation)) {
-        return uvlock ? rotation.withUvLock() : rotation;
+    // 1.21.11: BlockModelRotation is no longer an enum; check the same 16 X/Y rotations the enum had
+    for (Quadrant x : Quadrant.values()) {
+      for (Quadrant y : Quadrant.values()) {
+        BlockModelRotation rotation = BlockModelRotation.get(Quadrant.fromXYAngles(x, y));
+        if (rotation.transformation().equals(transformation)) {
+          return uvlock ? rotation.withUvLock() : rotation;
+        }
       }
     }
     return modelState(transformation, uvlock, true);

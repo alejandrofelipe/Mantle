@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.BlockElement;
 import net.minecraft.client.renderer.block.model.BlockElementFace;
 import net.minecraft.client.renderer.block.model.BlockModel;
+import net.minecraft.client.renderer.block.model.FaceBakery;
 import net.minecraft.client.renderer.block.model.SimpleUnbakedGeometry;
 import net.minecraft.client.renderer.block.model.TextureSlots;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
@@ -19,6 +20,7 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.Material;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ModelDebugName;
+import net.minecraft.client.resources.model.ModelManager;
 import net.minecraft.client.resources.model.ModelState;
 import net.minecraft.client.resources.model.QuadCollection;
 import net.minecraft.client.resources.model.ResolvedModel;
@@ -31,9 +33,7 @@ import net.minecraft.util.GsonHelper;
 import net.minecraft.util.context.ContextMap;
 import net.neoforged.neoforge.client.model.AbstractUnbakedModel;
 import net.neoforged.neoforge.client.model.ExtendedUnbakedGeometry;
-import net.neoforged.neoforge.client.model.IQuadTransformer;
 import net.neoforged.neoforge.client.model.NeoForgeModelProperties;
-import net.neoforged.neoforge.client.model.QuadTransformers;
 import net.neoforged.neoforge.client.model.StandardModelParameters;
 import net.neoforged.neoforge.client.model.UnbakedElementsHelper;
 import net.neoforged.neoforge.client.model.UnbakedModelLoader;
@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 /**
  * Simpler version of {@link BlockModel} as a reusable {@link UnbakedModel}, mainly serving as a shared base several
@@ -187,7 +188,7 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
    * Resolves a sprite for the given texture name, checking the replacement map first. This is the primitive used for
    * dynamic retexturing: since {@link TextureSlots} is immutable and non-enumerable, callers pass a map of texture name
    * (without the leading {@code '#'}) to a replacement {@link Material}; any name present there wins over the slots.
-   * @param spriteGetter  Sprite getter, typically {@link Material#sprite()} when rebaking outside the baking phase
+   * @param spriteGetter  Sprite getter, typically {@link ModelHelper#getSprite(Material)} when rebaking outside the baking phase
    * @param textures      Original resolved texture slots, used for names not in the replacement map
    * @param replacements  Map of texture name (no {@code '#'}) to replacement material; may be empty
    * @param name          Texture name to resolve, with or without a leading {@code '#'}
@@ -213,7 +214,7 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
 
   /**
    * Creates a sprite lookup with dynamic texture replacements, see {@link #findSprite(Function, TextureSlots, Map, String)}.
-   * Pass {@link Material#sprite()} as the sprite getter to rebake outside the baking phase.
+   * Pass {@link ModelHelper#getSprite(Material)} as the sprite getter to rebake outside the baking phase.
    */
   public static Function<String,TextureAtlasSprite> spriteLookup(TextureSlots textures, Map<String,Material> replacements, Function<Material,TextureAtlasSprite> spriteGetter) {
     return texture -> findSprite(spriteGetter, textures, replacements, texture);
@@ -237,16 +238,24 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
    * @param part             Part to bake
    * @param sprites          Lookup from face texture name (with or without {@code '#'}) to sprite
    * @param state            Model state (root transform already composed in)
-   * @param quadTransformer  Additional quad transforms
+   * @param quadTransformer  Additional quad transforms, {@link UnaryOperator#identity()} for none.
+   *                         1.21.11: quads are immutable, so this replaces NeoForge's removed {@code IQuadTransformer} by returning the transformed quad.
    */
-  public static void bakePart(QuadCollection.Builder builder, BlockElement part, Function<String,TextureAtlasSprite> sprites, ModelState state, IQuadTransformer quadTransformer) {
+  public static void bakePart(QuadCollection.Builder builder, BlockElement part, Function<String,TextureAtlasSprite> sprites, ModelState state, UnaryOperator<BakedQuad> quadTransformer) {
     for (Entry<Direction,BlockElementFace> entry : part.faces().entrySet()) {
       Direction direction = entry.getKey();
       BlockElementFace face = entry.getValue();
-      BakedQuad quad = SimpleUnbakedGeometry.bakeFace(part, face, sprites.apply(face.texture()), direction, state);
-      quadTransformer.processInPlace(quad);
-      addFace(builder, face, quad, state);
+      BakedQuad quad = bakeFace(part, face, sprites.apply(face.texture()), direction, state);
+      addFace(builder, face, quadTransformer.apply(quad), state);
     }
+  }
+
+  /**
+   * Bakes a single face of an element, matching vanilla {@link SimpleUnbakedGeometry#bake} (1.21.11 removed {@code SimpleUnbakedGeometry.bakeFace}).
+   * Faces of flat elements are baked too, like 1.21.10.
+   */
+  public static BakedQuad bakeFace(BlockElement part, BlockElementFace face, TextureAtlasSprite sprite, Direction direction, ModelState state) {
+    return FaceBakery.bakeQuad(ModelHelper.UNCACHED_PARTS, part.from(), part.to(), face, sprite, direction, state, part.rotation(), part.shade(), part.lightEmission());
   }
 
   /** Adds a baked face to the builder, applying its cull face rotated by the model state */
@@ -267,7 +276,7 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
    * @param transform        Model state (root transform already composed in)
    * @param quadTransformer  Additional quad transforms
    */
-  public static void bakePart(QuadCollection.Builder builder, TextureSlots textures, BlockElement part, Function<Material,TextureAtlasSprite> spriteGetter, ModelState transform, IQuadTransformer quadTransformer) {
+  public static void bakePart(QuadCollection.Builder builder, TextureSlots textures, BlockElement part, Function<Material,TextureAtlasSprite> spriteGetter, ModelState transform, UnaryOperator<BakedQuad> quadTransformer) {
     bakePart(builder, textures, Map.of(), part, spriteGetter, transform, quadTransformer);
   }
 
@@ -275,7 +284,7 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
    * Bakes a single part of the model into the builder, resolving face textures through a dynamic replacement map.
    * See {@link #findSprite(Function, TextureSlots, Map, String)} for the replacement semantics.
    */
-  public static void bakePart(QuadCollection.Builder builder, TextureSlots textures, Map<String,Material> replacements, BlockElement part, Function<Material,TextureAtlasSprite> spriteGetter, ModelState transform, IQuadTransformer quadTransformer) {
+  public static void bakePart(QuadCollection.Builder builder, TextureSlots textures, Map<String,Material> replacements, BlockElement part, Function<Material,TextureAtlasSprite> spriteGetter, ModelState transform, UnaryOperator<BakedQuad> quadTransformer) {
     bakePart(builder, part, spriteLookup(textures, replacements, spriteGetter), transform, quadTransformer);
   }
 
@@ -289,7 +298,7 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
   public static QuadCollection bakeElements(List<BlockElement> elements, Function<String,TextureAtlasSprite> sprites, ModelState state) {
     QuadCollection.Builder builder = new QuadCollection.Builder();
     for (BlockElement part : elements) {
-      bakePart(builder, part, sprites, state, QuadTransformers.empty());
+      bakePart(builder, part, sprites, state, UnaryOperator.identity());
     }
     return builder.build();
   }
@@ -353,7 +362,8 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
   /** Parses the raw texture reference map from JSON */
   public static Map<String,Either<Material,String>> getTextures(JsonObject json) {
     if (json.has("textures")) {
-      Identifier atlas = TextureAtlas.LOCATION_BLOCKS;
+      // 1.21.11: vanilla parses model textures into the block-or-item pseudo atlas, resolved by the model bakery
+      Identifier atlas = ModelManager.BLOCK_OR_ITEM;
       JsonObject textures = GsonHelper.getAsJsonObject(json, "textures");
       Map<String,Either<Material,String>> builder = new HashMap<>(textures.size());
       for (Entry<String,JsonElement> entry : textures.entrySet()) {

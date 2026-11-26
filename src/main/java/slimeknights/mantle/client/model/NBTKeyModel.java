@@ -10,7 +10,6 @@ import com.mojang.math.Transformation;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.TextureSlots;
 import net.minecraft.client.renderer.item.BlockModelWrapper;
@@ -18,6 +17,7 @@ import net.minecraft.client.renderer.item.ItemModel;
 import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -25,6 +25,7 @@ import net.minecraft.client.resources.model.BlockModelRotation;
 import net.minecraft.client.resources.model.Material;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ModelDebugName;
+import net.minecraft.client.resources.model.ModelManager;
 import net.minecraft.client.resources.model.ModelState;
 import net.minecraft.client.resources.model.QuadCollection;
 import net.minecraft.client.resources.model.ResolvedModel;
@@ -42,7 +43,7 @@ import net.neoforged.neoforge.client.model.ExtendedUnbakedGeometry;
 import net.neoforged.neoforge.client.model.NeoForgeModelProperties;
 import net.neoforged.neoforge.client.model.StandardModelParameters;
 import net.neoforged.neoforge.client.model.UnbakedModelLoader;
-import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.model.util.MantleItemLayerModel;
 import slimeknights.mantle.client.model.util.ModelHelper;
@@ -170,7 +171,8 @@ public class NBTKeyModel extends AbstractUnbakedModel {
     }
     // fetch extra textures
     for (Pair<String,Identifier> extra : getExtraTextures()) {
-      textures.putIfAbsent(extra.getFirst(), new Material(TextureAtlas.LOCATION_BLOCKS, extra.getSecond()));
+      // 1.21.11: same atlas as textures parsed from the model JSON, resolved from the items or blocks atlas at bake time
+      textures.putIfAbsent(extra.getFirst(), new Material(ModelManager.BLOCK_OR_ITEM, extra.getSecond()));
     }
     return Map.copyOf(textures);
   }
@@ -217,27 +219,30 @@ public class NBTKeyModel extends AbstractUnbakedModel {
       TextureSlots slots = resolved.getTopTextureSlots();
       ModelRenderProperties properties = ModelRenderProperties.fromResolvedModel(baker, resolved, slots);
       ContextMap additionalProperties = resolved.getTopAdditionalProperties();
-      RenderType renderType = MantleItemLayerModel.getDefaultRenderType(additionalProperties.getOrDefault(NeoForgeModelProperties.RENDER_TYPE, RenderTypeGroup.EMPTY)).entity();
+      RenderTypeGroup renderTypes = MantleItemLayerModel.getDefaultRenderType(additionalProperties.getOrDefault(NeoForgeModelProperties.RENDER_TYPE, RenderTypeGroup.EMPTY));
 
       // bake all variants now, the textures are all known
       Map<String,Material> textures = nbtModel.getTextures(resolved);
       Map<String,Variant> variants = new HashMap<>(textures.size());
       for (Entry<String,Material> entry : textures.entrySet()) {
         TextureAtlasSprite sprite = baker.sprites().get(entry.getValue(), resolved);
-        variants.put(entry.getKey(), new Variant(bakeQuads(sprite, BlockModelRotation.X0_Y0, additionalProperties), new ModelRenderProperties(properties.usesBlockLight(), sprite, properties.transforms())));
+        variants.put(entry.getKey(), new Variant(bakeQuads(sprite, BlockModelRotation.IDENTITY, additionalProperties), new ModelRenderProperties(properties.usesBlockLight(), sprite, properties.transforms()), renderTypes));
       }
       Variant defaultVariant = variants.get("default");
       if (defaultVariant == null) {
-        defaultVariant = new Variant(resolved.bakeTopGeometry(slots, baker, BlockModelRotation.X0_Y0).getAll(), properties);
+        defaultVariant = new Variant(resolved.bakeTopGeometry(slots, baker, BlockModelRotation.IDENTITY).getAll(), properties, renderTypes);
       }
-      return new Baked(nbtModel.nbtKey, textures, Map.copyOf(variants), defaultVariant, renderType);
+      return new Baked(nbtModel.nbtKey, textures, Map.copyOf(variants), defaultVariant);
     }
   }
 
-  /** Quads and properties for a single variant, with lazily computed extents and whether any sprite is animated */
-  private record Variant(List<BakedQuad> quads, ModelRenderProperties properties, Supplier<Vector3f[]> extents, boolean animated) {
-    private Variant(List<BakedQuad> quads, ModelRenderProperties properties) {
-      this(quads, properties, Suppliers.memoize(() -> BlockModelWrapper.computeExtents(quads)), ModelHelper.hasAnimatedSprite(quads));
+  /**
+   * Quads and properties for a single variant, with lazily computed extents and whether any sprite is animated.
+   * 1.21.11: each variant texture may come from the items or the blocks atlas, so the render type is picked per variant.
+   */
+  private record Variant(List<BakedQuad> quads, ModelRenderProperties properties, RenderType renderType, Supplier<Vector3fc[]> extents, boolean animated) {
+    private Variant(List<BakedQuad> quads, ModelRenderProperties properties, RenderTypeGroup renderTypes) {
+      this(quads, properties, ModelHelper.getEntityRenderType(renderTypes, quads), Suppliers.memoize(() -> BlockModelWrapper.computeExtents(quads)), ModelHelper.hasAnimatedSprite(quads));
     }
   }
 
@@ -247,19 +252,18 @@ public class NBTKeyModel extends AbstractUnbakedModel {
     private final Map<String,Material> textures;
     private final Map<String,Variant> variants;
     private final Variant defaultVariant;
-    private final RenderType renderType;
 
-    private Baked(String nbtKey, Map<String,Material> textures, Map<String,Variant> variants, Variant defaultVariant, RenderType renderType) {
+    private Baked(String nbtKey, Map<String,Material> textures, Map<String,Variant> variants, Variant defaultVariant) {
       this.nbtKey = nbtKey;
       this.textures = textures;
       this.variants = variants;
       this.defaultVariant = defaultVariant;
-      this.renderType = renderType;
     }
 
     /**
      * Gets the given texture from the model, falling back to the default texture.
      * Look up the baked model with {@code ModelManager#getItemModel(itemModelId)} to use this, e.g. for JEI.
+     * 1.21.11: the material may use the {@link ModelManager#BLOCK_OR_ITEM} pseudo atlas, resolve it with {@link ModelHelper#getSprite(Material)}.
      */
     @Nullable
     public Material getTexture(String name) {
@@ -274,7 +278,7 @@ public class NBTKeyModel extends AbstractUnbakedModel {
       if (data.contains(nbtKey)) {
         variant = data.copyTag().getString(nbtKey).map(variants::get).orElse(defaultVariant);
       }
-      ModelHelper.addItemLayer(renderState, stack, displayContext, variant.quads, variant.properties, renderType, variant.extents, variant.animated);
+      ModelHelper.addItemLayer(renderState, stack, displayContext, variant.quads, variant.properties, variant.renderType, variant.extents, variant.animated);
     }
   }
 }

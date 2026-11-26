@@ -11,7 +11,6 @@ import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
@@ -24,6 +23,7 @@ import net.minecraft.client.renderer.item.ItemModel;
 import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BlockModelRotation;
@@ -42,9 +42,10 @@ import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.client.RenderTypeGroup;
 import net.neoforged.neoforge.client.model.UnbakedModelLoader;
 import net.neoforged.neoforge.client.model.block.CustomUnbakedBlockStateModel;
-import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.model.util.ColoredBlockModel;
 import slimeknights.mantle.client.model.util.DynamicBakedWrapper;
@@ -145,7 +146,7 @@ public class RetexturedModel extends ColoredBlockModel {
 
     /**
      * Rebakes the model, pointing all retextured names at the given texture.
-     * PORT 1.21.5: runs on chunk meshing threads and reads the block atlas through {@link Material#sprite()}; verify
+     * PORT 1.21.5: runs on chunk meshing threads and reads the block atlas through {@link ModelHelper#getSprite(Material)}; verify
      * retextured tables in the uitest phase (texture blocks are only known at render time, so this cannot use the baker).
      */
     private SimpleModelWrapper bake(Identifier texture) {
@@ -357,16 +358,21 @@ public class RetexturedModel extends ColoredBlockModel {
       ResolvedModel resolved = baker.getModel(model);
       // base model, matching vanilla BlockModelWrapper
       TextureSlots textures = resolved.getTopTextureSlots();
-      List<BakedQuad> quads = resolved.bakeTopGeometry(textures, baker, BlockModelRotation.X0_Y0).getAll();
+      List<BakedQuad> quads = resolved.bakeTopGeometry(textures, baker, BlockModelRotation.IDENTITY).getAll();
       ModelRenderProperties properties = ModelRenderProperties.fromResolvedModel(baker, resolved, textures);
-      Retexturer retexturer = Retexturer.of(baker, resolved, BlockModelRotation.X0_Y0);
-      return new Baked(new ItemVariant(quads, properties), retexturer, ElementModelData.itemRenderType(resolved));
+      Retexturer retexturer = Retexturer.of(baker, resolved, BlockModelRotation.IDENTITY);
+      RenderTypeGroup renderTypes = ElementModelData.itemRenderTypes(resolved);
+      return new Baked(new ItemVariant(quads, properties, renderTypes), retexturer, renderTypes);
     }
 
-    /** Quads and properties for a single item variant, with lazily computed extents and whether any sprite is animated */
-    private record ItemVariant(List<BakedQuad> quads, ModelRenderProperties properties, Supplier<Vector3f[]> extents, boolean animated) {
-      private ItemVariant(List<BakedQuad> quads, ModelRenderProperties properties) {
-        this(quads, properties, Suppliers.memoize(() -> BlockModelWrapper.computeExtents(quads)), ModelHelper.hasAnimatedSprite(quads));
+    /**
+     * Quads and properties for a single item variant, with lazily computed extents and whether any sprite is animated.
+     * 1.21.11: the render type (null for the item's default) is picked per variant, as retexturing may change the atlas of the quads.
+     */
+    private record ItemVariant(List<BakedQuad> quads, ModelRenderProperties properties, @Nullable RenderType renderType, Supplier<Vector3fc[]> extents, boolean animated) {
+      private ItemVariant(List<BakedQuad> quads, ModelRenderProperties properties, @Nullable RenderTypeGroup renderTypes) {
+        this(quads, properties, renderTypes == null ? null : ModelHelper.getEntityRenderType(renderTypes, quads),
+             Suppliers.memoize(() -> BlockModelWrapper.computeExtents(quads)), ModelHelper.hasAnimatedSprite(quads));
       }
     }
 
@@ -376,13 +382,13 @@ public class RetexturedModel extends ColoredBlockModel {
       @Nullable
       private final Retexturer retexturer;
       @Nullable
-      private final RenderType renderType;
+      private final RenderTypeGroup renderTypes;
       private final Map<Block,ItemVariant> cache = new ConcurrentHashMap<>();
 
-      private Baked(ItemVariant base, @Nullable Retexturer retexturer, @Nullable RenderType renderType) {
+      private Baked(ItemVariant base, @Nullable Retexturer retexturer, @Nullable RenderTypeGroup renderTypes) {
         this.base = base;
         this.retexturer = retexturer;
-        this.renderType = renderType;
+        this.renderTypes = renderTypes;
       }
 
       /** Gets the variant for the given block */
@@ -390,7 +396,7 @@ public class RetexturedModel extends ColoredBlockModel {
         assert retexturer != null;
         return cache.computeIfAbsent(block, b -> {
           SimpleModelWrapper part = retexturer.getCachedModel(b);
-          return new ItemVariant(part.quads().getAll(), retexturer.getData().itemProperties(part.particleIcon()));
+          return new ItemVariant(part.quads().getAll(), retexturer.getData().itemProperties(part.particleIcon()), renderTypes);
         });
       }
 
@@ -403,7 +409,7 @@ public class RetexturedModel extends ColoredBlockModel {
             variant = getVariant(block);
           }
         }
-        ModelHelper.addItemLayer(renderState, stack, displayContext, variant.quads, variant.properties, renderType, variant.extents, variant.animated);
+        ModelHelper.addItemLayer(renderState, stack, displayContext, variant.quads, variant.properties, variant.renderType, variant.extents, variant.animated);
       }
     }
   }

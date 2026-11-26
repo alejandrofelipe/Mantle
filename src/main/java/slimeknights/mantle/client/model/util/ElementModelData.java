@@ -1,12 +1,12 @@
 package slimeknights.mantle.client.model.util;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.BlockElement;
 import net.minecraft.client.renderer.block.model.SimpleModelWrapper;
 import net.minecraft.client.renderer.block.model.TextureSlots;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.Material;
 import net.minecraft.client.resources.model.MaterialSet;
@@ -31,7 +31,7 @@ import java.util.function.Function;
  * <p>
  * 1.21.5: replaces the {@code BakedModel} + {@code DynamicBakedWrapper} + {@code bakeReplaced} pattern. A {@link ModelBaker}
  * only exists during model baking, while dynamic models (retextured blocks, tanks, material blocks) only know their
- * textures at render time, so they keep this record and rebake quads lazily, typically with the atlas manager ({@link MaterialSet#get(Material)})
+ * textures at render time, so they keep this record and rebake quads lazily, typically with the atlas manager ({@link ModelHelper#getSprite(Material)})
  * through {@link #runtimeSprites(Map)}, caching the result per texture.
  *
  * @param elements             Elements to bake, including elements inherited from parents
@@ -97,15 +97,17 @@ public record ElementModelData(List<BlockElement> elements, List<ColorData> colo
    * Sprite lookup at runtime with the given texture replacements, through the atlas manager.
    * 1.21.9: {@code Material#sprite()} is gone; {@link net.minecraft.client.resources.model.AtlasManager} is the runtime {@link MaterialSet}
    * holding every stitched sprite (missing sprite for unknown textures, like the old atlas lookup).
+   * 1.21.11: model textures use the {@code block_or_item} pseudo atlas, which the atlas manager rejects; {@link ModelHelper#getSprite(Material)}
+   * resolves it like the model bakery.
    */
   public Function<String,TextureAtlasSprite> runtimeSprites(Map<String,Material> replacements) {
-    return SimpleBlockModel.spriteLookup(textures, replacements, Minecraft.getInstance().getAtlasManager()::get);
+    return SimpleBlockModel.spriteLookup(textures, replacements, ModelHelper::getSprite);
   }
 
   /** Gets the particle for the given replacements, falling back to the default particle */
   public TextureAtlasSprite particle(Map<String,Material> replacements) {
     Material particle = replacements.get("particle");
-    return particle != null ? Minecraft.getInstance().getAtlasManager().get(particle) : this.particle;
+    return particle != null ? ModelHelper.getSprite(particle) : this.particle;
   }
 
 
@@ -132,17 +134,30 @@ public record ElementModelData(List<BlockElement> elements, List<ColorData> colo
     return renderType.isEmpty() ? null : renderType.block();
   }
 
-  /** Gets the entity render type for item rendering, or null to use the item's default */
+  /**
+   * Gets the entity render type for item rendering of the given quads, or null to use the item's default.
+   * 1.21.11: the group holds a type per atlas, so the quads pick it, see {@link ModelHelper#getEntityRenderType(RenderTypeGroup, List)}.
+   */
   @Nullable
-  public RenderType itemRenderType() {
-    return renderType.isEmpty() ? null : renderType.entity();
+  public RenderType itemRenderType(List<BakedQuad> quads) {
+    return renderType.isEmpty() ? null : ModelHelper.getEntityRenderType(renderType, quads);
   }
 
-  /** Gets the entity render type for item rendering of the given model, or null to use the item's default */
+  /** Gets the render type group from the model's {@code render_type}, or null if unset */
   @Nullable
-  public static RenderType itemRenderType(ResolvedModel model) {
+  public static RenderTypeGroup itemRenderTypes(ResolvedModel model) {
     RenderTypeGroup renderType = model.getTopAdditionalProperties().getOptional(NeoForgeModelProperties.RENDER_TYPE);
-    return renderType == null || renderType.isEmpty() ? null : renderType.entity();
+    return renderType == null || renderType.isEmpty() ? null : renderType;
+  }
+
+  /**
+   * Gets the entity render type for item rendering of the given model and quads, or null to use the item's default.
+   * 1.21.11: the group holds a type per atlas, so the quads pick it, see {@link ModelHelper#getEntityRenderType(RenderTypeGroup, List)}.
+   */
+  @Nullable
+  public static RenderType itemRenderType(ResolvedModel model, List<BakedQuad> quads) {
+    RenderTypeGroup renderType = itemRenderTypes(model);
+    return renderType == null ? null : ModelHelper.getEntityRenderType(renderType, quads);
   }
 
   /** Creates a block model part for the given quads, matching vanilla {@link SimpleModelWrapper#bake} */

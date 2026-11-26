@@ -280,13 +280,15 @@ pwsh -NoProfile -File "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map\In
 
 Apply each repo's rename in its own commit, then fix the compiler-driven rest by hand.
 
-Three helpers live next to it (same folder, details in its README):
+Four helpers live next to it (same folder, details in its README):
 
 ```powershell
 # seed moved-class rules: imports of <repo> that no longer exist in the target jar (NeoForm raw.jar, after the first build)
 pwsh -NoProfile -File "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map\Find-MovedClasses.ps1" -Root "C:\Users\aleja\DEV\New Tinkers\tinkers" -Jar "<repo>\build\neoForm\neoFormJoined<version>-*\raw.jar"
 # 1.21.11: package-info.java -> JSpecify @NullMarked (dry run; add -Apply)
 pwsh -NoProfile -File "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map\Convert-PackageInfoToNullMarked.ps1" -Root "C:\Users\aleja\DEV\New Tinkers\tinkers"
+# M7 Phase 0.6: javax.annotation (jsr305) -> JSpecify @Nullable with type-use placement (dry run; add -Apply)
+pwsh -NoProfile -File "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map\Convert-NullableToJSpecify.ps1" -Root "C:\Users\aleja\DEV\New Tinkers\tinkers"
 # every access transformer entry must still exist in the target jar (exit 2 + MISSING CLASS / BAD METHOD / BAD FIELD lines)
 pwsh -NoProfile -File "C:\Users\aleja\DEV\New Tinkers\repo\scripts\rename-map\Find-StaleAccessTransformer.ps1" -At "<repo>\src\main\resources\META-INF\accesstransformer.cfg" -Jar "<repo>\build\neoForm\neoFormJoined<version>-*\raw.jar"
 ```

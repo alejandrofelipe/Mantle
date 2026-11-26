@@ -10,6 +10,7 @@ reproducible commit instead of an ad-hoc script per milestone. Default is a **dr
 | `maps/<version>.txt` | one map per milestone (`maps/1.21.11.txt` = M6 plan D-R1 steps 1–2) |
 | `Test-RenameMap.ps1` | self-contained tests (no Pester): `pwsh -NoProfile -File Test-RenameMap.ps1` |
 | `Find-StaleAccessTransformer.ps1` | checks `accesstransformer.cfg` entries against the target jar (see below); tests: `Test-FindStaleAccessTransformer.ps1` (needs `JAVA_HOME` = a JDK) |
+| `Convert-NullableToJSpecify.ps1` | jsr305 `javax.annotation.*` → JSpecify `@Nullable` with type-use placement (see below); tests: `Test-ConvertNullableToJSpecify.ps1` |
 
 ## Map format
 
@@ -73,3 +74,21 @@ without failing the build (M6: Tinkers' four arrow entries went stale when the c
 [<member>]` line with `javap`: a missing class is reported with same-simple-name candidates (moved package), a method needs
 its name **and** descriptor, a field its name. Output `entries=<n> problems=<n>`; exit `0` clean, `1` bad arguments, `2`
 problems. `javap` comes from `JAVA_HOME` (or `-Javap`). Run it on both repos after every version bump, after the rename.
+
+## jsr305 → JSpecify `@Nullable` (`Convert-NullableToJSpecify.ps1`)
+
+M7 Phase 0.6 (decision D-N2), run once per repo on `1.21.11`. `-Root <repo>` (dry run; `-Apply` rewrites, keeping line
+endings and BOMs; comments, strings and text blocks are never touched):
+
+- `import javax.annotation.Nullable;` / `CheckForNull` → one `import org.jspecify.annotations.Nullable;`; `@CheckForNull` and
+  `@javax.annotation.Nullable` → `@Nullable` (or the JSpecify FQN when the file has no import).
+- **Placement**: JSpecify `@Nullable` is `TYPE_USE`, so `@Nullable Outer.Inner` → `Outer.@Nullable Inner` (javac rejects the
+  old form for nested classes and package prefixes) and `@Nullable String[]` → `String @Nullable []` (the old form now means
+  nullable *elements*). Varargs, primitives, `void`/`var` and generic outer types are reported, not rewritten.
+- `@Nonnull` is removed (packages are `@NullMarked`), except on a field of a file with a Lombok constructor/setter generator,
+  where it becomes `lombok.NonNull` so Lombok keeps generating the same null check. Other `javax.annotation` imports are
+  dropped when unused, else kept and reported.
+
+Every placement rewrite is listed (`file:line before -> after`); summary `files=… changed=… imports=… checkForNull=…
+nonnullRemoved=… nonnullLombok=… qualified=… arrays=… fqn=… notes=…`. Verify with a full `build` and a bytecode comparison
+(`javap -c -p` of every class before/after, constant-pool indices stripped): annotations are not code, so it must be identical.

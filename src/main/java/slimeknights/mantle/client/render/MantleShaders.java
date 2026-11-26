@@ -59,6 +59,10 @@ public class MantleShaders {
   public static final RenderPipeline FLUID = RenderPipeline.builder(FLUID_SNIPPET).withLocation(pipeline("fluid")).build();
   /** Fluid pipeline without the fog fix, for shader compatibility */
   public static final RenderPipeline FLUID_NO_FOG = RenderPipeline.builder(FLUID_NO_FOG_SNIPPET).withLocation(pipeline("fluid_no_fog")).build();
+  /** {@link #FLUID} with cull disabled, so both sides of each face show */
+  public static final RenderPipeline FLUID_NO_CULL = RenderPipeline.builder(FLUID_SNIPPET).withLocation(pipeline("fluid_no_cull")).withCull(false).build();
+  /** {@link #FLUID_NO_FOG} with cull disabled, so both sides of each face show */
+  public static final RenderPipeline FLUID_NO_FOG_NO_CULL = RenderPipeline.builder(FLUID_NO_FOG_SNIPPET).withLocation(pipeline("fluid_no_fog_no_cull")).withCull(false).build();
   /** Translucent block pipeline ignoring the lightmap, used for book structures */
   public static final RenderPipeline TRANSLUCENT_FULLBRIGHT = RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
     .withLocation(pipeline("translucent_fullbright"))
@@ -85,11 +89,18 @@ public class MantleShaders {
     return useFluidFogFix() ? FLUID : FLUID_NO_FOG;
   }
 
+  /** Gets the pipeline to use for {@link MantleRenderTypes#FLUID_NO_CULL}, checking the config option to select which shader to use. */
+  public static RenderPipeline getConfiguredFluidNoCullPipeline() {
+    return useFluidFogFix() ? FLUID_NO_CULL : FLUID_NO_FOG_NO_CULL;
+  }
+
   @SubscribeEvent
   static void registerPipelines(RegisterRenderPipelinesEvent event) {
     // register both fluid variants, the config is read when the render type is created
     event.registerPipeline(FLUID);
     event.registerPipeline(FLUID_NO_FOG);
+    event.registerPipeline(FLUID_NO_CULL);
+    event.registerPipeline(FLUID_NO_FOG_NO_CULL);
     event.registerPipeline(TRANSLUCENT_FULLBRIGHT);
   }
 }

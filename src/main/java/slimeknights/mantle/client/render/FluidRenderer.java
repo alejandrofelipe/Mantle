@@ -20,6 +20,7 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import slimeknights.mantle.client.render.FluidCuboid.FluidFace;
 
 import java.util.List;
@@ -439,6 +440,125 @@ public class FluidRenderer {
 
     // draw cuboid
     renderCuboid(pose, buffer, cube, still, flowing, from, to, color, light, isGas);
+  }
+
+  /* Two phase rendering from extracted fluid info */
+
+  /**
+   * Submits a single fluid cuboid at its full size in a two phase renderer. Gases draw upside down.
+   * The lambda only reads the given info, so it may be drawn late in the frame.
+   * @param matrices   Matrix stack instance
+   * @param collector  Node collector
+   * @param cube       Fluid cuboid
+   * @param fluid      Fluid resolved during extraction, see {@link FluidRenderInfo#of}; fade it with {@link FluidRenderInfo#withOpacity(int)}
+   * @param light      Packed light from the render state, the fluid's own light level is applied here
+   */
+  public static void submitCuboid(PoseStack matrices, SubmitNodeCollector collector, FluidCuboid cube, FluidRenderInfo fluid, int light) {
+    int fluidLight = fluid.light(light);
+    collector.submitCustomGeometry(matrices, MantleRenderTypes.FLUID, (pose, buffer) ->
+      renderCuboid(pose, buffer, cube, fluid.still(), fluid.flowing(), cube.getFromScaled(), cube.getToScaled(), fluid.color(), fluidLight, fluid.isGas()));
+  }
+
+  /**
+   * Submits fluid poured by a block such as a faucet or a casting channel in a two phase renderer: the cuboids in the current pose, then the
+   * cuboids in the blocks below, element {@code i} drawn {@code i + 1} blocks down. Poured fluid never flips for gases.
+   * Rotate the pose first for a horizontal block, e.g. with {@link RenderingHelper#applyRotation(PoseStack, Direction)}.
+   * @param matrices   Matrix stack instance
+   * @param collector  Node collector
+   * @param cubes      Cuboids in the block itself
+   * @param below      Cuboids per block below, from {@link RenderingHelper#getFaucetFluids}; empty for none
+   * @param fluid      Fluid resolved during extraction, see {@link FluidRenderInfo#of}
+   * @param light      Packed light from the render state, the fluid's own light level is applied here
+   */
+  public static void submitPouring(PoseStack matrices, SubmitNodeCollector collector, List<FluidCuboid> cubes, List<List<FluidCuboid>> below, FluidRenderInfo fluid, int light) {
+    if (cubes.isEmpty() && below.isEmpty()) {
+      return;
+    }
+    int fluidLight = fluid.light(light);
+    collector.submitCustomGeometry(matrices, MantleRenderTypes.FLUID, (pose, buffer) -> {
+      for (FluidCuboid cube : cubes) {
+        renderCuboid(pose, buffer, cube, fluid.still(), fluid.flowing(), cube.getFromScaled(), cube.getToScaled(), fluid.color(), fluidLight, false);
+      }
+      RenderingHelper.renderFaucetFluids(pose, buffer, below, fluid.still(), fluid.flowing(), fluid.color(), fluidLight);
+    });
+  }
+
+  /**
+   * Submits a box of still fluid spanning several blocks in a two phase renderer, such as a layer of a multiblock tank: the six outer faces with
+   * the texture tiled once per block (faces split at whole block coordinates), drawn with {@link MantleRenderTypes#FLUID_NO_CULL} so the inside
+   * shows too. Gases draw upside down. The bottom face is raised by 0.001 so it does not z-fight with the top of a box below it.
+   * @param matrices   Matrix stack instance
+   * @param collector  Node collector
+   * @param fluid      Fluid resolved during extraction, see {@link FluidRenderInfo#of}
+   * @param from       Box start in blocks relative to the pose, not negative; copied
+   * @param to         Box end; copied. Nothing is drawn unless larger than {@code from} on every axis
+   * @param light      Packed light from the render state, the fluid's own light level is applied here
+   */
+  public static void submitTiledBox(PoseStack matrices, SubmitNodeCollector collector, FluidRenderInfo fluid, Vector3fc from, Vector3fc to, int light) {
+    if (from.x() >= to.x() || from.y() >= to.y() || from.z() >= to.z()) {
+      return;
+    }
+    Vector3f min = new Vector3f(from);
+    Vector3f max = new Vector3f(to);
+    int fluidLight = fluid.light(light);
+    collector.submitCustomGeometry(matrices, MantleRenderTypes.FLUID_NO_CULL, (pose, buffer) -> renderTiledBox(pose, buffer, fluid, min, max, fluidLight));
+  }
+
+  /**
+   * Splits a range at every whole block it crosses
+   * @param start  Range start, not negative
+   * @param end    Range end
+   * @return  {@code start}, the whole block coordinates between, and {@code end}
+   */
+  private static float[] tiledBounds(float start, float end) {
+    // ignoring the decimals of start counts the whole blocks crossed, else e.g. 2.3 to 5.1 would give 2.8 (2) instead of 2.3, 3, 4, 5.1
+    int delta = (int) (end - (int) start);
+    // except when end lies exactly on a block edge, which would repeat the last face: 1 to 3 would give 1, 2, 3, 3
+    if (end % 1d == 0) {
+      delta--;
+    }
+    float[] bounds = new float[2 + delta];
+    bounds[0] = start;
+    int offset = (int) start;
+    for (int i = 1; i <= delta; i++) {
+      bounds[i] = i + offset;
+    }
+    bounds[delta + 1] = end;
+    return bounds;
+  }
+
+  /** Draws the box of {@link #submitTiledBox} */
+  private static void renderTiledBox(PoseStack.Pose pose, VertexConsumer buffer, FluidRenderInfo fluid, Vector3fc min, Vector3fc max, int light) {
+    float[] xBounds = tiledBounds(min.x(), max.x());
+    float[] yBounds = tiledBounds(min.y(), max.y());
+    float[] zBounds = tiledBounds(min.z(), max.z());
+    int xd = xBounds.length - 2;
+    int yd = yBounds.length - 2;
+    int zd = zBounds.length - 2;
+    Matrix4f matrix = pose.pose();
+    TextureAtlasSprite still = fluid.still();
+    int color = fluid.color();
+    int rotation = fluid.isGas() ? 180 : 0;
+    Vector3f from = new Vector3f();
+    Vector3f to = new Vector3f();
+    for (int y = 0; y <= yd; y++) {
+      for (int z = 0; z <= zd; z++) {
+        for (int x = 0; x <= xd; x++) {
+          from.set(xBounds[x], yBounds[y], zBounds[z]);
+          to.set(xBounds[x + 1], yBounds[y + 1], zBounds[z + 1]);
+          if (x == 0)  putTexturedQuad(buffer, matrix, still, from, to, Direction.WEST,  color, light, rotation, false);
+          if (x == xd) putTexturedQuad(buffer, matrix, still, from, to, Direction.EAST,  color, light, rotation, false);
+          if (z == 0)  putTexturedQuad(buffer, matrix, still, from, to, Direction.NORTH, color, light, rotation, false);
+          if (z == zd) putTexturedQuad(buffer, matrix, still, from, to, Direction.SOUTH, color, light, rotation, false);
+          if (y == yd) putTexturedQuad(buffer, matrix, still, from, to, Direction.UP,    color, light, rotation, false);
+          if (y == 0) {
+            // raise the bottom slightly to prevent z fighting with the box below
+            from.y = from.y() + 0.001f;
+            putTexturedQuad(buffer, matrix, still, from, to, Direction.DOWN, color, light, rotation, false);
+          }
+        }
+      }
+    }
   }
 
   /**

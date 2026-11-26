@@ -45,6 +45,20 @@ public class MantleRenderTypes {
       .createRenderSetup());
 
   /**
+   * {@link #FLUID} with culling off, so both sides of each face show, e.g. the inside of a multiblock tank's fluid.
+   * Like {@link #FLUID}, the config-driven shader choice is resolved once when this class initializes.
+   * @see FluidRenderer#submitTiledBox
+   */
+  public static final RenderType FLUID_NO_CULL = RenderType.create(
+    Mantle.modId + ":fluid_no_cull",
+    RenderSetup.builder(MantleShaders.getConfiguredFluidNoCullPipeline())
+      .useLightmap()
+      .withTexture("Sampler0", TextureAtlas.LOCATION_BLOCKS, BLOCK_SHEET_MIPPED_SAMPLER)
+      .sortOnUpload()
+      .bufferSize(256)
+      .createRenderSetup());
+
+  /**
    * Vertex format used for the structure renderer
    * @see MantleShaders#BLOCK_WITH_OVERLAY
    */

@@ -2,6 +2,7 @@ package slimeknights.mantle.plugin.jei.entity;
 
 import lombok.RequiredArgsConstructor;
 import mezz.jei.api.ingredients.IIngredientRenderer;
+import mezz.jei.api.ingredients.rendering.IIngredientRenderContext;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -16,6 +17,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import org.joml.Matrix3x2fStack;
@@ -57,7 +60,26 @@ public class EntityIngredientRenderer implements IIngredientRenderer<EntityIngre
   }
 
   @Override
+  public void render(GuiGraphics graphics, @Nullable EntityIngredient.EntityInput input, int x, int y, IIngredientRenderContext context) {
+    Matrix3x2fStack pose = graphics.pose();
+    pose.pushMatrix();
+    try {
+      pose.translate(x, y);
+      renderAtOrigin(graphics, input);
+    } finally {
+      pose.popMatrix();
+    }
+  }
+
+  /** JEI 27 still declares this overload abstract, but only calls the positioned one above */
+  @SuppressWarnings("removal")
+  @Override
   public void render(GuiGraphics graphics, @Nullable EntityIngredient.EntityInput input) {
+    render(graphics, input, 0, 0, IIngredientRenderContext.INGREDIENT);
+  }
+
+  /** Draws the entity in the {@code size} square at the pose origin */
+  private void renderAtOrigin(GuiGraphics graphics, @Nullable EntityIngredient.EntityInput input) {
     if (input != null) {
       Level world = Minecraft.getInstance().level;
       EntityType<?> type = input.type();
@@ -122,12 +144,19 @@ public class EntityIngredientRenderer implements IIngredientRenderer<EntityIngre
   }
 
   @Override
-  public List<Component> getTooltip(EntityIngredient.EntityInput type, TooltipFlag flag) {
+  public List<Component> getTooltip(EntityIngredient.EntityInput type, Item.TooltipContext context, @Nullable Player player, TooltipFlag flag) {
     List<Component> tooltip = new ArrayList<>();
     tooltip.add(type.type().getDescription());
     if (flag.isAdvanced()) {
       tooltip.add((Component.literal(BuiltInRegistries.ENTITY_TYPE.getKey(type.type()).toString())).withStyle(ChatFormatting.DARK_GRAY));
     }
     return tooltip;
+  }
+
+  /** JEI 27 still declares this overload abstract, but only calls the one with a tooltip context above */
+  @SuppressWarnings("removal")
+  @Override
+  public List<Component> getTooltip(EntityIngredient.EntityInput type, TooltipFlag flag) {
+    return getTooltip(type, Item.TooltipContext.EMPTY, null, flag);
   }
 }

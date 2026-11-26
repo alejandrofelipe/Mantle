@@ -1,0 +1,24 @@
+# Manual input for FindApiRenames.java, MC 1.21.11 -> MC 26.1.2 (M7 plan Phase 0.5a, decisions D-TOOL / D-SPRITE:
+# tinkers/docs/superpowers/plans/2026-11-26-m7-26.1.2-port.md). Regenerate maps/26.1.2.txt + maps/26.1.2-members.tsv
+# with Find-ApiRenames.ps1 after editing this file. Lines: '#' comments only (no trailing comments).
+#   class <oldFqn> <newFqn>                          force a class pair ($ = nested class)
+#   method|field <oldOwner> <oldName> <oldDesc|*> <newName>   force a member rename (owner = old FQN)
+#   hint <owner> <name> <message...>                 printed by Invoke-CompilerRenames.ps1 when an override/dead
+#                                                    override of <name> under <owner> has no rename (manual fix)
+#   rule <kind> <old> <new>                          extra Invoke-RenameMap rule, copied into the generated map
+
+# --- class pins (the plan's manual list; FindApiRenames also finds each of them on its own, these keep them stable) ---
+# D-SPRITE: the old atlas+texture Material is SpriteId; the NEW sprite.Material (sprite + force_translucent) must not
+# receive old Material users (Find-MovedClasses.ps1 and a same-name match would pick it).
+class net.minecraft.client.resources.model.Material net.minecraft.client.resources.model.sprite.SpriteId
+class net.minecraft.client.renderer.block.model.BlockElement net.minecraft.client.resources.model.cuboid.CuboidModelElement
+class net.minecraft.client.renderer.block.model.BlockModelPart net.minecraft.client.renderer.block.dispatch.BlockStateModelPart
+class net.minecraft.client.renderer.block.model.SimpleUnbakedGeometry net.minecraft.client.resources.model.cuboid.UnbakedCuboidGeometry
+class net.minecraft.world.inventory.ClickType net.minecraft.world.inventory.ContainerInput
+
+# --- EmptyBlockAndTintGetter is gone: its INSTANCE is BlockAndTintGetter.EMPTY (client.renderer.block) ---
+rule literal EmptyBlockAndTintGetter.INSTANCE BlockAndTintGetter.EMPTY
+rule literal net.minecraft.world.level.EmptyBlockAndTintGetter; net.minecraft.client.renderer.block.BlockAndTintGetter;
+
+# --- supertype methods removed without a same-descriptor successor (manual fix; the applier reports them) ---
+hint net.minecraft.client.gui.screens.inventory.AbstractContainerScreen renderBg removed: merge the body into Screen#extractBackground(GuiGraphicsExtractor, int mouseX, int mouseY, float a) - parameters reordered, and extractBackground is NOT abstract (call super.extractBackground for the menu blur; an un-@Override'd renderBg compiles and never runs)

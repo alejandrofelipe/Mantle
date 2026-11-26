@@ -141,6 +141,56 @@ try {
   $r4 = Invoke-Tool $root4 $map4
   Assert-Case 'string heuristic: only the real in-string hit is flagged' ($r4.Out -match 'hits=4 stringHits=1' -and $r4.Out -match 'C\.java:2 ') ($r4.Out -split "`n" | Select-String 'C.java|rules=' | Out-String)
 
+  # --- class rules: FQN everywhere, simple name only where the old class is imported ---
+  $root5 = Join-Path $tmp 'repo5'
+  $importer = New-Fixture $root5 'src/a/Importer.java' @(
+    'package a;'
+    'import net.mc.model.Material;'
+    'import net.mc.model.Face;'
+    'import static net.mc.gui.Graphics.helper;'
+    '/** {@link Material} and {@link net.mc.gui.Graphics}. */'
+    'class Importer { Material m = new Material(); Face.UVs uv; Face.Other o; x.Material notThis; MaterialSet keep; String s = "Material"; }'
+  ) "`n" $false
+  $other = New-Fixture $root5 'src/a/Other.java' @(
+    'package a;'
+    'import slimeknights.tconstruct.Material;'
+    'class Other { Material mine; net.mc.model.Material fqn; }'
+  ) "`n" $false
+  $nested = New-Fixture $root5 'src/a/Nested.java' @(
+    'package a;'
+    'import net.mc.model.Face.UVs;'
+    'class Nested { UVs uv; }'
+  ) "`n" $false
+  $map5 = Join-Path $tmp 'map5.txt'
+  [System.IO.File]::WriteAllText($map5, @(
+      'class net.mc.model.Face$UVs net.mc.cuboid.CuboidFace$Uv'
+      'class net.mc.model.Material net.mc.sprite.SpriteId'
+      'class net.mc.model.Face net.mc.cuboid.CuboidFace'
+      'class net.mc.gui.Graphics net.mc.gui.GraphicsExtractor'
+    ) -join "`n")
+  $r5 = Invoke-Tool $root5 $map5 -Apply
+  $t5 = Get-Text $importer
+  Assert-Case 'class rule exits 0' ($r5.Exit -eq 0) $r5.Out
+  Assert-Case 'class rule renames import and simple name in the importing file' ($t5 -match 'import net\.mc\.sprite\.SpriteId;' -and $t5 -match 'SpriteId m = new SpriteId\(\);' -and $t5 -match '\{@link SpriteId\}') $t5
+  Assert-Case 'class rule keeps qualified other.Material, MaterialSet' ($t5 -match 'x\.Material notThis' -and $t5 -match 'MaterialSet keep') $t5
+  Assert-Case 'class rule renames static import and javadoc FQN' ($t5 -match 'import static net\.mc\.gui\.GraphicsExtractor\.helper;' -and $t5 -match '\{@link net\.mc\.gui\.GraphicsExtractor\}') $t5
+  Assert-Case 'class rule: nested renamed independently via outer import (Face.UVs -> CuboidFace.Uv)' ($t5 -match 'import net\.mc\.cuboid\.CuboidFace;' -and $t5 -match 'CuboidFace\.Uv uv;' -and $t5 -match 'CuboidFace\.Other o;') $t5
+  Assert-Case 'class rule flags the string hit' ($r5.Out -match 'Importer\.java:6 ') ($r5.Out -split "`n" | Select-String 'WARNING|Importer' | Out-String)
+  $o5 = Get-Text $other
+  Assert-Case 'class rule leaves a same-named class of another package alone, FQN still renamed' ($o5 -match 'import slimeknights\.tconstruct\.Material;' -and $o5 -match 'Material mine;' -and $o5 -match 'net\.mc\.sprite\.SpriteId fqn;') $o5
+  $n5 = Get-Text $nested
+  Assert-Case 'class rule: directly imported nested class' ($n5 -match 'import net\.mc\.cuboid\.CuboidFace\.Uv;' -and $n5 -match 'Uv uv;') $n5
+  $root6 = Join-Path $tmp 'repo6'
+  $keep = New-Fixture $root6 'src/K.java' @('import net.mc.Keep;', 'class K { Keep.Inner x; Keep y; }') "`r`n" $false
+  $map6 = Join-Path $tmp 'map6.txt'
+  [System.IO.File]::WriteAllText($map6, "class net.mc.Keep`$Inner net.mc.other.Moved`$Inner`n")
+  $null = Invoke-Tool $root6 $map6 -Apply
+  Assert-Case 'class rule: nested class under another outer adds the new outer import (CRLF kept)' ((Get-Text $keep) -eq "import net.mc.Keep;`r`nimport net.mc.other.Moved;`r`nclass K { Moved.Inner x; Keep y; }`r`n") (Get-Text $keep)
+  $badClass = Join-Path $tmp 'badclass.txt'
+  [System.IO.File]::WriteAllText($badClass, "class NoPackage a.b.C`n")
+  $r = Invoke-Tool $root5 $badClass
+  Assert-Case 'class rule without a package is a syntax error' ($r.Exit -eq 2) "exit=$($r.Exit)"
+
   # --- bad map syntax ---
   foreach ($bad in @('token OnlyTwo', 'rename A B', 'token A B # trailing comment')) {
     $badMap = Join-Path $tmp 'bad.txt'

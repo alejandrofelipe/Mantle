@@ -1,7 +1,4 @@
-@ParametersAreNonnullByDefault
-@MethodsReturnNonnullByDefault
+@NullMarked
 package slimeknights.mantle.client.screen.book;
 
-import net.minecraft.MethodsReturnNonnullByDefault;
-
-import javax.annotation.ParametersAreNonnullByDefault;
+import org.jspecify.annotations.NullMarked;

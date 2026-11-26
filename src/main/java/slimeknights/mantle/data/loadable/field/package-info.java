@@ -1,4 +1,4 @@
-@ParametersAreNonnullByDefault
+@NullMarked
 package slimeknights.mantle.data.loadable.field;
 
-import javax.annotation.ParametersAreNonnullByDefault;
+import org.jspecify.annotations.NullMarked;

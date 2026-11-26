@@ -5,7 +5,8 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.data.AtlasIds;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -442,7 +443,7 @@ public class FluidRenderer {
 
   /**
    * Same as {@link net.minecraft.client.renderer.ScreenEffectRenderer#renderFluid(Minecraft, PoseStack, MultiBufferSource, Identifier)} but with opacity and color control.
-   * 1.21.5: immediate mode drawing is gone, so this now draws through {@link RenderType#blockScreenEffect(Identifier)} like vanilla,
+   * 1.21.5: immediate mode drawing is gone, so this now draws through {@link RenderTypes#blockScreenEffect(Identifier)} like vanilla,
    * with the tint moved from the shader color into the vertex color.
    */
   public static void renderCamera(Minecraft minecraft, PoseStack poseStack, MultiBufferSource bufferSource, Identifier texture, float opacity, int color) {
@@ -464,7 +465,7 @@ public class FluidRenderer {
     float yRot = -minecraft.player.getYRot() / 64;
     float xRot = minecraft.player.getXRot() / 64;
     Matrix4f matrix = poseStack.last().pose();
-    VertexConsumer buffer = bufferSource.getBuffer(RenderType.blockScreenEffect(texture));
+    VertexConsumer buffer = bufferSource.getBuffer(RenderTypes.blockScreenEffect(texture));
     buffer.addVertex(matrix, -1, -1, -0.5f).setUv(4 + yRot, 4 + xRot).setColor(vertexColor);
     buffer.addVertex(matrix,  1, -1, -0.5f).setUv(0 + yRot, 4 + xRot).setColor(vertexColor);
     buffer.addVertex(matrix,  1,  1, -0.5f).setUv(0 + yRot, 0 + xRot).setColor(vertexColor);

@@ -17,7 +17,7 @@ import slimeknights.mantle.config.Config;
 /**
  * Handles any custom shaders registered by Mantle.
  * 1.21.5: core shader JSONs are gone; each shader is now part of a {@link RenderPipeline}, which also owns the uniforms, samplers,
- * vertex format, blend, depth and cull state that used to live in the shader JSON and in {@link net.minecraft.client.renderer.RenderStateShard}s.
+ * vertex format, blend, depth and cull state that used to live in the shader JSON and in {@code RenderStateShard}s (removed in 1.21.11).
  * Pipelines must be registered in {@link RegisterRenderPipelinesEvent} so they are compiled with the vanilla ones.
  * 1.21.6: uniforms are std140 blocks; Mantle's shaders import the {@code DynamicTransforms}, {@code Projection} and {@code Fog} blocks, matching {@link RenderPipelines#MATRICES_FOG_SNIPPET}.
  */

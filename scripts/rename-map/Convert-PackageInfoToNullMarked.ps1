@@ -31,7 +31,7 @@ foreach ($file in $files) {
   $bom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
   $text = $utf8.GetString($bytes, ($bom ? 3 : 0), $bytes.Length - ($bom ? 3 : 0))
   $eol = $text.Contains("`r`n") ? "`r`n" : "`n"
-  $lines = $text -split "`r?`n", -1
+  $lines = $text -split "`r?`n"
   $out = [System.Collections.Generic.List[string]]::new()
   $marked = $false
   foreach ($line in $lines) {
@@ -41,6 +41,8 @@ foreach ($file in $files) {
       continue
     }
     if ($trim -eq $importDrop) { continue }
+    # dropping an import can leave two blank lines in a row: keep only one
+    if ($trim -eq '' -and $out.Count -gt 0 -and $out[$out.Count - 1].Trim() -eq '') { continue }
     if ($trim -eq $importSwap) { $out.Add($line.Replace($trim, 'import org.jspecify.annotations.NullMarked;')); continue }
     $out.Add($line)
   }

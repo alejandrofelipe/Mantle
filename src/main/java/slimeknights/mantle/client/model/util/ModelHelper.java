@@ -44,11 +44,14 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
+import slimeknights.mantle.Mantle;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -63,8 +66,14 @@ import java.util.function.Function;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class ModelHelper {
   private static final Map<Block,Identifier> TEXTURE_NAME_CACHE = new ConcurrentHashMap<>();
+  /** Models already warned about, keyed by their model identity (the extents supplier); cleared on resource reload */
+  private static final Set<Object> WARNED_MODELS = ConcurrentHashMap.newKeySet();
+
   /** Listener instance to clear cache */
-  public static final ResourceManagerReloadListener LISTENER = manager -> TEXTURE_NAME_CACHE.clear();
+  public static final ResourceManagerReloadListener LISTENER = manager -> {
+    TEXTURE_NAME_CACHE.clear();
+    WARNED_MODELS.clear();
+  };
 
   /**
    * Gets the texture name for a block from the model manager
@@ -152,29 +161,72 @@ public class ModelHelper {
   /* Item models */
 
   /**
-   * Adds a layer of quads to an item render state, matching vanilla {@code BlockModelWrapper#update}. Replaces the
+   * Adds the quads to an item render state, matching vanilla {@code BlockModelWrapper#update}. Replaces the
    * 1.21.4 {@code LayerRenderState#setupBlockModel(BakedModel, RenderType)} for dynamic item models.
+   * <p>
+   * 1.21.11: blocks and items have separate atlases and a layer binds a single one, so quads mixing both atlases are split
+   * into one layer per atlas (in order of first appearance, keeping the quad order within each atlas), each with the render
+   * type for its atlas, see {@link #addItemLayers}. An explicit {@code renderType} binds a single atlas and cannot be split:
+   * mixed quads then log a warning once per model. Prefer {@link #addItemLayers} with the model's {@link RenderTypeGroup}.
    * @param renderState     Render state to fill
    * @param stack           Stack being rendered, for the foil and default render type
    * @param displayContext  Display context, selects the item transform
    * @param quads           Quads to render
    * @param properties      Item render properties (gui light, particle, transforms)
-   * @param renderType      Render type for the layer, null to use the stack's default
+   * @param renderType      Render type for the layer, null to use the stack's default for the atlas of the quads
    * @param extents         Model extents, see {@link BlockModelWrapper#computeExtents(List)}. Must be memoized and created
    *                        once per cached variant: it doubles as the variant's model identity (see below).
    * @param animated        Whether any quad uses an animated sprite, see {@link #hasAnimatedSprite(List)}; compute once per variant
-   * @return  The added layer, for further customization such as tint layers
+   * @return  The added layer (the first one if the quads were split per atlas), for further customization such as tint layers
    */
   public static ItemStackRenderState.LayerRenderState addItemLayer(ItemStackRenderState renderState, ItemStack stack, ItemDisplayContext displayContext, List<BakedQuad> quads,
                                                                    ModelRenderProperties properties, @Nullable RenderType renderType, Supplier<Vector3fc[]> extents, boolean animated) {
+    if (renderType == null) {
+      return addItemLayers(renderState, stack, displayContext, quads, properties, null, extents, animated).getFirst();
+    }
+    List<Identifier> atlases = findAtlases(quads);
+    if (atlases.size() > 1) {
+      warnOnce(extents, "Item quads mix the atlases {} but are rendered with the single render type {}, so some quads sample the wrong atlas. Pass the model's render type group instead.",
+               atlases, renderType);
+    }
+    appendModelIdentity(renderState, stack, extents, animated);
+    return addLayer(renderState, stack, displayContext, quads, properties, renderType, extents);
+  }
+
+  /**
+   * Adds the quads to an item render state, one layer per atlas used by their sprites (in order of first appearance, keeping
+   * the quad order within each atlas). Each layer uses the render type for its atlas: from the group if set
+   * ({@link #getEntityRenderType(RenderTypeGroup, List)}), else the stack's default ({@link #getDefaultItemRenderType(ItemStack, List)}).
+   * See {@link #addItemLayer} for the other parameters; the model identity is appended once.
+   * @param renderTypes  Render type group from the model's {@code render_type}, null to use the stack's defaults
+   * @return  The added layers, never empty
+   */
+  public static List<ItemStackRenderState.LayerRenderState> addItemLayers(ItemStackRenderState renderState, ItemStack stack, ItemDisplayContext displayContext, List<BakedQuad> quads,
+                                                                         ModelRenderProperties properties, @Nullable RenderTypeGroup renderTypes, Supplier<Vector3fc[]> extents, boolean animated) {
+    appendModelIdentity(renderState, stack, extents, animated);
+    // common case: a single atlas, no need to copy the quads
+    if (findAtlases(quads).size() <= 1) {
+      return List.of(addLayer(renderState, stack, displayContext, quads, properties, getItemRenderType(stack, quads, renderTypes, extents), extents));
+    }
+    Map<Identifier,List<BakedQuad>> byAtlas = new LinkedHashMap<>();
+    for (BakedQuad quad : quads) {
+      byAtlas.computeIfAbsent(quad.sprite().atlasLocation(), atlas -> new ArrayList<>()).add(quad);
+    }
+    List<ItemStackRenderState.LayerRenderState> layers = new ArrayList<>(byAtlas.size());
+    for (List<BakedQuad> atlasQuads : byAtlas.values()) {
+      layers.add(addLayer(renderState, stack, displayContext, atlasQuads, properties, getItemRenderType(stack, atlasQuads, renderTypes, extents), extents));
+    }
+    return layers;
+  }
+
+  /** Appends the model identity, foil and animation state for the item, shared by every layer of the model */
+  private static void appendModelIdentity(ItemStackRenderState renderState, ItemStack stack, Supplier<Vector3fc[]> extents, boolean animated) {
     // 1.21.6+: GUI items are drawn once into an atlas keyed by the render state's model identity, so every distinct
     // look must append a distinct element (vanilla appends the BlockModelWrapper itself). Without one, all dynamic items
     // share the empty identity and show whichever was drawn first. The memoized extents supplier is unique per variant
     // and compares by identity, so it is a cheap stable key.
     renderState.appendModelIdentityElement(extents);
-    ItemStackRenderState.LayerRenderState layer = renderState.newLayer();
     if (stack.hasFoil()) {
-      layer.setFoilType(ItemStackRenderState.FoilType.STANDARD);
       // glint animates, so re-render the atlas slot every frame like vanilla
       renderState.setAnimated();
       renderState.appendModelIdentityElement(ItemStackRenderState.FoilType.STANDARD);
@@ -183,19 +235,66 @@ public class ModelHelper {
     if (animated) {
       renderState.setAnimated();
     }
+  }
+
+  /** Adds a single layer with the given quads and render type */
+  private static ItemStackRenderState.LayerRenderState addLayer(ItemStackRenderState renderState, ItemStack stack, ItemDisplayContext displayContext, List<BakedQuad> quads,
+                                                                ModelRenderProperties properties, RenderType renderType, Supplier<Vector3fc[]> extents) {
+    ItemStackRenderState.LayerRenderState layer = renderState.newLayer();
+    if (stack.hasFoil()) {
+      layer.setFoilType(ItemStackRenderState.FoilType.STANDARD);
+    }
     layer.setExtents(extents);
-    layer.setRenderType(renderType != null ? renderType : getDefaultItemRenderType(stack, quads));
+    layer.setRenderType(renderType);
     properties.applyToLayer(layer, displayContext);
     layer.prepareQuadList().addAll(quads);
     return layer;
   }
 
+  /** Gets the render type for quads from a single atlas, warning once per model if item render types cannot bind the atlas */
+  private static RenderType getItemRenderType(ItemStack stack, List<BakedQuad> quads, @Nullable RenderTypeGroup renderTypes, Object model) {
+    if (!quads.isEmpty()) {
+      Identifier atlas = quads.getFirst().sprite().atlasLocation();
+      if (!atlas.equals(TextureAtlas.LOCATION_BLOCKS) && !atlas.equals(TextureAtlas.LOCATION_ITEMS)) {
+        warnOnce(model, "Item quads use the atlas {}, which item render types cannot bind; rendering them with the items atlas", atlas);
+      }
+    }
+    return renderTypes != null ? getEntityRenderType(renderTypes, quads) : getDefaultItemRenderType(stack, quads);
+  }
+
+  /** Gets the distinct atlases of the quads' sprites, in order of first appearance. Does not allocate for a single atlas. */
+  private static List<Identifier> findAtlases(List<BakedQuad> quads) {
+    if (quads.isEmpty()) {
+      return List.of();
+    }
+    Identifier first = quads.getFirst().sprite().atlasLocation();
+    List<Identifier> atlases = null;
+    for (BakedQuad quad : quads) {
+      Identifier atlas = quad.sprite().atlasLocation();
+      if (!atlas.equals(first) && (atlases == null || !atlases.contains(atlas))) {
+        if (atlases == null) {
+          atlases = new ArrayList<>(2);
+          atlases.add(first);
+        }
+        atlases.add(atlas);
+      }
+    }
+    return atlases == null ? List.of(first) : atlases;
+  }
+
+  /** Logs a warning once per model */
+  private static void warnOnce(Object model, String message, Object... args) {
+    if (WARNED_MODELS.add(model)) {
+      Mantle.logger.warn(message, args);
+    }
+  }
+
   /**
-   * Gets the default render type for item quads, matching vanilla {@code BlockModelWrapper#detectRenderType}: quads from the
-   * items atlas (or no quads) use {@link Sheets#translucentItemSheet()}, quads from the blocks atlas use
+   * Gets the default render type for item quads from a single atlas, matching vanilla {@code BlockModelWrapper#detectRenderType}:
+   * quads from the items atlas (or no quads) use {@link Sheets#translucentItemSheet()}, quads from the blocks atlas use
    * {@link Sheets#cutoutBlockSheet()} for non-translucent block items and {@link Sheets#translucentBlockItemSheet()} otherwise.
    * 1.21.11: replaces {@code ItemBlockRenderTypes.getRenderType(ItemStack)}; item textures moved to their own atlas, so the
-   * render type must bind the atlas the sprites came from. Unlike vanilla, mixed atlases do not throw: the first quad decides.
+   * render type must bind the atlas the sprites came from. The first quad decides; split mixed quads with {@link #addItemLayers}.
    */
   public static RenderType getDefaultItemRenderType(ItemStack stack, List<BakedQuad> quads) {
     if (quads.isEmpty() || !quads.getFirst().sprite().atlasLocation().equals(TextureAtlas.LOCATION_BLOCKS)) {
@@ -212,10 +311,10 @@ public class ModelHelper {
   }
 
   /**
-   * Picks the entity render type of a render type group for the given item quads by the atlas of their sprites, matching
-   * NeoForge's {@code RenderTypeHelper#detectItemModelRenderType}: blocks atlas uses {@link RenderTypeGroup#entityBlock()},
+   * Picks the entity render type of a render type group for item quads from a single atlas, matching NeoForge's
+   * {@code RenderTypeHelper#detectItemModelRenderType}: blocks atlas uses {@link RenderTypeGroup#entityBlock()},
    * anything else (items atlas, no quads) uses {@link RenderTypeGroup#entityItem()}. Replaces the 1.21.10 {@code RenderTypeGroup#entity()}.
-   * Unlike NeoForge, mixed atlases do not throw: the first quad decides.
+   * The first quad decides; split mixed quads with {@link #addItemLayers}.
    * @param group  Render type group, must not be empty
    * @param quads  Quads that will be rendered with the type
    * @return  Entity render type binding the atlas of the quads

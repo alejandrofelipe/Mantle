@@ -23,7 +23,6 @@ import net.minecraft.client.renderer.item.ItemModel;
 import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
-import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BlockModelRotation;
@@ -361,18 +360,13 @@ public class RetexturedModel extends ColoredBlockModel {
       List<BakedQuad> quads = resolved.bakeTopGeometry(textures, baker, BlockModelRotation.IDENTITY).getAll();
       ModelRenderProperties properties = ModelRenderProperties.fromResolvedModel(baker, resolved, textures);
       Retexturer retexturer = Retexturer.of(baker, resolved, BlockModelRotation.IDENTITY);
-      RenderTypeGroup renderTypes = ElementModelData.itemRenderTypes(resolved);
-      return new Baked(new ItemVariant(quads, properties, renderTypes), retexturer, renderTypes);
+      return new Baked(new ItemVariant(quads, properties), retexturer, ElementModelData.itemRenderTypes(resolved));
     }
 
-    /**
-     * Quads and properties for a single item variant, with lazily computed extents and whether any sprite is animated.
-     * 1.21.11: the render type (null for the item's default) is picked per variant, as retexturing may change the atlas of the quads.
-     */
-    private record ItemVariant(List<BakedQuad> quads, ModelRenderProperties properties, @Nullable RenderType renderType, Supplier<Vector3fc[]> extents, boolean animated) {
-      private ItemVariant(List<BakedQuad> quads, ModelRenderProperties properties, @Nullable RenderTypeGroup renderTypes) {
-        this(quads, properties, renderTypes == null ? null : ModelHelper.getEntityRenderType(renderTypes, quads),
-             Suppliers.memoize(() -> BlockModelWrapper.computeExtents(quads)), ModelHelper.hasAnimatedSprite(quads));
+    /** Quads and properties for a single item variant, with lazily computed extents and whether any sprite is animated */
+    private record ItemVariant(List<BakedQuad> quads, ModelRenderProperties properties, Supplier<Vector3fc[]> extents, boolean animated) {
+      private ItemVariant(List<BakedQuad> quads, ModelRenderProperties properties) {
+        this(quads, properties, Suppliers.memoize(() -> BlockModelWrapper.computeExtents(quads)), ModelHelper.hasAnimatedSprite(quads));
       }
     }
 
@@ -381,6 +375,7 @@ public class RetexturedModel extends ColoredBlockModel {
       private final ItemVariant base;
       @Nullable
       private final Retexturer retexturer;
+      /** Render type group from the model, null for the item's defaults. 1.21.11: retextured quads may mix the blocks and items atlases, so layers are split per atlas */
       @Nullable
       private final RenderTypeGroup renderTypes;
       private final Map<Block,ItemVariant> cache = new ConcurrentHashMap<>();
@@ -396,7 +391,7 @@ public class RetexturedModel extends ColoredBlockModel {
         assert retexturer != null;
         return cache.computeIfAbsent(block, b -> {
           SimpleModelWrapper part = retexturer.getCachedModel(b);
-          return new ItemVariant(part.quads().getAll(), retexturer.getData().itemProperties(part.particleIcon()), renderTypes);
+          return new ItemVariant(part.quads().getAll(), retexturer.getData().itemProperties(part.particleIcon()));
         });
       }
 
@@ -409,7 +404,7 @@ public class RetexturedModel extends ColoredBlockModel {
             variant = getVariant(block);
           }
         }
-        ModelHelper.addItemLayer(renderState, stack, displayContext, variant.quads, variant.properties, variant.renderType, variant.extents, variant.animated);
+        ModelHelper.addItemLayers(renderState, stack, displayContext, variant.quads, variant.properties, renderTypes, variant.extents, variant.animated);
       }
     }
   }

@@ -153,6 +153,7 @@ public record ElementModelData(List<BlockElement> elements, List<ColorData> colo
   /**
    * Gets the entity render type for item rendering of the given model and quads, or null to use the item's default.
    * 1.21.11: the group holds a type per atlas, so the quads pick it, see {@link ModelHelper#getEntityRenderType(RenderTypeGroup, List)}.
+   * For quads that may mix the blocks and items atlases, pass {@link #itemRenderTypes(ResolvedModel)} to {@link ModelHelper#addItemLayers} instead.
    */
   @Nullable
   public static RenderType itemRenderType(ResolvedModel model, List<BakedQuad> quads) {

@@ -17,7 +17,6 @@ import net.minecraft.client.renderer.item.ItemModel;
 import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
-import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -231,23 +230,20 @@ public class NBTKeyModel extends AbstractUnbakedModel {
         TextureAtlasSprite sprite = baker.sprites().get(entry.getValue(), resolved);
         // 1.21.11: expose the atlas the sprite was found in rather than the block_or_item pseudo atlas, which AtlasManager#get rejects
         textures.put(entry.getKey(), new Material(sprite.atlasLocation(), entry.getValue().texture()));
-        variants.put(entry.getKey(), new Variant(bakeQuads(sprite, BlockModelRotation.IDENTITY, additionalProperties), new ModelRenderProperties(properties.usesBlockLight(), sprite, properties.transforms()), renderTypes));
+        variants.put(entry.getKey(), new Variant(bakeQuads(sprite, BlockModelRotation.IDENTITY, additionalProperties), new ModelRenderProperties(properties.usesBlockLight(), sprite, properties.transforms())));
       }
       Variant defaultVariant = variants.get("default");
       if (defaultVariant == null) {
-        defaultVariant = new Variant(resolved.bakeTopGeometry(slots, baker, BlockModelRotation.IDENTITY).getAll(), properties, renderTypes);
+        defaultVariant = new Variant(resolved.bakeTopGeometry(slots, baker, BlockModelRotation.IDENTITY).getAll(), properties);
       }
-      return new Baked(nbtModel.nbtKey, Map.copyOf(textures), Map.copyOf(variants), defaultVariant);
+      return new Baked(nbtModel.nbtKey, Map.copyOf(textures), Map.copyOf(variants), defaultVariant, renderTypes);
     }
   }
 
-  /**
-   * Quads and properties for a single variant, with lazily computed extents and whether any sprite is animated.
-   * 1.21.11: each variant texture may come from the items or the blocks atlas, so the render type is picked per variant.
-   */
-  private record Variant(List<BakedQuad> quads, ModelRenderProperties properties, RenderType renderType, Supplier<Vector3fc[]> extents, boolean animated) {
-    private Variant(List<BakedQuad> quads, ModelRenderProperties properties, RenderTypeGroup renderTypes) {
-      this(quads, properties, ModelHelper.getEntityRenderType(renderTypes, quads), Suppliers.memoize(() -> BlockModelWrapper.computeExtents(quads)), ModelHelper.hasAnimatedSprite(quads));
+  /** Quads and properties for a single variant, with lazily computed extents and whether any sprite is animated */
+  private record Variant(List<BakedQuad> quads, ModelRenderProperties properties, Supplier<Vector3fc[]> extents, boolean animated) {
+    private Variant(List<BakedQuad> quads, ModelRenderProperties properties) {
+      this(quads, properties, Suppliers.memoize(() -> BlockModelWrapper.computeExtents(quads)), ModelHelper.hasAnimatedSprite(quads));
     }
   }
 
@@ -257,12 +253,15 @@ public class NBTKeyModel extends AbstractUnbakedModel {
     private final Map<String,Material> textures;
     private final Map<String,Variant> variants;
     private final Variant defaultVariant;
+    /** 1.21.11: the variant textures may come from the items or the blocks atlas, so the layers pick their type from the group */
+    private final RenderTypeGroup renderTypes;
 
-    private Baked(String nbtKey, Map<String,Material> textures, Map<String,Variant> variants, Variant defaultVariant) {
+    private Baked(String nbtKey, Map<String,Material> textures, Map<String,Variant> variants, Variant defaultVariant, RenderTypeGroup renderTypes) {
       this.nbtKey = nbtKey;
       this.textures = textures;
       this.variants = variants;
       this.defaultVariant = defaultVariant;
+      this.renderTypes = renderTypes;
     }
 
     /**
@@ -283,7 +282,7 @@ public class NBTKeyModel extends AbstractUnbakedModel {
       if (data.contains(nbtKey)) {
         variant = data.copyTag().getString(nbtKey).map(variants::get).orElse(defaultVariant);
       }
-      ModelHelper.addItemLayer(renderState, stack, displayContext, variant.quads, variant.properties, variant.renderType, variant.extents, variant.animated);
+      ModelHelper.addItemLayers(renderState, stack, displayContext, variant.quads, variant.properties, renderTypes, variant.extents, variant.animated);
     }
   }
 }

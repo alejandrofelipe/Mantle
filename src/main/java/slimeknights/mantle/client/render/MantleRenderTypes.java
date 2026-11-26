@@ -1,22 +1,33 @@
 package slimeknights.mantle.client.render;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.blaze3d.textures.GpuSampler;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import slimeknights.mantle.Mantle;
+
+import java.util.function.Supplier;
 
 /**
  * Class for render types defined by Mantle.
  * 1.21.5: no longer extends {@link RenderType}; shader, transparency, cull, depth and write mask state moved into the
  * {@link com.mojang.blaze3d.pipeline.RenderPipeline}s in {@link MantleShaders}.
  * 1.21.11: {@code RenderStateShard} and {@code CompositeState} are gone; each type is a {@link RenderSetup} on the same pipeline.
- * The mipmapped block sheet ({@code BLOCK_SHEET_MIPPED}) is the block atlas sampled with {@link RenderTypes#MOVING_BLOCK_SAMPLER},
- * matching vanilla's moving block types which used that shard before.
+ * The mipmapped block sheet ({@code BLOCK_SHEET_MIPPED}) is the block atlas sampled with {@link #BLOCK_SHEET_MIPPED_SAMPLER}.
  */
 public class MantleRenderTypes {
   private MantleRenderTypes() {}
+
+  /**
+   * Sampler matching the 1.21.10 {@code RenderStateShard.BLOCK_SHEET_MIPPED} filtering: the block atlas filters with NEAREST and the shard
+   * turned mipmaps on, giving a {@code NEAREST_MIPMAP_LINEAR} min and {@code NEAREST} mag filter. Vanilla's {@code RenderTypes.MOVING_BLOCK_SAMPLER}
+   * uses a LINEAR min filter, so it is not reused here. Clamped like the 1.21.11 atlas sampler; UVs stay inside the atlas, so this matches
+   * the old repeat addressing.
+   */
+  private static final Supplier<GpuSampler> BLOCK_SHEET_MIPPED_SAMPLER = () -> RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST, true);
 
   /**
    * Render type used for the fluid renderer.
@@ -28,7 +39,7 @@ public class MantleRenderTypes {
     Mantle.modId + ":block_render_type",
     RenderSetup.builder(MantleShaders.getConfiguredFluidPipeline())
       .useLightmap()
-      .withTexture("Sampler0", TextureAtlas.LOCATION_BLOCKS, RenderTypes.MOVING_BLOCK_SAMPLER)
+      .withTexture("Sampler0", TextureAtlas.LOCATION_BLOCKS, BLOCK_SHEET_MIPPED_SAMPLER)
       .sortOnUpload()
       .bufferSize(256)
       .createRenderSetup());
@@ -44,7 +55,7 @@ public class MantleRenderTypes {
     Mantle.modId + ":translucent_fullbright",
     RenderSetup.builder(MantleShaders.TRANSLUCENT_FULLBRIGHT)
       .useOverlay()
-      .withTexture("Sampler0", TextureAtlas.LOCATION_BLOCKS, RenderTypes.MOVING_BLOCK_SAMPLER)
+      .withTexture("Sampler0", TextureAtlas.LOCATION_BLOCKS, BLOCK_SHEET_MIPPED_SAMPLER)
       .bufferSize(256)
       .createRenderSetup());
 }

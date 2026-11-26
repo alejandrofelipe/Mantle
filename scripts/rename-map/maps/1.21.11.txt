@@ -20,6 +20,13 @@ token   isAllowedInResourceLocation                                  isAllowedIn
 literal readResourceLocation(                                        readIdentifier(
 literal writeResourceLocation(                                       writeIdentifier(
 
+# --- moved vanilla packages (primer; the compiler is the authority for the rest) ---
+literal net.minecraft.Util;                                          net.minecraft.util.Util;
+literal net.minecraft.Util.                                          net.minecraft.util.Util.
+literal net.minecraft.FileUtil;                                      net.minecraft.util.FileUtil;
+literal net.minecraft.BlockUtil;                                     net.minecraft.util.BlockUtil;
+literal net.minecraft.advancements.critereon.                        net.minecraft.advancements.criterion.
+
 # --- step 1: the class itself (code, comments and javadoc) ---
 literal net.minecraft.resources.ResourceLocation                     net.minecraft.resources.Identifier
 token   ResourceLocation                                             Identifier

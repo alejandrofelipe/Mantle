@@ -3,9 +3,11 @@
   Datagen golden diff: fails when the generated resources of a repo differ from what git has committed.
 
 .DESCRIPTION
-  Run it right after a datagen run (runData and/or runServerData). It lists every change git sees under the generated
-  folders (modified, added, deleted, renamed, type-changed and untracked files; gitignored files such as Tinkers'
-  local src/generated/resources/.cache are not seen) and fails when any changed path matches none of the -Allow globs.
+  Run it right after a datagen run (runData and/or runServerData). It lists every content change against HEAD under the
+  generated folders (modified, added/staged, deleted, renamed as delete + add, and untracked files; gitignored files such
+  as Tinkers' local src/generated/resources/.cache are not seen) and fails when any changed path matches none of the
+  -Allow globs. Files that differ from the checkout only in line endings (core.autocrlf CRLF checkout vs LF datagen
+  output) are not changes; their count is printed as a note.
 
   Exit codes: 0 = no unexpected change, 1 = unexpected changes (listed), 2 = usage error (not a git repo, git missing).
 
@@ -61,28 +63,36 @@ foreach ($folder in $folders) {
   }
 }
 
-# porcelain v1 with NUL separators: "XY path" entries; renames and copies are followed by the original path
-$raw = & git -C $Repo -c core.quotepath=false status --porcelain=v1 -z --untracked-files=all -- @folders
-if ($LASTEXITCODE -ne 0) {
-  Write-Host "git status failed in $Repo"
-  exit 2
+function Split-Nul($output) {
+  return @((($output | Out-String) -split "`0") | ForEach-Object { $_.TrimStart("`r", "`n") } | Where-Object { $_.Trim() })
 }
-$tokens = @((($raw | Out-String) -split "`0") | Where-Object { $_.Trim() })
 
+# content changes of tracked files (staged or not) against HEAD, after git's eol normalization: a file that only differs
+# in its checkout line endings (core.autocrlf without an eol attribute, e.g. Tinkers' .mcmeta) is not a change.
+# --no-renames reports a rename as a deletion plus an addition. With -z the output alternates status and path.
 $changes = New-Object System.Collections.Generic.List[object]
-for ($i = 0; $i -lt $tokens.Count; $i++) {
-  $token = $tokens[$i].TrimStart("`r", "`n")
-  if ($token.Length -lt 4) { continue }
-  $status = $token.Substring(0, 2)
-  $path = $token.Substring(3)
-  $changes.Add([pscustomobject]@{ Status = $status; Path = $path })
-  if ($status[0] -eq 'R' -or $status[0] -eq 'C') {
-    $i++
-    if ($i -lt $tokens.Count) {
-      $changes.Add([pscustomobject]@{ Status = 'R-'; Path = $tokens[$i] })
-    }
+$null = & git -C $Repo rev-parse --verify --quiet HEAD 2>$null
+$hasHead = $LASTEXITCODE -eq 0
+if ($hasHead) {
+  $diff = Split-Nul (& git -C $Repo -c core.quotepath=false -c core.safecrlf=false diff HEAD --name-status --no-renames -z -- @folders 2>$null)
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host "git diff failed in $Repo"
+    exit 2
+  }
+  for ($i = 0; $i + 1 -lt $diff.Count; $i += 2) {
+    $changes.Add([pscustomobject]@{ Status = $diff[$i].Trim(); Path = $diff[$i + 1] })
   }
 }
+# untracked files (gitignored ones excluded); without a HEAD every file counts as new
+$untrackedArgs = if ($hasHead) { @('--others', '--exclude-standard') } else { @('--others', '--cached', '--exclude-standard') }
+foreach ($path in Split-Nul (& git -C $Repo -c core.quotepath=false ls-files @untrackedArgs -z -- @folders)) {
+  $changes.Add([pscustomobject]@{ Status = '??'; Path = $path })
+}
+
+# files git status flags whose content is unchanged (line endings only): reported for information
+$changedPaths = [System.Collections.Generic.HashSet[string]]::new([string[]]@($changes | ForEach-Object { $_.Path }))
+$eolOnly = @(Split-Nul (& git -C $Repo -c core.quotepath=false -c core.safecrlf=false status --porcelain=v1 -z --untracked-files=no --no-renames -- @folders 2>$null) |
+  Where-Object { $_.Length -gt 3 } | ForEach-Object { $_.Substring(3) } | Where-Object { -not $changedPaths.Contains($_) })
 
 $allowed = @()
 $unexpected = @()
@@ -92,6 +102,9 @@ foreach ($change in $changes) {
 }
 
 $scope = ($folders -join ', ')
+if ($eolOnly.Count -gt 0) {
+  Write-Host "note: $($eolOnly.Count) file(s) under $scope differ from the checkout only in line endings (content identical to HEAD), not counted; e.g. $($eolOnly[0])"
+}
 if ($allowed.Count -gt 0) {
   Write-Host "$($allowed.Count) expected change(s) under $scope (matched -Allow):"
   $allowed | ForEach-Object { Write-Host "  $($_.Status) $($_.Path)" }

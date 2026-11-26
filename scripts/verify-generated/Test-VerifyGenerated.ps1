@@ -86,7 +86,27 @@ try {
   Test-Case 'gitignored generated file is ignored' 0
   Reset-Repo
 
-  $output =& $shell -NoProfile -NonInteractive -File $checker -Repo (Join-Path $root 'does-not-exist') 2>&1
+  Invoke-Git mv src/generated/resources/data/test/a.json src/generated/resources/data/test/renamed.json
+  Test-Case 'renamed generated file fails' 1
+  Reset-Repo
+
+  # line endings: with core.autocrlf=true and no eol attribute a file checks out as CRLF; datagen writes LF, which git status
+  # flags as modified although the content equals HEAD
+  Invoke-Git config core.autocrlf true
+  $mcmeta = 'src/generated/resources/assets/test/c.png.mcmeta'
+  Set-File $mcmeta "{`n  `"animation`": {}`n}`n"
+  Invoke-Git add -A
+  Invoke-Git commit --quiet -m mcmeta
+  Remove-Item -LiteralPath (Join-Path $root $mcmeta)
+  Invoke-Git checkout -- $mcmeta
+  Set-File $mcmeta "{`n  `"animation`": {}`n}`n"
+  Test-Case 'line ending only change passes' 0
+  Set-File $mcmeta "{`n  `"animation`": {`"frametime`": 2}`n}`n"
+  Test-Case 'content change with LF endings fails' 1
+  Reset-Repo
+  Invoke-Git config core.autocrlf false
+
+  $output = & $shell -NoProfile -NonInteractive -File $checker -Repo (Join-Path $root 'does-not-exist') 2>&1
   if ($LASTEXITCODE -eq 2) { Write-Host "PASS  nonexistent repo folder (exit 2)" } else { Write-Host "FAIL  nonexistent repo folder: exit $LASTEXITCODE"; $failures++ }
 } finally {
   Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue

@@ -1,0 +1,8 @@
+// Flow gate: make javac keep reporting method-body errors past the first attribution failure, and lift the 100-error
+// cap, so a port's compile errors can be triaged by category and fed to Invoke-CompilerRenames.ps1.
+// Usage: gradlew -p <repo> compileJava --init-script <this file>   (Gradle prints each error twice; the tools dedupe)
+allprojects {
+    tasks.withType(JavaCompile).configureEach {
+        options.compilerArgs += ['-XDshould-stop.ifError=FLOW', '-Xmaxerrs', '10000']
+    }
+}

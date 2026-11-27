@@ -2,6 +2,7 @@ package slimeknights.mantle.client.render;
 
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -35,10 +36,15 @@ public class MantleShaders {
     .padding(1)
     .build();
 
-  /** Shared fluid state: translucent, culled, depth tested and written, {@code POSITION_COLOR_TEX_LIGHTMAP} quads. Has no shaders, see {@link #FLUID_SNIPPET} and {@link #FLUID_NO_FOG_SNIPPET}. */
+  /**
+   * Shared fluid state: translucent, culled, depth tested and written, {@code POSITION_COLOR_TEX_LIGHTMAP} quads. Has no shaders, see {@link #FLUID_SNIPPET} and {@link #FLUID_NO_FOG_SNIPPET}.
+   * 26.1: a pipeline without a depth stencil state has no depth test (up to 1.21.11 the builder defaulted to a depth test and write), so the
+   * state is set explicitly; without it fluids drew over every block in front of them.
+   */
   private static final RenderPipeline.Snippet FLUID_BASE_SNIPPET = RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
     .withSampler("Sampler0")
     .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+    .withDepthStencilState(DepthStencilState.DEFAULT)
     .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP, VertexFormat.Mode.QUADS)
     .buildSnippet();
   /** Fluid pipeline state using Mantle's fluid shader, which applies vanilla fog. Use as the base for fluid pipeline variants, e.g. one with cull disabled. */
@@ -72,6 +78,7 @@ public class MantleShaders {
     .withSampler("Sampler0")
     .withSampler("Sampler1")
     .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+    .withDepthStencilState(DepthStencilState.DEFAULT) // 26.1: no depth test unless set, see FLUID_BASE_SNIPPET
     .withVertexFormat(BLOCK_WITH_OVERLAY, VertexFormat.Mode.QUADS)
     .build();
 

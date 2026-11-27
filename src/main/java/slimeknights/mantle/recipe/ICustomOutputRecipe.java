@@ -23,7 +23,7 @@ public interface ICustomOutputRecipe<C extends RecipeInput> extends ICommonRecip
   /** @deprecated Item stack output not supported */
   @Override
   @Deprecated
-  default ItemStack assemble(C inv, HolderLookup.Provider access) {
+  default ItemStack assemble(C inv) {
     return ItemStack.EMPTY;
   }
 

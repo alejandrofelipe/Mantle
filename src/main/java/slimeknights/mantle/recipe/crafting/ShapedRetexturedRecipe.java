@@ -9,14 +9,14 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingBookCategory;
+import net.minecraft.world.item.ItemStackTemplate;
+import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapedRecipePattern;
-import net.minecraft.world.item.crafting.display.RecipeDisplay;
-import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import slimeknights.mantle.recipe.MantleRecipes;
@@ -32,8 +32,8 @@ public class ShapedRetexturedRecipe extends ShapedRecipe {
   private final boolean matchAll;
 
   /** Creates a new recipe using the passed parameters */
-  protected ShapedRetexturedRecipe(String group, CraftingBookCategory category, ShapedRecipePattern pattern, ItemStack result, boolean showNotification, Ingredient texture, boolean matchAll) {
-    super(group, category, pattern, result, showNotification);
+  protected ShapedRetexturedRecipe(Recipe.CommonInfo commonInfo, CraftingRecipe.CraftingBookInfo bookInfo, ShapedRecipePattern pattern, ItemStackTemplate result, Ingredient texture, boolean matchAll) {
+    super(commonInfo, bookInfo, pattern, result);
     this.texture = texture;
     this.matchAll = matchAll;
   }
@@ -45,23 +45,15 @@ public class ShapedRetexturedRecipe extends ShapedRecipe {
    * @param matchAll   If true, all inputs must match for the recipe to match
    */
   protected ShapedRetexturedRecipe(ShapedRecipe orig, Ingredient texture, boolean matchAll) {
-    // ShapedRecipe.pattern is public final; the result field is package-private and Recipe#getResultItem was removed in
-    // 1.21.4, so read the stored result from the recipe's display (the only public accessor).
-    this(orig.group(), orig.category(), orig.pattern, baseResult(orig), orig.showNotification(), texture, matchAll);
+    // ShapedRecipe.pattern is public final and Mantle's access transformer makes the result public. Read it directly rather
+    // than via ShapedRecipe#display(): building the display streams the recipe's ingredients, which fails at datagen for
+    // tag/custom ingredients whose contents are not bound yet. 26.1: the common and book info are rebuilt from the accessors.
+    this(new Recipe.CommonInfo(orig.showNotification()), new CraftingRecipe.CraftingBookInfo(orig.category(), orig.group()), orig.pattern, orig.result, texture, matchAll);
   }
 
-  /**
-   * Reads the stored result of a shaped recipe. {@link ShapedRecipe#result} is {@code public final}, so read it directly
-   * rather than via {@link ShapedRecipe#display()} — building the display streams the recipe's ingredients, which fails at
-   * datagen for tag/custom ingredients whose contents are not bound yet.
-   */
-  private static ItemStack baseResult(ShapedRecipe recipe) {
-    return recipe.result;
-  }
-
-  /** Mantle's own result accessor; {@link net.minecraft.world.item.crafting.Recipe} dropped getResultItem in 1.21.4 */
+  /** Mantle's own result accessor; {@link net.minecraft.world.item.crafting.Recipe} dropped getResultItem in 1.21.4. 26.1: builds a new stack from the result template */
   public ItemStack getResultItem(HolderLookup.Provider access) {
-    return baseResult(this);
+    return result.create();
   }
 
   /**
@@ -74,8 +66,8 @@ public class ShapedRetexturedRecipe extends ShapedRecipe {
   }
 
   @Override
-  public ItemStack assemble(CraftingInput input, HolderLookup.Provider access) {
-    ItemStack result = super.assemble(input, access);
+  public ItemStack assemble(CraftingInput input) {
+    ItemStack result = super.assemble(input);
     Block currentTexture = null;
     for (int i = 0; i < input.size(); i++) {
       ItemStack stack = input.getItem(i);
@@ -114,39 +106,29 @@ public class ShapedRetexturedRecipe extends ShapedRecipe {
     return result;
   }
 
+  @SuppressWarnings("unchecked")
   @Override
-  public RecipeSerializer<? extends ShapedRecipe> getSerializer() {
-    return MantleRecipes.CRAFTING_SHAPED_RETEXTURED.get();
+  public RecipeSerializer<ShapedRecipe> getSerializer() {
+    // cast to the type the vanilla parent declares (invariant RecipeSerializer)
+    return (RecipeSerializer<ShapedRecipe>) (RecipeSerializer<?>) MantleRecipes.CRAFTING_SHAPED_RETEXTURED.get();
   }
 
   /**
-   * Serializer for {@link ShapedRetexturedRecipe}.
+   * Serializer codecs for {@link ShapedRetexturedRecipe}; 26.1: RecipeSerializer is a record of the two codecs.
    * TODO PORT (stage 7 datagen ingredients): the 1.20 serializer supported a single-character {@code texture} key that
    * referenced a symbol in the shaped {@code key} map. In 1.21 the {@link ShapedRecipePattern} is opaque (no key-map
    * access from the recipe), so {@code texture} is now always a full ingredient object. If the key-char sugar is needed
    * for datagen ergonomics it must be reintroduced in the builder (see {@link ShapedRetexturedRecipeBuilder}).
    */
-  public static class Serializer implements RecipeSerializer<ShapedRetexturedRecipe> {
-    private static final MapCodec<ShapedRetexturedRecipe> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-      Ingredient.CODEC.fieldOf("texture").forGetter(r -> r.texture),
-      com.mojang.serialization.Codec.BOOL.optionalFieldOf("match_all", false).forGetter(r -> r.matchAll),
-      ShapedRecipe.Serializer.CODEC.forGetter(r -> (ShapedRecipe) r)
-    ).apply(inst, (texture, matchAll, base) -> new ShapedRetexturedRecipe(base, texture, matchAll)));
+  public static final MapCodec<ShapedRetexturedRecipe> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+    Ingredient.CODEC.fieldOf("texture").forGetter(r -> r.texture),
+    com.mojang.serialization.Codec.BOOL.optionalFieldOf("match_all", false).forGetter(r -> r.matchAll),
+    ShapedRecipe.MAP_CODEC.forGetter(r -> r)
+  ).apply(inst, (texture, matchAll, base) -> new ShapedRetexturedRecipe(base, texture, matchAll)));
 
-    private static final StreamCodec<RegistryFriendlyByteBuf,ShapedRetexturedRecipe> STREAM_CODEC = StreamCodec.composite(
-      ShapedRecipe.Serializer.STREAM_CODEC, r -> r,
-      Ingredient.CONTENTS_STREAM_CODEC, r -> r.texture,
-      ByteBufCodecs.BOOL, r -> r.matchAll,
-      (base, texture, matchAll) -> new ShapedRetexturedRecipe(base, texture, matchAll));
-
-    @Override
-    public MapCodec<ShapedRetexturedRecipe> codec() {
-      return CODEC;
-    }
-
-    @Override
-    public StreamCodec<RegistryFriendlyByteBuf,ShapedRetexturedRecipe> streamCodec() {
-      return STREAM_CODEC;
-    }
-  }
+  public static final StreamCodec<RegistryFriendlyByteBuf,ShapedRetexturedRecipe> STREAM_CODEC = StreamCodec.composite(
+    ShapedRecipe.STREAM_CODEC, r -> r,
+    Ingredient.CONTENTS_STREAM_CODEC, r -> r.texture,
+    ByteBufCodecs.BOOL, r -> r.matchAll,
+    (base, texture, matchAll) -> new ShapedRetexturedRecipe(base, texture, matchAll));
 }

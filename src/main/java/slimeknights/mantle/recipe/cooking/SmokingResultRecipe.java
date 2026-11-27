@@ -6,8 +6,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.AbstractCookingRecipe;
 import net.minecraft.world.item.crafting.CookingBookCategory;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.SingleRecipeInput;
+import net.minecraft.world.item.crafting.display.RecipeDisplay;
 import net.minecraft.world.item.crafting.SmokingRecipe;
 import slimeknights.mantle.data.loadable.common.IngredientLoadable;
 import slimeknights.mantle.data.loadable.field.LoadableField;
@@ -16,6 +18,8 @@ import slimeknights.mantle.data.loadable.record.RecordLoadable;
 import slimeknights.mantle.recipe.MantleRecipes;
 import slimeknights.mantle.recipe.helper.ItemOutput;
 import slimeknights.mantle.recipe.helper.LoadableRecipeSerializer;
+
+import java.util.List;
 
 /** Extension of {@link SmokingRecipe} to support {@link ItemOutput} */
 @Getter
@@ -30,7 +34,8 @@ public class SmokingResultRecipe extends SmokingRecipe implements CookingResultR
   private final ItemOutput result;
   // 1.21: cooking recipes no longer carry a Identifier id (the RecipeHolder does)
   public SmokingResultRecipe(String group, CookingBookCategory category, Ingredient ingredient, ItemOutput result, float experience, int cookingTime) {
-    super(group, category, ingredient, ItemStack.EMPTY, experience, cookingTime);
+    // 26.1: the vanilla result must be a non-empty template; assemble and display use the ItemOutput instead
+    super(new Recipe.CommonInfo(true), new AbstractCookingRecipe.CookingBookInfo(category, group), ingredient, CookingResultRecipe.placeholderResult(), experience, cookingTime);
     this.result = result;
   }
 
@@ -47,7 +52,12 @@ public class SmokingResultRecipe extends SmokingRecipe implements CookingResultR
   }
 
   @Override
-  public ItemStack assemble(SingleRecipeInput input, HolderLookup.Provider registries) {
+  public ItemStack assemble(SingleRecipeInput input) {
     return result.copy();
+  }
+
+  @Override
+  public List<RecipeDisplay> display() {
+    return CookingResultRecipe.display(this, furnaceIcon());
   }
 }

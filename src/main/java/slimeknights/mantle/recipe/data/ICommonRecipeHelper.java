@@ -178,7 +178,7 @@ public interface ICommonRecipeHelper extends IRecipeHelper {
       SingleItemRecipeBuilder.stonecutting(ingredient, RecipeCategory.BUILDING_BLOCKS, slab, 2)
                              .unlockedBy("has_item", hasBlock)
                              .save(consumer, recipeKey(wrap(itemId, folder, "_slab_stonecutter")));
-      SingleItemRecipeBuilder.stonecutting(ingredient, RecipeCategory.BUILDING_BLOCKS, stairs)
+      SingleItemRecipeBuilder.stonecutting(ingredient, RecipeCategory.BUILDING_BLOCKS, stairs, 1)
                              .unlockedBy("has_item", hasBlock)
                              .save(consumer, recipeKey(wrap(itemId, folder, "_stairs_stonecutter")));
     }
@@ -206,7 +206,7 @@ public interface ICommonRecipeHelper extends IRecipeHelper {
     // only add stonecutter if relevant
     if (addStonecutter) {
       Ingredient ingredient = Ingredient.of(item);
-      SingleItemRecipeBuilder.stonecutting(ingredient, RecipeCategory.BUILDING_BLOCKS, wall)
+      SingleItemRecipeBuilder.stonecutting(ingredient, RecipeCategory.BUILDING_BLOCKS, wall, 1)
                              .unlockedBy("has_item", hasBlock)
                              .save(consumer, recipeKey(wrap(itemId, folder, "_wall_stonecutter")));
     }

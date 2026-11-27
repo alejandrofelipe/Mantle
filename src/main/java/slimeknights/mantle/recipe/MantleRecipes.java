@@ -26,8 +26,8 @@ public class MantleRecipes {
   }
 
   // crafting
-  public static final DeferredHolder<RecipeSerializer<?>,ShapedFallbackRecipe.Serializer> CRAFTING_SHAPED_FALLBACK = RECIPES.register("crafting_shaped_fallback", ShapedFallbackRecipe.Serializer::new);
-  public static final DeferredHolder<RecipeSerializer<?>,ShapedRetexturedRecipe.Serializer> CRAFTING_SHAPED_RETEXTURED = RECIPES.register("crafting_shaped_retextured", ShapedRetexturedRecipe.Serializer::new);
+  public static final DeferredHolder<RecipeSerializer<?>,RecipeSerializer<ShapedFallbackRecipe>> CRAFTING_SHAPED_FALLBACK = RECIPES.register("crafting_shaped_fallback", () -> new RecipeSerializer<>(ShapedFallbackRecipe.CODEC, ShapedFallbackRecipe.STREAM_CODEC));
+  public static final DeferredHolder<RecipeSerializer<?>,RecipeSerializer<ShapedRetexturedRecipe>> CRAFTING_SHAPED_RETEXTURED = RECIPES.register("crafting_shaped_retextured", () -> new RecipeSerializer<>(ShapedRetexturedRecipe.CODEC, ShapedRetexturedRecipe.STREAM_CODEC));
   // cooking
   public static final DeferredHolder<RecipeSerializer<?>,RecipeSerializer<SmeltingResultRecipe>> SMELTING = RECIPES.register("smelting", () -> LoadableRecipeSerializer.of(SmeltingResultRecipe.LOADABLE));
   public static final DeferredHolder<RecipeSerializer<?>,RecipeSerializer<BlastingResultRecipe>> BLASTING = RECIPES.register("blasting", () -> LoadableRecipeSerializer.of(BlastingResultRecipe.LOADABLE));

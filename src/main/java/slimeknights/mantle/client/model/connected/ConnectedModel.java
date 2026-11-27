@@ -18,7 +18,6 @@ import net.minecraft.client.renderer.block.dispatch.SingleVariant;
 import net.minecraft.client.resources.model.sprite.TextureSlots;
 import net.minecraft.client.renderer.block.dispatch.Variant;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.client.resources.model.sprite.MaterialBaker;
 import net.minecraft.client.resources.model.ModelBaker;
@@ -197,9 +196,9 @@ public class ConnectedModel extends ColoredBlockModel {
     private final ElementModelData data;
     /** Rotation of the block state variant, used to find the neighbor for each model side */
     private final Transformation rotation;
-    /** Sprites for every texture name the connected variants can use, resolved at bake time */
-    private final Map<String,TextureAtlasSprite> sprites;
-    private final TextureAtlasSprite missing;
+    /** Baked materials for every texture name the connected variants can use, resolved at bake time (keeping {@code force_translucent}) */
+    private final Map<String,Material.Baked> materials;
+    private final Material.Baked missing;
     private final AtomicReferenceArray<BlockStateModelPart> cache = new AtomicReferenceArray<>(64);
     /** Map of face texture name to the connected texture it references, computed at bake time */
     private final Map<String,String> connectedNames;
@@ -212,29 +211,29 @@ public class ConnectedModel extends ColoredBlockModel {
       // all directions false gives cache key of 0, that is ourself
       this.cache.set(0, base);
 
-      // resolve all sprites now while we have a baker: the base face textures plus all connected suffix variants
-      MaterialBaker materials = baker.materials();
+      // resolve all materials now while we have a baker: the base face textures plus all connected suffix variants
+      MaterialBaker materialBaker = baker.materials();
       Map<String,Material> extraTextures = connected.computeExtraTextures(data.textures());
-      Map<String,TextureAtlasSprite> sprites = new HashMap<>();
+      Map<String,Material.Baked> materials = new HashMap<>();
       for (CuboidModelElement element : data.elements()) {
         for (CuboidFace face : element.faces().values()) {
           String name = stripReference(face.texture());
-          if (!sprites.containsKey(name)) {
-            sprites.put(name, materials.resolveSlot(data.textures(), name, data.name()).sprite());
+          if (!materials.containsKey(name)) {
+            materials.put(name, materialBaker.resolveSlot(data.textures(), name, data.name()));
           }
         }
       }
       // follow each face texture back to the connected texture it references, through the whole parent chain
       // 1.21.5: unlike 1.21.4, this also follows references in vanilla parents such as block/cube_all
-      this.connectedNames = ModelHelper.findReferences(resolved, connected.connectedTextures.keySet(), sprites.keySet());
+      this.connectedNames = ModelHelper.findReferences(resolved, connected.connectedTextures.keySet(), materials.keySet());
       // PORT 1.21.5: suffix sprites are now resolved eagerly, so a pack missing an unused suffix texture logs it as a
       // missing texture at bake (1.21.4 silently used missingno on demand); check the client log in the uitest phase
       for (Entry<String,Material> entry : extraTextures.entrySet()) {
-        sprites.put(entry.getKey(), materials.get(entry.getValue(), data.name()).sprite());
+        materials.put(entry.getKey(), materialBaker.get(entry.getValue(), data.name()));
       }
-      this.sprites = Map.copyOf(sprites);
+      this.materials = Map.copyOf(materials);
       // the missing sprite is part of the atlas, so this lookup does not report anything
-      this.missing = materials.get(new Material(MissingTextureAtlasSprite.getLocation()), data.name()).sprite();
+      this.missing = materialBaker.get(new Material(MissingTextureAtlasSprite.getLocation()), data.name());
     }
 
     /** Removes the leading {@code '#'} from a texture reference */
@@ -242,10 +241,10 @@ public class ConnectedModel extends ColoredBlockModel {
       return !name.isEmpty() && name.charAt(0) == '#' ? name.substring(1) : name;
     }
 
-    /** Gets a sprite resolved at bake time */
-    private TextureAtlasSprite getSprite(String name) {
-      TextureAtlasSprite sprite = sprites.get(stripReference(name));
-      return sprite != null ? sprite : missing;
+    /** Gets a material resolved at bake time */
+    private Material.Baked getMaterial(String name) {
+      Material.Baked material = materials.get(stripReference(name));
+      return material != null ? material : missing;
     }
 
     /**
@@ -402,8 +401,8 @@ public class ConnectedModel extends ColoredBlockModel {
         elements.add(new CuboidModelElement(part.from(), part.to(), partFaces, part.rotation(), part.shade(), part.lightEmission(), part.faceData()));
       }
 
-      // bake the model with the sprites resolved at bake time so the suffixed textures resolve
-      return data.part(ColoredBlockModel.bakeElements(elements, data.colorData(), this::getSprite, data.state()));
+      // bake the model with the materials resolved at bake time so the suffixed textures resolve
+      return data.part(ColoredBlockModel.bakeElements(elements, data.colorData(), this::getMaterial, data.state()));
     }
 
     /**

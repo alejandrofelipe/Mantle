@@ -27,7 +27,7 @@ import java.util.function.Function;
  * 1.21.5: replaces the {@code BakedModel} + {@code DynamicBakedWrapper} + {@code bakeReplaced} pattern. A {@link ModelBaker}
  * only exists during model baking, while dynamic models (retextured blocks, tanks, material blocks) only know their
  * textures at render time, so they keep this record and rebake quads lazily, typically with the atlas manager ({@link ModelHelper#getSprite(SpriteId)})
- * through {@link #runtimeSprites(Map)}, caching the result per texture.
+ * through {@link #runtimeMaterials(Map)}, caching the result per texture.
  * <p>
  * 26.1: the render type group from the model's {@code render_type} is gone: every quad picks its render layer and item render type from its sprite
  * when baked (see {@link ModelHelper#bakeQuad}), so block parts and item layers need no render type.
@@ -84,19 +84,20 @@ public record ElementModelData(List<CuboidModelElement> elements, List<ColorData
 
   /* Sprites */
 
-  /** Sprite lookup for the baking phase, reporting missing textures through the baker */
-  public Function<String,TextureAtlasSprite> bakingSprites(ModelBaker baker) {
-    return SimpleBlockModel.spriteLookup(textures, baker, name);
+  /** Material lookup for the baking phase, reporting missing textures through the baker and keeping {@code force_translucent} */
+  public Function<String,Material.Baked> bakingMaterials(ModelBaker baker) {
+    return SimpleBlockModel.materialLookup(textures, baker, name);
   }
 
   /**
-   * Sprite lookup at runtime with the given texture replacements, through the atlas manager.
+   * Material lookup at runtime with the given texture replacements, through the atlas manager.
    * 1.21.9: {@code SpriteId#sprite()} is gone; {@link net.minecraft.client.resources.model.sprite.AtlasManager} holds every stitched sprite
    * (missing sprite for unknown textures, like the old atlas lookup).
-   * 26.1: textures not replaced are resolved like the model bakery, see {@link ModelHelper#getSprite(Material)}.
+   * 26.1: textures not replaced are resolved like the model bakery, keeping {@code force_translucent}, see {@link ModelHelper#getMaterial(Material)};
+   * replacements are not forced translucent.
    */
-  public Function<String,TextureAtlasSprite> runtimeSprites(Map<String,SpriteId> replacements) {
-    return SimpleBlockModel.spriteLookup(textures, replacements, ModelHelper::getSprite);
+  public Function<String,Material.Baked> runtimeMaterials(Map<String,SpriteId> replacements) {
+    return SimpleBlockModel.materialLookup(textures, replacements, ModelHelper::getSprite);
   }
 
   /** Gets the particle for the given replacements, falling back to the default particle */
@@ -109,18 +110,18 @@ public record ElementModelData(List<CuboidModelElement> elements, List<ColorData
   /* Baking */
 
   /** Bakes the elements into the given builder, allowing callers to add extra quads (e.g. a fluid) */
-  public void bake(QuadCollection.Builder builder, Function<String,TextureAtlasSprite> sprites) {
-    ColoredBlockModel.bakeElements(builder, elements, colorData, sprites, state);
+  public void bake(QuadCollection.Builder builder, Function<String,Material.Baked> materials) {
+    ColoredBlockModel.bakeElements(builder, elements, colorData, materials, state);
   }
 
-  /** Bakes the elements with the given sprite lookup */
-  public QuadCollection bake(Function<String,TextureAtlasSprite> sprites) {
-    return ColoredBlockModel.bakeElements(elements, colorData, sprites, state);
+  /** Bakes the elements with the given material lookup */
+  public QuadCollection bake(Function<String,Material.Baked> materials) {
+    return ColoredBlockModel.bakeElements(elements, colorData, materials, state);
   }
 
   /** Bakes the elements with the given texture replacements at runtime */
   public QuadCollection bakeReplaced(Map<String,SpriteId> replacements) {
-    return bake(runtimeSprites(replacements));
+    return bake(runtimeMaterials(replacements));
   }
 
   /**

@@ -175,53 +175,54 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
   /* Sprites */
 
   /**
-   * Resolves a sprite for the given texture name at runtime, matching vanilla's missing-reference fallback.
-   * 26.1: model textures are {@link Material}s without an atlas, resolved like the model bakery by {@link ModelHelper#getSprite(Material)},
-   * so this no longer takes a sprite getter.
+   * Resolves the material for the given texture name at runtime, matching vanilla's missing-reference fallback.
+   * 26.1: model textures are {@link Material}s without an atlas, resolved like the model bakery by {@link ModelHelper#getMaterial(Material)},
+   * so this no longer takes a sprite getter. Returns the baked material rather than the sprite so {@code force_translucent} reaches the quad.
    */
-  public static TextureAtlasSprite findSprite(TextureSlots textures, String name) {
+  public static Material.Baked findMaterial(TextureSlots textures, String name) {
     Material material = textures.getMaterial(name);
     if (material == null) {
       material = new Material(MissingTextureAtlasSprite.getLocation());
     }
-    return ModelHelper.getSprite(material);
+    return ModelHelper.getMaterial(material);
   }
 
   /**
-   * Resolves a sprite for the given texture name, checking the replacement map first. This is the primitive used for
+   * Resolves the material for the given texture name, checking the replacement map first. This is the primitive used for
    * dynamic retexturing: since {@link TextureSlots} is immutable and non-enumerable, callers pass a map of texture name
    * (without the leading {@code '#'}) to a replacement {@link SpriteId}; any name present there wins over the slots.
+   * A replacement is not forced translucent: its layer follows its own transparency.
    * @param spriteGetter  Sprite getter for the replacements, typically {@link ModelHelper#getSprite(SpriteId)} when rebaking outside the baking phase
-   * @param textures      Original resolved texture slots, used for names not in the replacement map, see {@link #findSprite(TextureSlots, String)}
+   * @param textures      Original resolved texture slots, used for names not in the replacement map, see {@link #findMaterial(TextureSlots, String)}
    * @param replacements  Map of texture name (no {@code '#'}) to replacement sprite; may be empty
    * @param name          Texture name to resolve, with or without a leading {@code '#'}
    */
-  public static TextureAtlasSprite findSprite(Function<SpriteId,TextureAtlasSprite> spriteGetter, TextureSlots textures, Map<String,SpriteId> replacements, String name) {
+  public static Material.Baked findMaterial(Function<SpriteId,TextureAtlasSprite> spriteGetter, TextureSlots textures, Map<String,SpriteId> replacements, String name) {
     if (!replacements.isEmpty()) {
       String key = (!name.isEmpty() && name.charAt(0) == '#') ? name.substring(1) : name;
       SpriteId replacement = replacements.get(key);
       if (replacement != null) {
-        return spriteGetter.apply(replacement);
+        return new Material.Baked(spriteGetter.apply(replacement), false);
       }
     }
-    return findSprite(textures, name);
+    return findMaterial(textures, name);
   }
 
   /**
-   * Creates a sprite lookup for baking time, resolving texture names through the baker's materials so missing
-   * textures and references are reported like vanilla.
+   * Creates a material lookup for baking time, resolving texture names through the baker's materials so missing
+   * textures and references are reported like vanilla, and {@code force_translucent} is kept like vanilla's material baker.
    * 26.1: takes the {@link ModelBaker} as the sprite getter became {@link ModelBaker#materials()}.
    */
-  public static Function<String,TextureAtlasSprite> spriteLookup(TextureSlots textures, ModelBaker baker, ModelDebugName name) {
-    return texture -> baker.materials().resolveSlot(textures, texture, name).sprite();
+  public static Function<String,Material.Baked> materialLookup(TextureSlots textures, ModelBaker baker, ModelDebugName name) {
+    return texture -> baker.materials().resolveSlot(textures, texture, name);
   }
 
   /**
-   * Creates a sprite lookup with dynamic texture replacements, see {@link #findSprite(Function, TextureSlots, Map, String)}.
+   * Creates a material lookup with dynamic texture replacements, see {@link #findMaterial(Function, TextureSlots, Map, String)}.
    * Pass {@link ModelHelper#getSprite(SpriteId)} as the sprite getter to rebake outside the baking phase.
    */
-  public static Function<String,TextureAtlasSprite> spriteLookup(TextureSlots textures, Map<String,SpriteId> replacements, Function<SpriteId,TextureAtlasSprite> spriteGetter) {
-    return texture -> findSprite(spriteGetter, textures, replacements, texture);
+  public static Function<String,Material.Baked> materialLookup(TextureSlots textures, Map<String,SpriteId> replacements, Function<SpriteId,TextureAtlasSprite> spriteGetter) {
+    return texture -> findMaterial(spriteGetter, textures, replacements, texture);
   }
 
 
@@ -240,16 +241,16 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
    * Bakes a single part of the model into the builder
    * @param builder          Quad builder
    * @param part             Part to bake
-   * @param sprites          Lookup from face texture name (with or without {@code '#'}) to sprite
+   * @param materials        Lookup from face texture name (with or without {@code '#'}) to baked material
    * @param state            Model state (root transform already composed in)
    * @param quadTransformer  Additional quad transforms, {@link UnaryOperator#identity()} for none.
    *                         1.21.11: quads are immutable, so this replaces NeoForge's removed {@code IQuadTransformer} by returning the transformed quad.
    */
-  public static void bakePart(QuadCollection.Builder builder, CuboidModelElement part, Function<String,TextureAtlasSprite> sprites, ModelState state, UnaryOperator<BakedQuad> quadTransformer) {
+  public static void bakePart(QuadCollection.Builder builder, CuboidModelElement part, Function<String,Material.Baked> materials, ModelState state, UnaryOperator<BakedQuad> quadTransformer) {
     for (Entry<Direction,CuboidFace> entry : part.faces().entrySet()) {
       Direction direction = entry.getKey();
       CuboidFace face = entry.getValue();
-      BakedQuad quad = bakeFace(part, face, sprites.apply(face.texture()), direction, state);
+      BakedQuad quad = bakeFace(part, face, materials.apply(face.texture()), direction, state);
       addFace(builder, face, quadTransformer.apply(quad), state);
     }
   }
@@ -257,10 +258,10 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
   /**
    * Bakes a single face of an element, matching vanilla {@link UnbakedCuboidGeometry#bake} (1.21.11 removed {@code UnbakedCuboidGeometry.bakeFace}).
    * Faces of flat elements are baked too, like 1.21.10.
-   * 26.1: the quad's render layer follows the sprite's transparency, see {@link ModelHelper#bakeQuad}.
+   * 26.1: the quad's render layer follows the sprite's transparency, or translucent if the material forces it, see {@link ModelHelper#bakeQuad}.
    */
-  public static BakedQuad bakeFace(CuboidModelElement part, CuboidFace face, TextureAtlasSprite sprite, Direction direction, ModelState state) {
-    return ModelHelper.bakeQuad(part.from(), part.to(), face, new Material.Baked(sprite, false), direction, state, part.rotation(), part.shade(), part.lightEmission());
+  public static BakedQuad bakeFace(CuboidModelElement part, CuboidFace face, Material.Baked material, Direction direction, ModelState state) {
+    return ModelHelper.bakeQuad(part.from(), part.to(), face, material, direction, state, part.rotation(), part.shade(), part.lightEmission());
   }
 
   /** Adds a baked face to the builder, applying its cull face rotated by the model state */
@@ -287,23 +288,23 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
 
   /**
    * Bakes a single part of the model into the builder, resolving face textures through a dynamic replacement map.
-   * See {@link #findSprite(Function, TextureSlots, Map, String)} for the replacement semantics.
+   * See {@link #findMaterial(Function, TextureSlots, Map, String)} for the replacement semantics.
    */
   public static void bakePart(QuadCollection.Builder builder, TextureSlots textures, Map<String,SpriteId> replacements, CuboidModelElement part, Function<SpriteId,TextureAtlasSprite> spriteGetter, ModelState transform, UnaryOperator<BakedQuad> quadTransformer) {
-    bakePart(builder, part, spriteLookup(textures, replacements, spriteGetter), transform, quadTransformer);
+    bakePart(builder, part, materialLookup(textures, replacements, spriteGetter), transform, quadTransformer);
   }
 
   /**
    * Bakes a list of block part elements into a quad collection
-   * @param elements  Model elements
-   * @param sprites   Lookup from face texture name to sprite
-   * @param state     Model state (root transform already composed in)
+   * @param elements   Model elements
+   * @param materials  Lookup from face texture name to baked material
+   * @param state      Model state (root transform already composed in)
    * @return  Baked quads
    */
-  public static QuadCollection bakeElements(List<CuboidModelElement> elements, Function<String,TextureAtlasSprite> sprites, ModelState state) {
+  public static QuadCollection bakeElements(List<CuboidModelElement> elements, Function<String,Material.Baked> materials, ModelState state) {
     QuadCollection.Builder builder = new QuadCollection.Builder();
     for (CuboidModelElement part : elements) {
-      bakePart(builder, part, sprites, state, UnaryOperator.identity());
+      bakePart(builder, part, materials, state, UnaryOperator.identity());
     }
     return builder.build();
   }
@@ -341,11 +342,11 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
         }
       }
       state = applyRootTransform(state, additionalProperties);
-      Function<String,TextureAtlasSprite> sprites = spriteLookup(textureSlots, baker, debugName);
+      Function<String,Material.Baked> materials = materialLookup(textureSlots, baker, debugName);
       if (colorData.isEmpty()) {
-        return bakeElements(elements, sprites, state);
+        return bakeElements(elements, materials, state);
       }
-      return ColoredBlockModel.bakeElements(elements, colorData, sprites, state);
+      return ColoredBlockModel.bakeElements(elements, colorData, materials, state);
     }
   }
 

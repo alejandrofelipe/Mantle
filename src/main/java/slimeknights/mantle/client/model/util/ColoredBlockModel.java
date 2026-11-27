@@ -94,24 +94,24 @@ public class ColoredBlockModel extends SimpleBlockModel {
    * Bakes a list of elements, applying per-element color, luminosity and UV lock.
    * @param elements   Model elements
    * @param colorData  Per-element color data, missing entries use {@link ColorData#DEFAULT}
-   * @param sprites    Lookup from face texture name to sprite
+   * @param materials  Lookup from face texture name to baked material
    * @param state      Model state (root transform already composed in)
    * @return  Baked quads
    */
-  public static QuadCollection bakeElements(List<CuboidModelElement> elements, List<ColorData> colorData, Function<String,TextureAtlasSprite> sprites, ModelState state) {
+  public static QuadCollection bakeElements(List<CuboidModelElement> elements, List<ColorData> colorData, Function<String,Material.Baked> materials, ModelState state) {
     QuadCollection.Builder builder = new QuadCollection.Builder();
-    bakeElements(builder, elements, colorData, sprites, state);
+    bakeElements(builder, elements, colorData, materials, state);
     return builder.build();
   }
 
   /** Bakes a list of colored elements into the given builder, see {@link #bakeElements(List, List, Function, ModelState)} */
-  public static void bakeElements(QuadCollection.Builder builder, List<CuboidModelElement> elements, List<ColorData> colorData, Function<String,TextureAtlasSprite> sprites, ModelState state) {
+  public static void bakeElements(QuadCollection.Builder builder, List<CuboidModelElement> elements, List<ColorData> colorData, Function<String,Material.Baked> materials, ModelState state) {
     int size = elements.size();
     for (int i = 0; i < size; i++) {
       ColorData colors = LogicHelper.getOrDefault(colorData, i, ColorData.DEFAULT);
       UnaryOperator<BakedQuad> partTransformer = colors.color() == -1 ? UnaryOperator.identity() : applyColorQuadTransformer(colors.color());
       ModelState partState = colors.uvlock() == null ? state : ModelHelper.withUvLock(state, colors.uvlock());
-      bakePart(builder, elements.get(i), colors.luminosity(), sprites, partState, partTransformer);
+      bakePart(builder, elements.get(i), colors.luminosity(), materials, partState, partTransformer);
     }
   }
 
@@ -120,14 +120,14 @@ public class ColoredBlockModel extends SimpleBlockModel {
    * @param builder          Quad builder
    * @param part             Part to bake
    * @param emissivity       Emissivity for fullbright, -1 will leave forge in charge, 0-15 will override the forge value
-   * @param sprites          Lookup from face texture name to sprite
+   * @param materials        Lookup from face texture name to baked material
    * @param state            Model state for the part, including any UV lock override
    * @param quadTransformer  Quad transformations for the face, this is notably where you should handle color transformations
    */
-  public static void bakePart(QuadCollection.Builder builder, CuboidModelElement part, int emissivity, Function<String,TextureAtlasSprite> sprites, ModelState state, UnaryOperator<BakedQuad> quadTransformer) {
+  public static void bakePart(QuadCollection.Builder builder, CuboidModelElement part, int emissivity, Function<String,Material.Baked> materials, ModelState state, UnaryOperator<BakedQuad> quadTransformer) {
     for (Entry<Direction,CuboidFace> entry : part.faces().entrySet()) {
       CuboidFace face = entry.getValue();
-      BakedQuad quad = bakeFace(part, face, sprites.apply(face.texture()), entry.getKey(), state, emissivity);
+      BakedQuad quad = bakeFace(part, face, materials.apply(face.texture()), entry.getKey(), state, emissivity);
       addFace(builder, face, quadTransformer.apply(quad), state);
     }
   }
@@ -150,10 +150,10 @@ public class ColoredBlockModel extends SimpleBlockModel {
   /**
    * Variant of {@link #bakePart(QuadCollection.Builder, TextureSlots, CuboidModelElement, int, Function, Transformation, UnaryOperator, boolean)}
    * that resolves face textures through a dynamic replacement map, for runtime retexturing.
-   * See {@link SimpleBlockModel#findSprite(Function, TextureSlots, Map, String)}.
+   * See {@link SimpleBlockModel#findMaterial(Function, TextureSlots, Map, String)}.
    */
   public static void bakePart(QuadCollection.Builder builder, TextureSlots textures, Map<String,SpriteId> replacements, CuboidModelElement part, int emissivity, Function<SpriteId,TextureAtlasSprite> spriteGetter, Transformation transform, UnaryOperator<BakedQuad> quadTransformer, boolean uvlock) {
-    bakePart(builder, part, emissivity, spriteLookup(textures, replacements, spriteGetter), ModelHelper.modelState(transform, uvlock), quadTransformer);
+    bakePart(builder, part, emissivity, materialLookup(textures, replacements, spriteGetter), ModelHelper.modelState(transform, uvlock), quadTransformer);
   }
 
   /**
@@ -230,13 +230,13 @@ public class ColoredBlockModel extends SimpleBlockModel {
    * Bakes a face with an emissivity override
    * @param part        Part containing the face
    * @param face        Face data
-   * @param sprite      Sprite for the face
+   * @param material    Baked material for the face, keeping {@code force_translucent}
    * @param facing      Direction of the face
    * @param state       Model state for the face, including UV lock
    * @param emissivity  Emissivity for fullbright, -1 will leave forge in charge, 0-15 will override the forge value
    */
-  public static BakedQuad bakeFace(CuboidModelElement part, CuboidFace face, TextureAtlasSprite sprite, Direction facing, ModelState state, int emissivity) {
-    return bakeQuad(part.from(), part.to(), face, sprite, facing, state, part.rotation(), part.shade(), part.lightEmission(), emissivity);
+  public static BakedQuad bakeFace(CuboidModelElement part, CuboidFace face, Material.Baked material, Direction facing, ModelState state, int emissivity) {
+    return bakeQuad(part.from(), part.to(), face, material, facing, state, part.rotation(), part.shade(), part.lightEmission(), emissivity);
   }
 
   /**
@@ -244,7 +244,7 @@ public class ColoredBlockModel extends SimpleBlockModel {
    * @param posFrom        Face start position
    * @param posTo          Face end position
    * @param face           Face data
-   * @param sprite         Sprite for the face
+   * @param material       Baked material for the face, keeping {@code force_translucent}; wrap a runtime sprite with {@code new Material.Baked(sprite, false)}
    * @param facing         Direction of the face
    * @param state          Model state for the face, including UV lock (see {@link ModelHelper#withUvLock(ModelState, boolean)})
    * @param partRotation   Rotation for the part
@@ -253,7 +253,7 @@ public class ColoredBlockModel extends SimpleBlockModel {
    * @param emissivity     Emissivity for fullbright, -1 will leave forge in charge, 0-15 will override the forge value
    * @return  Baked quad
    */
-  public static BakedQuad bakeQuad(Vector3fc posFrom, Vector3fc posTo, CuboidFace face, TextureAtlasSprite sprite, Direction facing, ModelState state,
+  public static BakedQuad bakeQuad(Vector3fc posFrom, Vector3fc posTo, CuboidFace face, Material.Baked material, Direction facing, ModelState state,
                                    @Nullable CuboidRotation partRotation, boolean shade, int lightEmission, int emissivity) {
     // 1.21.11: the per-vertex lightmap (UV2) is gone; emissivity becomes the quad light emission, which the renderer applies
     // as max(light, emission) per block/sky channel, the same result as the old baked UV2 (max with the world light)
@@ -261,16 +261,16 @@ public class ColoredBlockModel extends SimpleBlockModel {
       lightEmission = Math.max(lightEmission, emissivity);
     }
     // delegate to the vanilla face bakery, which handles UV lock, winding, normals, and neoforge face data
-    // 26.1: the render layer follows the sprite's transparency, see ModelHelper#bakeQuad
-    return ModelHelper.bakeQuad(posFrom, posTo, face, new Material.Baked(sprite, false), facing, state, partRotation, shade, lightEmission);
+    // 26.1: the render layer follows the sprite's transparency or the material's force_translucent, see ModelHelper#bakeQuad
+    return ModelHelper.bakeQuad(posFrom, posTo, face, material, facing, state, partRotation, shade, lightEmission);
   }
 
   /**
-   * Variant of {@link #bakeQuad(Vector3fc, Vector3fc, CuboidFace, TextureAtlasSprite, Direction, ModelState, CuboidRotation, boolean, int, int)}
+   * Variant of {@link #bakeQuad(Vector3fc, Vector3fc, CuboidFace, Material.Baked, Direction, ModelState, CuboidRotation, boolean, int, int)}
    * taking a transformation and UV lock flag, matching the 1.21.4 signature.
    */
-  public static BakedQuad bakeQuad(Vector3fc posFrom, Vector3fc posTo, CuboidFace face, TextureAtlasSprite sprite, Direction facing, Transformation transform, boolean uvlock,
+  public static BakedQuad bakeQuad(Vector3fc posFrom, Vector3fc posTo, CuboidFace face, Material.Baked material, Direction facing, Transformation transform, boolean uvlock,
                                    @Nullable CuboidRotation partRotation, boolean shade, int emissivity) {
-    return bakeQuad(posFrom, posTo, face, sprite, facing, ModelHelper.modelState(transform, uvlock), partRotation, shade, 0, emissivity);
+    return bakeQuad(posFrom, posTo, face, material, facing, ModelHelper.modelState(transform, uvlock), partRotation, shade, 0, emissivity);
   }
 }

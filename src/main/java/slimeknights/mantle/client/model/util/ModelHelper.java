@@ -229,7 +229,8 @@ public class ModelHelper {
    * @param from           Element start
    * @param to             Element end
    * @param face           Face data
-   * @param material       Material for the face, wrap a runtime sprite with {@code new Material.Baked(sprite, false)}
+   * @param material       Material for the face, keep the baked material of the model texture so {@code force_translucent} applies; wrap a
+   *                       runtime sprite with {@code new Material.Baked(sprite, false)}
    * @param facing         Direction of the face
    * @param state          Model state, including UV lock
    * @param rotation       Element rotation
@@ -289,20 +290,30 @@ public class ModelHelper {
   }
 
   /**
-   * Gets the sprite for a model texture at runtime, outside the model bake. Like the model bakery's material baker, the blocks atlas is checked
-   * first, then the items atlas, falling back to the missing sprite of the blocks atlas.
+   * Bakes a model texture at runtime, outside the model bake, matching the model bakery's material baker ({@code ModelManager#bakeForAtlas}):
+   * the blocks atlas is checked first, then the items atlas, keeping {@link Material#forceTranslucent()}; a missing texture falls back to the
+   * missing sprite of the blocks atlas, not forced translucent.
+   * @param material  Model texture, typically from {@link TextureSlots#getMaterial(String)}
+   * @return  Baked material
+   */
+  public static Material.Baked getMaterial(Material material) {
+    AtlasManager atlases = Minecraft.getInstance().getAtlasManager();
+    TextureAtlas blocks = atlases.getAtlasOrThrow(AtlasIds.BLOCKS);
+    TextureAtlasSprite sprite = blocks.getTextures().get(material.sprite());
+    if (sprite == null) {
+      sprite = atlases.getAtlasOrThrow(AtlasIds.ITEMS).getTextures().get(material.sprite());
+    }
+    return sprite != null ? new Material.Baked(sprite, material.forceTranslucent()) : new Material.Baked(blocks.missingSprite(), false);
+  }
+
+  /**
+   * Gets the sprite for a model texture at runtime, see {@link #getMaterial(Material)}. Use that instead when baking quads, so
+   * {@link Material#forceTranslucent()} is kept.
    * @param material  Model texture, typically from {@link TextureSlots#getMaterial(String)}
    * @return  Sprite
    */
   public static TextureAtlasSprite getSprite(Material material) {
-    AtlasManager atlases = Minecraft.getInstance().getAtlasManager();
-    TextureAtlas blocks = atlases.getAtlasOrThrow(AtlasIds.BLOCKS);
-    TextureAtlasSprite sprite = blocks.getTextures().get(material.sprite());
-    if (sprite != null) {
-      return sprite;
-    }
-    sprite = atlases.getAtlasOrThrow(AtlasIds.ITEMS).getTextures().get(material.sprite());
-    return sprite != null ? sprite : blocks.missingSprite();
+    return getMaterial(material).sprite();
   }
 
   /** Checks if any of the quads uses an animated sprite, matching vanilla's {@code CuboidItemModelWrapper} constructor. Call once per baked variant, not per render. */

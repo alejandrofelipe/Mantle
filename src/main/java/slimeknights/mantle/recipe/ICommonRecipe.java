@@ -29,6 +29,24 @@ public interface ICommonRecipe<C extends RecipeInput> extends Recipe<C> {
   }
 
   /**
+   * 26.1: {@link Recipe#showNotification()} became abstract; this keeps the 1.21.11 vanilla default.
+   * @return  True
+   */
+  @Override
+  default boolean showNotification() {
+    return true;
+  }
+
+  /**
+   * 26.1: {@link Recipe#group()} became abstract; this keeps the 1.21.11 vanilla default. Recipes with a group override it.
+   * @return  Empty string
+   */
+  @Override
+  default String group() {
+    return "";
+  }
+
+  /**
    * Mantle recipes are not shown in the vanilla recipe book (see {@link #isSpecial()}), so they are never placed.
    * @return  {@link PlacementInfo#NOT_PLACEABLE}
    */

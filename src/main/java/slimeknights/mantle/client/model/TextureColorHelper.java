@@ -128,9 +128,17 @@ public class TextureColorHelper {
     return getAverageColor(particle.sprite());
   };
 
-  /** Gets the average color of an item's default particle icon */
+  /**
+   * Gets the average color of an item's default particle icon.
+   * 26.1: the color comes from a stack of the item, which needs its default components; before they are bound (no world loaded yet, e.g. during
+   * a resource reload on the title screen) this returns -1 without caching, instead of failing with {@code Components not bound yet}.
+   */
   public static int getItemColor(ItemLike item) {
-    return ITEM_CACHE.computeIfAbsent(item.asItem(), COMPUTE_ITEM_COLOR);
+    Item value = item.asItem();
+    if (!value.builtInRegistryHolder().areComponentsBound()) {
+      return -1;
+    }
+    return ITEM_CACHE.computeIfAbsent(value, COMPUTE_ITEM_COLOR);
   }
 
   /** Computes the color for an item based on the particle icon */

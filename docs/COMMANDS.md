@@ -4,11 +4,11 @@
 > `1.21.8` = the 1.21.8 release, `1.21.5` = the 1.21.5 release, `1.21.3` = the 1.21.4 release, `1.21.1` = the 1.21.1
 > release). The 1.21.1 notes below still apply except where the [1.21.4 notes](#1214-notes-m1),
 > [1.21.8 notes](#1218-notes-m4), [1.21.10 notes](#12110-notes-m5) or [1.21.11 notes](#12111-notes-m6) override them.
-> **M7 in progress on branch `26.1.2` (MC 26.1.2 / NeoForge 26.1.2.130): every Gradle command there needs Java 25** — see
-> the [26.1.2 notes](#2612-notes-m7).
+> **M7 on branch `26.1.2` (MC 26.1.2 / NeoForge 26.1.2.130), ported and battery green, release pending: every Gradle
+> command there needs Java 25** — see the [26.1.2 notes](#2612-notes-m7).
 > Migration gotchas: [`1.21.1-to-1.21.4.md`](migration/1.21.1-to-1.21.4.md), [`1.21.4-to-1.21.5.md`](migration/1.21.4-to-1.21.5.md),
 > [`1.21.5-to-1.21.8.md`](migration/1.21.5-to-1.21.8.md), [`1.21.8-to-1.21.10.md`](migration/1.21.8-to-1.21.10.md),
-> [`1.21.10-to-1.21.11.md`](migration/1.21.10-to-1.21.11.md).
+> [`1.21.10-to-1.21.11.md`](migration/1.21.10-to-1.21.11.md), [`1.21.11-to-26.1.2.md`](migration/1.21.11-to-26.1.2.md).
 
 Canonical, copy-paste-ready commands for this machine. The goal of this file is **zero retries**:
 every command here is written for the real environment probed on 2026-06-27. Read the
@@ -226,6 +226,27 @@ Set-Location "C:\Users\aleja\DEV\New Tinkers\repo"; $env:JAVA_HOME = "C:\Users\a
   `maps/26.1.2.overrides.txt`), member renames from the compiler-driven applier with `maps/26.1.2-members.tsv` — workflow
   under [Mechanical renames](#mechanical-renames-between-versions-rename-map). Baseline proof on Mantle (Phase 0.5b, flow
   gate, unique errors): 770 → 300 after the map → 263 → 261 after two applier passes (third pass: 0 edits).
+- **Battery on 26.1.2** (end of M7 Phase 5): Mantle `build` green; Tinkers `build` with **813 unit tests** (811 passing + 2
+  `@Disabled`), `runGameTestServer` **172/172** (`All 172 required tests passed :)`), `runClientUiTest` **57/57** results (56
+  scenarios + `mantle:suite_setup`). Same tasks as below, Java 25:
+  ```powershell
+  $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin25-jdk\current"; & "C:\Users\aleja\DEV\New Tinkers\tinkers\gradlew.bat" -p "C:\Users\aleja\DEV\New Tinkers\tinkers" build
+  $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin25-jdk\current"; & "C:\Users\aleja\DEV\New Tinkers\tinkers\gradlew.bat" -p "C:\Users\aleja\DEV\New Tinkers\tinkers" runGameTestServer
+  $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin25-jdk\current"; & "C:\Users\aleja\DEV\New Tinkers\tinkers\gradlew.bat" -p "C:\Users\aleja\DEV\New Tinkers\tinkers" runClientUiTest
+  ```
+- **Data runs bind default components** (Mantle `DatagenComponents.bind` from a `GatherDataEvent` listener); without it a
+  provider that builds a stack fails with "Components not bound yet". After the first `runData`/`runServerData` on a new
+  version, also check that **no folder appeared at the drive root**: 26.1's `PackOutput.PathProvider` with an empty folder
+  writes to `C:\<kind>\…`.
+- **Client log checks** add, on 26.1.2: 0 `Can't create item stack` (an invalid `ItemStackTemplate` patch), 0 creative tab
+  errors ("already been added to the tab"), and only the known `Missing FluidModel for fluid 'tconstruct:potion'`.
+- **uitest startup screens:** the suite proceeds past third-party mod loading warnings and a plain world upgrade (a
+  `warn:` result under `mantle:world_upgrade`, which the task reports without failing); loading errors, warnings from our
+  own mods (`mantle:mod_loading`) and any other world prompt fail — see
+  [`runClientUiTest`](#runclientuitest-self-driving-visual-suite).
+- **Compat runtime:** JEI 29 needs the separate `mezz_config` mod (dev gets it transitively); `kuma_version` pins
+  kuma-api to `26.1.2.4` at runtime (Balm's `26.1.2.2` crashes the client).
+- Gotchas of the port: [`migration/1.21.11-to-26.1.2.md`](migration/1.21.11-to-26.1.2.md).
 
 ## Task reference
 
@@ -531,9 +552,11 @@ plus `mantle:suite_setup` (below).
 
 > **The task fails on any failing result (since M5).** The client always exits 0, so `runClientUiTest` deletes
 > `uitest-results.json` before launching and reads it after the client exits: it fails (`BUILD FAILED`, listing each
-> `id: result`) when any result — `mantle:suite_setup` included — is not `"ok"`, when `mantle:suite_setup` is missing,
-> or when the file is missing or older than the run (the client died or quit before the suite finished). A green run
-> prints `uitest: all N result(s) ok` + `BUILD SUCCESSFUL`. The JSON is still written for the details.
+> `id: result`) when any result — `mantle:suite_setup` included — is neither `"ok"` nor a `"warn: ..."` note, when
+> `mantle:suite_setup` is missing, or when the file is missing or older than the run (the client died or quit before the
+> suite finished). Since M7, `"warn: ..."` results (e.g. `mantle:world_upgrade` when the committed world needed a plain
+> upgrade) are logged as warnings without failing the task. A green run prints `uitest: all N result(s) ok` +
+> `BUILD SUCCESSFUL`. The JSON is still written for the details.
 
 > **Screen must be unlocked.** If the Windows session is locked, GL window creation fails in `glfwCreateWindow`
 > (`atio6axx.dll`, AMD driver) and the client never boots. That is the lock, not a flake — unlock and rerun.

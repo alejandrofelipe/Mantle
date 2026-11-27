@@ -61,7 +61,9 @@ public class ContainsItemModifierLootCondition implements ILootModifierCondition
     // object, so read the raw element instead of forcing a JsonObject (which threw "Expected ingredient to be a JsonObject").
     // Decode through the reload-threaded ops (RegistryJsonOps.deserialize), so a tag staged during the first reload
     // (e.g. #c:ores/cobalt, #tconstruct:chrysophilite_ores) resolves instead of failing against the frozen BuiltInRegistries.
-    Ingredient ingredient = Ingredient.CODEC.parse(RegistryJsonOps.deserialize(), json.get("ingredient")).getOrThrow(JsonParseException::new);
+    // 26.1: a tag no datapack defines (compat ores such as #c:ores/tin) decodes as a lazy tag that matches nothing until defined,
+    // like the empty tag 1.21.11 decoded, instead of failing the whole loot modifier with "Missing tag".
+    Ingredient ingredient = Ingredient.CODEC.parse(RegistryJsonOps.lazyTags(RegistryJsonOps.deserialize()), json.get("ingredient")).getOrThrow(JsonParseException::new);
     int needed = GsonHelper.getAsInt(json, "needed", 1);
     return new ContainsItemModifierLootCondition(ingredient, needed);
   }

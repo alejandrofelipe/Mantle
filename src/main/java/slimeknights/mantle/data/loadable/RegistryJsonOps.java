@@ -3,12 +3,20 @@ package slimeknights.mantle.data.loadable;
 import com.google.gson.JsonElement;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderGetter;
+import net.minecraft.core.HolderOwner;
+import net.minecraft.core.HolderSet;
+import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.RegistryOps;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.tags.TagKey;
 import slimeknights.mantle.data.loadable.field.ContextKey;
 import slimeknights.mantle.util.typed.TypedMap;
 
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -86,5 +94,45 @@ public final class RegistryJsonOps {
   /** Gets the registry-aware JSON ops for serialization, where no parsing context is available. */
   public static DynamicOps<JsonElement> serialize() {
     return fallback();
+  }
+
+  /**
+   * Wraps registry-aware ops so a tag missing from its registry decodes as a lazy, unbound {@link HolderSet.Named} instead of
+   * failing with "Missing tag". Up to 1.21.11 such a tag decoded as an empty tag; since 26.1 the reload's lookup only knows the
+   * tags loaded in that reload. The lazy set tests membership through the element's bound tags ({@link HolderSet.Named#contains}),
+   * so it matches nothing until some datapack defines the tag and then matches its contents, and it encodes back as {@code #tag}.
+   * Its contents can't be listed (unbound), so use it only for predicates such as {@link net.minecraft.world.item.crafting.Ingredient#test}.
+   * Non-registry ops are returned unchanged.
+   */
+  public static DynamicOps<JsonElement> lazyTags(DynamicOps<JsonElement> ops) {
+    if (!(ops instanceof RegistryOps<JsonElement> registryOps)) {
+      return ops;
+    }
+    RegistryOps.RegistryInfoLookup parent = registryOps.lookupProvider;
+    return RegistryOps.create(JsonOps.INSTANCE, new RegistryOps.RegistryInfoLookup() {
+      @Override
+      public <T> Optional<RegistryOps.RegistryInfo<T>> lookup(ResourceKey<? extends Registry<? extends T>> registryKey) {
+        return parent.<T>lookup(registryKey).map(info -> new RegistryOps.RegistryInfo<>(info.owner(), lazyTagGetter(info.owner(), info.getter()), info.elementsLifecycle()));
+      }
+    });
+  }
+
+  /**
+   * Getter answering a missing tag with an unbound named set owned by the registry. {@link HolderSet#emptyNamed} is that set (its contents
+   * throw, membership and encoding work) and needs no access transformer, so it also works in unit tests.
+   */
+  @SuppressWarnings("deprecation")
+  private static <T> HolderGetter<T> lazyTagGetter(HolderOwner<T> owner, HolderGetter<T> getter) {
+    return new HolderGetter<>() {
+      @Override
+      public Optional<Holder.Reference<T>> get(ResourceKey<T> id) {
+        return getter.get(id);
+      }
+
+      @Override
+      public Optional<HolderSet.Named<T>> get(TagKey<T> id) {
+        return Optional.of(getter.get(id).orElseGet(() -> HolderSet.emptyNamed(owner, id)));
+      }
+    };
   }
 }

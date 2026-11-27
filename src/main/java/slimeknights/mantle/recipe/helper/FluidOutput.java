@@ -8,7 +8,9 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.FluidStackTemplate;
 import slimeknights.mantle.data.loadable.Loadables;
 import slimeknights.mantle.data.loadable.common.FluidStackLoadable;
 import slimeknights.mantle.data.loadable.common.NBTLoadable;
@@ -23,15 +25,20 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Class representing a fluid stack output. Supports both direct stacks and tag output, behaving like {@link slimeknights.mantle.recipe.ingredient.FluidIngredient} used for output
+ * Class representing a fluid stack output. Supports both direct stacks and tag output, behaving like {@link slimeknights.mantle.recipe.ingredient.FluidIngredient} used for output.
+ * <p>
+ * Outputs never hold a {@link FluidStack}: stacks need the fluid's default data components, which are bound only after a
+ * datapack (re)load, so outputs keep the fluid, amount and component patch and build a new stack on every {@link #get()}.
+ * This lets outputs be decoded with recipes and loot, and built in datagen.
  */
 public abstract class FluidOutput implements Supplier<FluidStack> {
   /** Empty instance */
-  public static final FluidOutput EMPTY = new OfStack(FluidStack.EMPTY);
+  public static final FluidOutput EMPTY = new Empty();
 
 
   /**
-   * Gets the fluid output of this recipe. This should not be modified
+   * Gets the fluid output of this recipe. Builds a new stack on each call (except for empty), so needs bound data components
+   * (after the datapack load). This should not be modified
    * @return  fluid output
    */
   @Override
@@ -84,7 +91,16 @@ public abstract class FluidOutput implements Supplier<FluidStack> {
     if (stack.isEmpty()) {
       return EMPTY;
     }
-    return new OfStack(stack);
+    return new OfStack(FluidStackTemplate.fromNonEmptyStack(stack));
+  }
+
+  /**
+   * Creates a new output for the given template. Unlike {@link #fromStack(FluidStack)}, works before data components are bound (e.g. datagen).
+   * @param template  Template
+   * @return  Output
+   */
+  public static FluidOutput fromTemplate(FluidStackTemplate template) {
+    return new OfStack(template);
   }
 
   /**
@@ -135,20 +151,35 @@ public abstract class FluidOutput implements Supplier<FluidStack> {
     return fromStack(FluidStack.STREAM_CODEC.decode(buffer));
   }
 
+  /** Empty output */
+  private static class Empty extends FluidOutput {
+    @Override
+    public FluidStack get() {
+      return FluidStack.EMPTY;
+    }
+
+    @Override
+    public int getAmount() {
+      return 0;
+    }
+
+    @Override
+    public void serialize(JsonObject json) {
+      // the empty stack needs no bound components, so the stack loadable still writes it
+      FluidStackLoadable.OPTIONAL_STACK_NBT.serialize(FluidStack.EMPTY, json);
+    }
+  }
+
   /** Class for an output that is just an item, simplifies NBT for serializing as vanilla forces NBT to be set for tools and forge goes through extra steps when NBT is set */
   @RequiredArgsConstructor
   private static class OfFluid extends FluidOutput {
     private final Fluid fluid;
     @Getter
     private final int amount;
-    private FluidStack cachedStack;
 
     @Override
     public FluidStack get() {
-      if (cachedStack == null) {
-        cachedStack = new FluidStack(fluid, amount);
-      }
-      return cachedStack;
+      return new FluidStack(fluid, amount);
     }
 
     @Override
@@ -160,24 +191,24 @@ public abstract class FluidOutput implements Supplier<FluidStack> {
     }
   }
 
-  /** Class for an output that is just a stack */
+  /** Class for an output that is a stack with components, kept as a template */
   @RequiredArgsConstructor
   private static class OfStack extends FluidOutput {
-    private final FluidStack stack;
+    private final FluidStackTemplate template;
 
     @Override
     public FluidStack get() {
-      return stack;
+      return new FluidStack(template.fluid(), template.amount(), template.components());
     }
 
     @Override
     public int getAmount() {
-      return stack.getAmount();
+      return template.amount();
     }
 
     @Override
     public void serialize(JsonObject json) {
-      FluidStackLoadable.OPTIONAL_STACK_NBT.serialize(stack, json);
+      FluidStackLoadable.REQUIRED_STACK_NBT_TEMPLATE.serialize(template, json);
     }
   }
 
@@ -190,12 +221,14 @@ public abstract class FluidOutput implements Supplier<FluidStack> {
     private final int amount;
     @Nullable
     private final CompoundTag nbt;
-    private FluidStack cachedResult = null;
+    @Nullable
+    private Fluid cachedResult = null;
 
     @Override
     public FluidStack get() {
       // cache the result from the tag preference to save effort, especially helpful if the tag becomes invalid
       // this object should only exist in recipes so no need to invalidate the cache
+      // 26.1: cache the fluid, not the stack, as stacks hold the default components bound by the datapack load
       if (cachedResult == null) {
         // if the preference is empty, do not cache it.
         // This should only happen if someone scans recipes before tag are computed in which case we cache the wrong result.
@@ -205,9 +238,9 @@ public abstract class FluidOutput implements Supplier<FluidStack> {
           return FluidStack.EMPTY;
         }
         // TODO PORT (stage 7): apply nbt as a DataComponentPatch once the fluid NBT -> component boundary is finalized
-        cachedResult = new FluidStack(preference.orElseThrow(), amount);
+        cachedResult = preference.orElseThrow();
       }
-      return cachedResult;
+      return new FluidStack(cachedResult, amount);
     }
 
     @Override
@@ -230,6 +263,7 @@ public abstract class FluidOutput implements Supplier<FluidStack> {
     REQUIRED(true);
 
     private final boolean nonEmpty;
+    /** Stack loadable, used for the network where components are bound */
     private final RecordLoadable<FluidStack> stack;
     Loadable(boolean nonEmpty) {
       this.nonEmpty = nonEmpty;
@@ -250,7 +284,13 @@ public abstract class FluidOutput implements Supplier<FluidStack> {
           IntLoadable.FROM_ONE.getIfPresent(json, "amount", context),
           NBTLoadable.ALLOW_STRING.getOrDefault(json, "nbt", null));
       }
-      return fromStack(stack.deserialize(json, context));
+      // 26.1: data decodes into a template as stacks need bound components
+      // optional outputs are empty for a missing or empty fluid, or a 0 amount, as the optional stack loadable was
+      if (!nonEmpty && (IntLoadable.FROM_ZERO.getIfPresent(json, "amount", context) == 0
+                        || Loadables.FLUID.getOrDefault(json, "fluid", Fluids.EMPTY, context) == Fluids.EMPTY)) {
+        return EMPTY;
+      }
+      return fromTemplate(FluidStackLoadable.REQUIRED_STACK_NBT_TEMPLATE.deserialize(json, context));
     }
 
     @Override

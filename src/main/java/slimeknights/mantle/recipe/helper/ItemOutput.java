@@ -12,6 +12,8 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ItemLike;
 import slimeknights.mantle.data.loadable.LoadableCodec;
 import slimeknights.mantle.data.loadable.Loadables;
@@ -29,7 +31,11 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Class representing an item stack output. Supports both direct stacks and tag output, behaving like an ingredient used for output
+ * Class representing an item stack output. Supports both direct stacks and tag output, behaving like an ingredient used for output.
+ * <p>
+ * Outputs never hold an {@link ItemStack}: stacks need the item's default data components, which are bound only after a
+ * datapack (re)load, so outputs keep the item, count and component patch and build a new stack on every {@link #get()}.
+ * This lets outputs be decoded with recipes and loot, and built in datagen.
  */
 public abstract class ItemOutput implements Supplier<ItemStack> {
   /* Codecs - just adding these as needed */
@@ -37,11 +43,12 @@ public abstract class ItemOutput implements Supplier<ItemStack> {
   public static Codec<ItemOutput> REQUIRED_STACK_CODEC = new LoadableCodec<>(Loadable.REQUIRED_STACK);
 
   /** Empty instance */
-  public static final ItemOutput EMPTY = new OfStack(ItemStack.EMPTY);
+  public static final ItemOutput EMPTY = new Empty();
 
 
   /**
-   * Gets the item output of this recipe
+   * Gets the item output of this recipe. Builds a new stack on each call, so needs bound data components (after the datapack
+   * load), but the result may be modified freely.
    * @return  Item output
    */
   @Override
@@ -85,7 +92,16 @@ public abstract class ItemOutput implements Supplier<ItemStack> {
     if (stack.isEmpty()) {
       return EMPTY;
     }
-    return new OfStack(stack);
+    return new OfStack(ItemStackTemplate.fromNonEmptyStack(stack));
+  }
+
+  /**
+   * Creates a new output for the given template. Unlike {@link #fromStack(ItemStack)}, works before data components are bound (e.g. datagen).
+   * @param template  Template
+   * @return  Output
+   */
+  public static ItemOutput fromTemplate(ItemStackTemplate template) {
+    return new OfStack(template);
   }
 
   /**
@@ -154,20 +170,38 @@ public abstract class ItemOutput implements Supplier<ItemStack> {
     return fromStack(ItemStack.OPTIONAL_STREAM_CODEC.decode(buffer));
   }
 
+  /** Empty output */
+  private static class Empty extends ItemOutput {
+    @Override
+    public ItemStack get() {
+      return ItemStack.EMPTY;
+    }
+
+    @Override
+    public int getCount() {
+      return 0;
+    }
+
+    @Override
+    public JsonElement serialize(boolean writeCount) {
+      // the empty stack needs no bound components, so the stack loadables still write it
+      if (writeCount) {
+        return ItemStackLoadable.OPTIONAL_STACK_NBT.serialize(ItemStack.EMPTY);
+      }
+      return ItemStackLoadable.OPTIONAL_ITEM_NBT.serialize(ItemStack.EMPTY);
+    }
+  }
+
   /** Class for an output that is just an item, simplifies NBT for serializing as vanilla forces NBT to be set for tools and forge goes through extra steps when NBT is set */
   @RequiredArgsConstructor
   private static class OfItem extends ItemOutput {
     private final Item item;
     @Getter
     private final int count;
-    private ItemStack cachedStack;
 
     @Override
     public ItemStack get() {
-      if (cachedStack == null) {
-        cachedStack = new ItemStack(item, count);
-      }
-      return cachedStack;
+      return new ItemStack(item, count);
     }
 
     @Override
@@ -184,27 +218,27 @@ public abstract class ItemOutput implements Supplier<ItemStack> {
     }
   }
 
-  /** Class for an output that is just a stack */
+  /** Class for an output that is a stack with components, kept as a template */
   @RequiredArgsConstructor
   private static class OfStack extends ItemOutput {
-    private final ItemStack stack;
+    private final ItemStackTemplate template;
 
     @Override
     public ItemStack get() {
-      return stack;
+      return new ItemStack(template.item(), template.count(), template.components());
     }
 
     @Override
     public int getCount() {
-      return stack.getCount();
+      return template.count();
     }
 
     @Override
     public JsonElement serialize(boolean writeCount) {
       if (writeCount) {
-        return ItemStackLoadable.OPTIONAL_STACK_NBT.serialize(stack);
+        return ItemStackLoadable.REQUIRED_STACK_NBT_TEMPLATE.serialize(template);
       }
-      return ItemStackLoadable.OPTIONAL_ITEM_NBT.serialize(stack);
+      return ItemStackLoadable.REQUIRED_ITEM_NBT_TEMPLATE.serialize(template);
     }
   }
 
@@ -217,12 +251,14 @@ public abstract class ItemOutput implements Supplier<ItemStack> {
     private final int count;
     @Nullable
     private final CompoundTag nbt;
-    private ItemStack cachedResult = null;
+    @Nullable
+    private Item cachedResult = null;
 
     @Override
     public ItemStack get() {
       // cache the result from the tag preference to save effort, especially helpful if the tag becomes invalid
       // this object should only exist in recipes so no need to invalidate the cache
+      // 26.1: cache the item, not the stack, as stacks hold the default components bound by the datapack load
       if (cachedResult == null) {
         // if the preference is empty, do not cache it.
         // This should only happen if someone scans recipes before tag are computed in which case we cache the wrong result.
@@ -231,10 +267,10 @@ public abstract class ItemOutput implements Supplier<ItemStack> {
         if (preference.isEmpty()) {
           return ItemStack.EMPTY;
         }
-        cachedResult = new ItemStack(preference.orElseThrow(), count);
+        cachedResult = preference.orElseThrow();
         // TODO PORT (stage 7): apply nbt as a DataComponentPatch once the item NBT -> component boundary is finalized
       }
-      return cachedResult;
+      return new ItemStack(cachedResult, count);
     }
 
     @Override
@@ -266,17 +302,14 @@ public abstract class ItemOutput implements Supplier<ItemStack> {
 
     private final boolean nonEmpty;
     private final boolean readCount;
-    private final RecordLoadable<ItemStack> stack;
+    /** Template loadable for the non-empty case; 26.1: data decodes into templates as stacks need bound components */
+    private final RecordLoadable<ItemStackTemplate> template;
     Loadable(boolean nonEmpty, boolean readCount) {
       this.nonEmpty = nonEmpty;
       this.readCount = readCount;
-      // figure out the stack serializer to use based on the two parameters
-      // we always do NBT, just those that vary
-      if (nonEmpty) {
-        this.stack = readCount ? ItemStackLoadable.REQUIRED_STACK_NBT : ItemStackLoadable.REQUIRED_ITEM_NBT;
-      } else {
-        this.stack = readCount ? ItemStackLoadable.OPTIONAL_STACK_NBT : ItemStackLoadable.OPTIONAL_ITEM_NBT;
-      }
+      // figure out the template serializer to use based on the count parameter
+      // we always do NBT, empty is handled before reading the template
+      this.template = readCount ? ItemStackLoadable.REQUIRED_STACK_NBT_TEMPLATE : ItemStackLoadable.REQUIRED_ITEM_NBT_TEMPLATE;
     }
 
     @Override
@@ -290,15 +323,23 @@ public abstract class ItemOutput implements Supplier<ItemStack> {
         }
         return fromTag(tag, count, NBTLoadable.ALLOW_STRING.getOrDefault(json, "nbt", null));
       }
-      return fromStack(stack.deserialize(json, context));
+      // optional outputs are empty for a missing or air item, or a 0 count, as the optional stack loadables were
+      if (!nonEmpty && (Loadables.ITEM.getOrDefault(json, "item", Items.AIR, context) == Items.AIR
+                        || readCount && IntLoadable.FROM_ZERO.getOrDefault(json, "count", 1, context) == 0)) {
+        return EMPTY;
+      }
+      return fromTemplate(template.deserialize(json, context));
     }
 
     @Override
     public ItemOutput convert(JsonElement element, String key, TypedMap context) {
-      // if it's a primitive, parse it directly with the stack logic
-      // that handles single items and ensures both count and non-empty
+      // if it's a primitive, parse it directly with the template logic
+      // that handles single items and ensures non-empty
       if (element.isJsonPrimitive()) {
-        return fromStack(stack.convert(element, key, context));
+        if (!nonEmpty && Loadables.ITEM.convert(element, key, context) == Items.AIR) {
+          return EMPTY;
+        }
+        return fromTemplate(template.convert(element, key, context));
       }
       return deserialize(GsonHelper.convertToJsonObject(element, key), context);
     }

@@ -7,6 +7,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
 import slimeknights.mantle.data.loadable.ErrorFactory;
 import slimeknights.mantle.data.loadable.Loadable;
@@ -69,7 +70,30 @@ public class ItemStackLoadable {
   public static final RecordLoadable<ItemStack> REQUIRED_STACK_NBT = notEmpty(OPTIONAL_STACK_NBT);
 
 
+  /*
+   * Templates: same JSON as the matching required stack loadables, but decode into an {@link ItemStackTemplate}, which can be
+   * built before default data components are bound (recipe, loot and other datapack decoding, datagen). Use these for data;
+   * the stack loadables above are for runtime data (NBT, network) where components are bound. Templates are never empty.
+   */
+  /** Single item template with a count of 1 */
+  public static final Loadable<ItemStackTemplate> REQUIRED_ITEM_TEMPLATE = Loadables.ITEM.xmap((item, error) -> makeTemplate(item, 1, DataComponentPatch.EMPTY, error), (template, error) -> template.item().value());
+  /** Template with variable count */
+  public static final RecordLoadable<ItemStackTemplate> REQUIRED_STACK_TEMPLATE = ComponentTemplate.STACK;
+  /** Template with components and a count of 1 */
+  public static final RecordLoadable<ItemStackTemplate> REQUIRED_ITEM_NBT_TEMPLATE = ComponentTemplate.ITEM_NBT;
+  /** Template with variable count and components */
+  public static final RecordLoadable<ItemStackTemplate> REQUIRED_STACK_NBT_TEMPLATE = ComponentTemplate.STACK_NBT;
+
+
   /* Helpers */
+
+  /** Makes an item stack template from the given parameters, throwing if it would be empty */
+  private static ItemStackTemplate makeTemplate(Item item, int count, DataComponentPatch patch, ErrorFactory error) {
+    if (item == Items.AIR || count == 0) {
+      throw error.create("ItemStack cannot be empty");
+    }
+    return new ItemStackTemplate(item, count, patch);
+  }
 
   /** Makes an item stack from the given parameters */
   private static ItemStack makeStack(Item item, int count, @Nullable DataComponentPatch patch) {
@@ -156,6 +180,84 @@ public class ItemStackLoadable {
     @Override
     public void encode(FriendlyByteBuf buffer, ItemStack stack) {
       ItemStack.OPTIONAL_STREAM_CODEC.encode((RegistryFriendlyByteBuf) buffer, stack);
+    }
+  }
+
+  /** Loadable for a non-empty item stack template, writing the same JSON as {@link ComponentStack} and {@link #REQUIRED_STACK} */
+  private enum ComponentTemplate implements RecordLoadable<ItemStackTemplate> {
+    /** Reads count, ignores components (as {@link #REQUIRED_STACK}) */
+    STACK(true, false),
+    /** Count is always 1, reads components */
+    ITEM_NBT(false, true),
+    /** Reads count and components */
+    STACK_NBT(true, true);
+
+    private final boolean readCount;
+    private final boolean readComponents;
+    ComponentTemplate(boolean readCount, boolean readComponents) {
+      this.readCount = readCount;
+      this.readComponents = readComponents;
+    }
+
+
+    /* General JSON */
+
+    @Override
+    public ItemStackTemplate deserialize(JsonObject json, TypedMap context) {
+      int count = readCount ? COUNT.get(json, context) : 1;
+      DataComponentPatch patch = readComponents ? PATCH.get(json, context) : DataComponentPatch.EMPTY;
+      return makeTemplate(ITEM.get(json, context), count, patch, ErrorFactory.JSON_SYNTAX_ERROR);
+    }
+
+    @Override
+    public void serialize(ItemStackTemplate template, JsonObject json) {
+      // same keys and order as the item, count and components fields of the stack loadables
+      json.add("item", Loadables.ITEM.serialize(template.item().value()));
+      if (readCount) {
+        json.add("count", IntLoadable.FROM_ZERO.serialize(template.count()));
+      }
+      if (readComponents && !template.components().isEmpty()) {
+        json.add("components", PATCH_LOADABLE.serialize(template.components()));
+      }
+    }
+
+
+    /* Compact JSON */
+
+    @Override
+    public ItemStackTemplate convert(JsonElement element, String key, TypedMap context) {
+      if (element.isJsonPrimitive()) {
+        return REQUIRED_ITEM_TEMPLATE.convert(element, key, context);
+      }
+      return RecordLoadable.super.convert(element, key, context);
+    }
+
+    @Override
+    public JsonElement serialize(ItemStackTemplate template) {
+      if ((!readCount || template.count() == 1) && (!readComponents || template.components().isEmpty())) {
+        return REQUIRED_ITEM_TEMPLATE.serialize(template);
+      }
+      return RecordLoadable.super.serialize(template);
+    }
+
+
+    /* Buffer */
+
+    @Override
+    public ItemStackTemplate decode(FriendlyByteBuf buffer, TypedMap context) {
+      ItemStackTemplate template = ItemStackTemplate.STREAM_CODEC.decode((RegistryFriendlyByteBuf) buffer);
+      if (!readCount && template.count() != 1) {
+        template = template.withCount(1);
+      }
+      if (!readComponents && !template.components().isEmpty()) {
+        template = new ItemStackTemplate(template.item(), template.count(), DataComponentPatch.EMPTY);
+      }
+      return template;
+    }
+
+    @Override
+    public void encode(FriendlyByteBuf buffer, ItemStackTemplate template) {
+      ItemStackTemplate.STREAM_CODEC.encode((RegistryFriendlyByteBuf) buffer, template);
     }
   }
 }

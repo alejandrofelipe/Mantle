@@ -262,7 +262,7 @@ public class BookCommand {
 
           // mirror the GUI part of GameRenderer#render: record the screen into the game's GUI state, then draw it with the game's GUI renderer
           gameRenderer.getLighting().setupFor(Lighting.Entry.ITEMS_3D);
-          GuiRenderState renderState = gameRenderer.guiRenderState;
+          GuiRenderState renderState = gameRenderer.getGameRenderState().guiRenderState;
           renderState.reset();
           // 1.21.11: GuiGraphicsExtractor tracks the mouse for text hover effects; -1/-1 lies outside the export so nothing is hovered
           screen.extractRenderState(new GuiGraphicsExtractor(minecraft, renderState, -1, -1), 0, 0, 0);
@@ -315,7 +315,7 @@ public class BookCommand {
         }
       } finally {
         // drop anything recorded by a page that failed to draw, the next frame starts from a clean state anyways
-        gameRenderer.guiRenderState.reset();
+        gameRenderer.getGameRenderState().guiRenderState.reset();
         // restore the window and main target size, the next frame redraws its contents
         window.setWidth(windowWidth);
         window.setHeight(windowHeight);

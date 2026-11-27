@@ -99,7 +99,7 @@ public class AddEntryLootModifier extends LootModifier {
 
     /** Builds the final modifier */
     public AddEntryLootModifier build() {
-      return new AddEntryLootModifier(getConditions(), IGlobalLootModifier.DEFAULT_PRIORITY, modifierConditions, entry, List.copyOf(functions));
+      return new AddEntryLootModifier(getConditions(), getPriority(), modifierConditions, entry, List.copyOf(functions));
     }
   }
 }

@@ -86,7 +86,7 @@ public class ReplaceItemLootModifier extends LootModifier {
 
     /** Builds the final modifier */
     public ReplaceItemLootModifier build() {
-      return new ReplaceItemLootModifier(getConditions(), IGlobalLootModifier.DEFAULT_PRIORITY, input, replacement, List.copyOf(functions));
+      return new ReplaceItemLootModifier(getConditions(), getPriority(), input, replacement, List.copyOf(functions));
     }
   }
 }

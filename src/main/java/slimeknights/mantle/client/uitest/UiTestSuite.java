@@ -90,6 +90,9 @@ public class UiTestSuite {
   private int phaseTicks = 0;
   private int scenarioTicks = 0;
   private int suiteTicks = 0;
+  /** Ticks of the current modifier key hold, and of all holds, see {@link #trackModifier} */
+  private int heldTicks = 0;
+  private int modifierTicks = 0;
   private int index = 0;
   private List<UiTestScenario> scenarios;
   private File outputDir;
@@ -214,14 +217,27 @@ public class UiTestSuite {
       }
     }
     suiteTicks++;
-    phaseTicks++;
-    scenarioTicks++;
+    // Shift, Ctrl and Alt are polled from the GLFW key state (Minecraft#hasShiftDown...), out of reach of the input isolation: while one is
+    // held over the window the scenario clock stops, so a scenario neither opens nor captures with it (the suite timeout still runs)
+    boolean held = (phase == Phase.PREPARE_SETTLE || phase == Phase.SETTLE) && (mc.hasShiftDown() || mc.hasControlDown() || mc.hasAltDown());
+    trackModifier(held);
+    if (!held) {
+      phaseTicks++;
+      scenarioTicks++;
+    }
     if (suiteTicks > SUITE_TIMEOUT_TICKS && phase != Phase.FINISH) {
-      results.put("suite", "fail: suite timeout");
+      results.put("suite", suiteTimeoutResult(modifierTicks));
       if (phase == Phase.PREPARE_SETTLE || phase == Phase.SETTLE) {
         cleanupScenario(mc); // the scenario in progress never reaches endScenario
       }
       enter(Phase.FINISH);
+    } else if (held) {
+      if (phase == Phase.SETTLE) {
+        phaseTicks = heldPhaseTicks(phaseTicks, current().settleTicks());
+      }
+      // the bar on the held frames makes the capture wait for a frame rendered after the release (UiTestProgress#lastFrameClean)
+      UiTestProgress.setHidden(false);
+      return;
     }
 
     switch (phase) {
@@ -290,6 +306,34 @@ public class UiTestSuite {
       // hide the bar for the frames before a capture: the scenarios read the captured frame again in close()
       UiTestProgress.setHidden(phase == Phase.SETTLE && phaseTicks >= current().settleTicks() - 1);
     }
+  }
+
+  /** Logs a modifier key hold once when it starts and once when it ends, and counts the held ticks for the suite timeout */
+  private void trackModifier(boolean held) {
+    if (held) {
+      if (heldTicks == 0) {
+        Mantle.logger.warn("uitest: Shift, Ctrl or Alt is held over the window; {} waits until it is released", current().id());
+      }
+      heldTicks++;
+      modifierTicks++;
+    } else if (heldTicks > 0) {
+      Mantle.logger.info("uitest: modifier key released after {} tick(s)", heldTicks);
+      heldTicks = 0;
+    }
+  }
+
+  /**
+   * Phase ticks in SETTLE after a tick with a modifier key held, which doesn't advance them: back to {@code settle - 1} at most, the tick
+   * before the capture, so the capture comes again only after the release and, as the held frames show the progress bar, on a frame
+   * rendered after it.
+   */
+  static int heldPhaseTicks(int phaseTicks, int settleTicks) {
+    return Math.min(phaseTicks, settleTicks - 1);
+  }
+
+  /** The {@code suite} result of a suite timeout, naming the ticks a modifier key held the scenarios back */
+  static String suiteTimeoutResult(int modifierTicks) {
+    return "fail: suite timeout" + (modifierTicks > 0 ? " (Shift, Ctrl or Alt was held over the window for " + modifierTicks + " tick(s), pausing the scenarios)" : "");
   }
 
   /**

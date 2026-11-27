@@ -590,9 +590,15 @@ presses sent to a screen), which never goes through those callbacks.
   unfocused window would otherwise open the pause menu over in-world captures. Restored at the end, not saved to disk.
 - **Each scenario starts with the cursor at the window center**, where vanilla's grab and release used to leave it, so a
   scenario never depends on where the previous one parked the mouse.
-- Not covered: code polling the keyboard directly (`Minecraft#hasShiftDown`/`hasControlDown`/`hasAltDown` read GLFW key
-  state), so holding Shift, Ctrl or Alt over the window can still change e.g. a tooltip. Closing the window (title bar X,
-  Alt+F4) still works.
+- **Holding Shift, Ctrl or Alt pauses the scenarios.** Code polling the keyboard directly
+  (`Minecraft#hasShiftDown`/`hasControlDown`/`hasAltDown` read the GLFW key state, which no callback swap hides) would see them,
+  e.g. a shift tooltip. So while one is physically held over the focused window, the suite stops the scenario clock (logged
+  once per hold: `uitest: Shift, Ctrl or Alt is held over the window; <id> waits until it is released`): the scenario neither
+  opens nor captures, and a capture that was due moves back to the tick before it and, with the progress bar shown on the held
+  frames, waits for a frame rendered after the release (tick listeners a scenario registers itself, e.g. the JEI transfer
+  pollers, keep running). The scenario timeout pauses too, the suite timeout (10 min) does not:
+  a key held that long fails `suite` with `fail: suite timeout (Shift, Ctrl or Alt was held over the window for N tick(s), …)`.
+  Closing the window (title bar X, Alt+F4) still works.
 - Guarded by `mantle:input_isolation` (tags `suite`, `smoke`): through the callbacks installed on the window it types a
   character into a screen with a focused edit box (vanilla only types into a screen), then fakes a focus gain and feeds cursor
   moves, a left click, a scroll and the W and E keys in the world. It asserts the edit box holds only the character typed into

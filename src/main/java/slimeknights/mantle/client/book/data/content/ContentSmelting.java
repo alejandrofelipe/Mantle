@@ -13,6 +13,7 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.block.Blocks;
 import org.apache.commons.lang3.StringUtils;
 import slimeknights.mantle.Mantle;
@@ -36,7 +37,8 @@ import static slimeknights.mantle.client.screen.book.Textures.TEX_SMELTING;
 public class ContentSmelting extends PageContent {
   public static final Identifier ID = Mantle.getResource("smelting");
 
-  private static final NonNullList<ItemStack> FUELS;
+  /** Default fuels. 26.1: items, not stacks, as stacks can't be built in static init (data components are bound later) */
+  private static final List<ItemLike> FUELS;
 
   public static final transient int TEX_SIZE = 128;
   public static final transient ImageData IMG_SMELTING = new ImageData(TEX_SMELTING, 0, 0, 110, 114, TEX_SIZE, TEX_SIZE);
@@ -95,7 +97,7 @@ public class ContentSmelting extends PageContent {
       return this.fuel.getItems();
     }
 
-    return FUELS;
+    return NonNullList.of(ItemStack.EMPTY, FUELS.stream().map(ItemStack::new).toArray(ItemStack[]::new));
   }
 
   @Override
@@ -120,34 +122,34 @@ public class ContentSmelting extends PageContent {
   }
 
   static {
-    FUELS = NonNullList.of(ItemStack.EMPTY,
-      new ItemStack(Blocks.OAK_SLAB),
-      new ItemStack(Blocks.SPRUCE_SLAB),
-      new ItemStack(Blocks.BIRCH_SLAB),
-      new ItemStack(Blocks.JUNGLE_SLAB),
-      new ItemStack(Blocks.ACACIA_SLAB),
-      new ItemStack(Blocks.DARK_OAK_SLAB),
-      new ItemStack(Blocks.OAK_PLANKS),
-      new ItemStack(Blocks.SPRUCE_PLANKS),
-      new ItemStack(Blocks.BIRCH_PLANKS),
-      new ItemStack(Blocks.JUNGLE_PLANKS),
-      new ItemStack(Blocks.ACACIA_PLANKS),
-      new ItemStack(Blocks.DARK_OAK_PLANKS),
-      new ItemStack(Blocks.COAL_BLOCK),
-      new ItemStack(Items.WOODEN_PICKAXE),
-      new ItemStack(Items.WOODEN_SWORD),
-      new ItemStack(Items.WOODEN_HOE),
-      new ItemStack(Items.STICK),
-      new ItemStack(Items.COAL),
-      new ItemStack(Items.LAVA_BUCKET),
-      new ItemStack(Blocks.OAK_SAPLING),
-      new ItemStack(Blocks.SPRUCE_SAPLING),
-      new ItemStack(Blocks.BIRCH_SAPLING),
-      new ItemStack(Blocks.JUNGLE_SAPLING),
-      new ItemStack(Blocks.ACACIA_SAPLING),
-      new ItemStack(Blocks.DARK_OAK_SAPLING),
-      new ItemStack(Items.BLAZE_ROD),
-      new ItemStack(Items.WOODEN_SHOVEL),
-      new ItemStack(Items.WOODEN_AXE));
+    FUELS = List.of(
+      Blocks.OAK_SLAB,
+      Blocks.SPRUCE_SLAB,
+      Blocks.BIRCH_SLAB,
+      Blocks.JUNGLE_SLAB,
+      Blocks.ACACIA_SLAB,
+      Blocks.DARK_OAK_SLAB,
+      Blocks.OAK_PLANKS,
+      Blocks.SPRUCE_PLANKS,
+      Blocks.BIRCH_PLANKS,
+      Blocks.JUNGLE_PLANKS,
+      Blocks.ACACIA_PLANKS,
+      Blocks.DARK_OAK_PLANKS,
+      Blocks.COAL_BLOCK,
+      Items.WOODEN_PICKAXE,
+      Items.WOODEN_SWORD,
+      Items.WOODEN_HOE,
+      Items.STICK,
+      Items.COAL,
+      Items.LAVA_BUCKET,
+      Blocks.OAK_SAPLING,
+      Blocks.SPRUCE_SAPLING,
+      Blocks.BIRCH_SAPLING,
+      Blocks.JUNGLE_SAPLING,
+      Blocks.ACACIA_SAPLING,
+      Blocks.DARK_OAK_SAPLING,
+      Items.BLAZE_ROD,
+      Items.WOODEN_SHOVEL,
+      Items.WOODEN_AXE);
   }
 }

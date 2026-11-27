@@ -85,7 +85,7 @@ public class FluidContainerIngredient implements ICustomIngredient {
     // we need an exact match, and we need the resulting container item to be the same as the item stack's container item
     try (Transaction tx = TransferHelper.openNestedOrRoot()) {
       int drained = handler.extract(contained, containedAmount, tx);
-      return drained == containedAmount && ItemStack.matches(stack.getCraftingRemainder(), TransferHelper.getStack(slot));
+      return drained == containedAmount && ItemStack.matches(TransferHelper.getStack(slot), stack.getCraftingRemainder());
     }
   }
 

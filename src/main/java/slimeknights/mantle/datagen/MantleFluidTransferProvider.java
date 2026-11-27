@@ -1,11 +1,12 @@
 package slimeknights.mantle.datagen;
 
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.data.PackOutput;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
@@ -100,19 +101,18 @@ public class MantleFluidTransferProvider extends AbstractFluidContainerTransferP
     // we can always fill water bottles, not always fill splash and lingering
     addTransfer(prefix + "fill_water", new FillFluidContainerTransfer(
       container,
-      ItemOutput.fromStack(waterPotion(filled)),
+      ItemOutput.fromTemplate(waterPotion(filled)),
       FluidIngredient.of(MantleTags.Fluids.WATER, MantleValues.BOTTLE * 2)),
       waterConditions);
   }
 
   /**
-   * Creates a stack of the given potion item set to the water potion.
+   * Creates a template of the given potion item set to the water potion.
    * Replaces 1.20.1 {@code PotionUtils.setPotion(stack, Potions.WATER)}; in 1.21 the potion lives in the
    * {@link DataComponents#POTION_CONTENTS} component and {@link Potions#WATER} is a {@code Holder<Potion>}.
    */
-  private static ItemStack waterPotion(ItemLike filled) {
-    ItemStack stack = new ItemStack(filled);
-    stack.set(DataComponents.POTION_CONTENTS, new PotionContents(Potions.WATER));
-    return stack;
+  private static ItemStackTemplate waterPotion(ItemLike filled) {
+    // 26.1: datagen can't build stacks (no bound data components), so the output is a template
+    return new ItemStackTemplate(filled.asItem(), DataComponentPatch.builder().set(DataComponents.POTION_CONTENTS, new PotionContents(Potions.WATER)).build());
   }
 }

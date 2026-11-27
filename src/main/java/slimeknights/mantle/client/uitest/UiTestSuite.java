@@ -19,6 +19,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.gui.LoadingErrorScreen;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforgespi.language.IModInfo;
 import org.apache.commons.io.FileUtils;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.render.RenderTargetCapture;
@@ -411,12 +412,28 @@ public class UiTestSuite {
     return PLAIN_UPGRADE_PROMPTS.contains(titleKey);
   }
 
-  /** Formats the mod loading issues attributed to one of the given mods ({@link ModLoadingIssue#affectedMod()}), others are skipped */
+  /**
+   * Formats the mod loading issues attributed to one of the given mods, others are skipped. An issue is attributed by its mod
+   * ({@link ModLoadingIssue#affectedMod()}) or, when it names none, by its mod file ({@link ModLoadingIssue#affectedModFile()}, any of the file's mods).
+   */
   public static List<String> ownModWarnings(List<ModLoadingIssue> issues, Set<String> ownMods) {
     List<String> own = new ArrayList<>();
     for (ModLoadingIssue issue : issues) {
-      String mod = issue.affectedMod() != null ? issue.affectedMod().getModId() : null;
-      if (mod != null && ownMods.contains(mod)) {
+      String mod = null;
+      if (issue.affectedMod() != null) {
+        String id = issue.affectedMod().getModId();
+        if (ownMods.contains(id)) {
+          mod = id;
+        }
+      } else if (issue.affectedModFile() != null) {
+        for (IModInfo info : issue.affectedModFile().getModInfos()) {
+          if (ownMods.contains(info.getModId())) {
+            mod = info.getModId();
+            break;
+          }
+        }
+      }
+      if (mod != null) {
         own.add(mod + ": " + issue.translationKey() + " " + issue.translationArgs());
       }
     }

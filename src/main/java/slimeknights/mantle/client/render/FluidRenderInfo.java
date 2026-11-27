@@ -1,9 +1,13 @@
 package slimeknights.mantle.client.render;
 
+import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
+import net.minecraft.world.level.material.Fluid;
+import net.neoforged.neoforge.client.fluid.FluidTintSource;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
+import slimeknights.mantle.fluid.InvertedFluidType;
+import slimeknights.mantle.fluid.texture.FluidTextureManager;
 
 import org.jspecify.annotations.Nullable;
 
@@ -19,6 +23,8 @@ import org.jspecify.annotations.Nullable;
 public record FluidRenderInfo(TextureAtlasSprite still, TextureAtlasSprite flowing, int color, int lightLevel, boolean isGas) {
   /**
    * Resolves the render info for a fluid. Call during render state extraction, on the render thread.
+   * 26.1: sprites and tint come from the fluid's {@link FluidModel} ({@link FluidRenderer#getFluidModel(Fluid)}) and its
+   * {@link FluidTintSource#colorAsStack(FluidStack)}, replacing the removed {@code IClientFluidTypeExtensions} texture and tint getters.
    * @param fluid  Fluid to render
    * @return  Render info, or null if the fluid is empty (nothing to draw)
    */
@@ -27,12 +33,19 @@ public record FluidRenderInfo(TextureAtlasSprite still, TextureAtlasSprite flowi
     if (fluid.isEmpty()) {
       return null;
     }
-    IClientFluidTypeExtensions clientFluid = IClientFluidTypeExtensions.of(fluid.getFluid());
+    FluidModel model = FluidRenderer.getFluidModel(fluid.getFluid());
     FluidType type = fluid.getFluid().getFluidType();
+    TextureAtlasSprite flowing;
+    if (type instanceof InvertedFluidType) {
+      // the model holds the inverted texture of the fluid in the world, stacks keep the original one
+      flowing = FluidRenderer.getBlockSprite(FluidTextureManager.getFlowingTexture(type));
+    } else {
+      flowing = model.flowingMaterial().sprite();
+    }
+    FluidTintSource tint = model.fluidTintSource();
     return new FluidRenderInfo(
-      FluidRenderer.getBlockSprite(clientFluid.getStillTexture(fluid)),
-      FluidRenderer.getBlockSprite(clientFluid.getFlowingTexture(fluid)),
-      clientFluid.getTintColor(fluid), type.getLightLevel(fluid), type.isLighterThanAir());
+      model.stillMaterial().sprite(), flowing,
+      tint != null ? tint.colorAsStack(fluid) : -1, type.getLightLevel(fluid), type.isLighterThanAir());
   }
 
   /**

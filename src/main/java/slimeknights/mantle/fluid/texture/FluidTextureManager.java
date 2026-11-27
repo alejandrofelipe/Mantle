@@ -5,31 +5,43 @@ import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.ExtraCodecs;
 import net.minecraft.util.GsonHelper;
+import net.minecraft.util.Util;
 import net.minecraft.core.Registry;
+import net.neoforged.fml.ModLoader;
 import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
 import slimeknights.mantle.Mantle;
-import slimeknights.mantle.data.listener.IEarlySafeManagerReloadListener;
 
 import org.jspecify.annotations.Nullable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
-/** Manager for handling fluid textures */
-public class FluidTextureManager implements IEarlySafeManagerReloadListener {
+/**
+ * Manager for handling fluid textures.
+ * <p>
+ * 26.1: the fluid textures feed the fluid models ({@link MantleClientFluidTypes}), which the model manager bakes in its preparation phase, in parallel
+ * with this listener. So the textures load from {@link #prepareSharedState}, which runs for every listener before any preparation starts, and the
+ * fluid model registration waits for them through {@link #awaitTextures()}.
+ */
+public class FluidTextureManager implements PreparableReloadListener {
   /** Folder containing the logic */
   public static final String FOLDER = "mantle/fluid_texture";
 
   /* Instance data */
   private static final FluidTextureManager INSTANCE = new FluidTextureManager();
   /** Map of fluid type to texture */
-  private Map<FluidType,FluidTexture> textures = Collections.emptyMap();
+  private volatile Map<FluidType,FluidTexture> textures = Collections.emptyMap();
+  /** Textures of the current reload, loading in the background */
+  private volatile CompletableFuture<Map<FluidType,FluidTexture>> pending = CompletableFuture.completedFuture(Collections.emptyMap());
   /** Fallback texture instance */
   private static final FluidTexture FALLBACK = new FluidTexture(Identifier.parse("block/water_still"), Identifier.parse("block/water_flow"), null, null, 0, -1, -1, false, false, 0, 0);
 
@@ -44,7 +56,27 @@ public class FluidTextureManager implements IEarlySafeManagerReloadListener {
   }
 
   @Override
-  public void onReloadSafe(ResourceManager resourceManager) {
+  public void prepareSharedState(SharedState currentReload) {
+    ResourceManager resourceManager = currentReload.resourceManager();
+    // keep the old textures if mod loading failed, like the other safe listeners
+    pending = CompletableFuture.supplyAsync(() -> ModLoader.hasErrors() ? textures : load(resourceManager), Util.backgroundExecutor());
+  }
+
+  @Override
+  public CompletableFuture<Void> reload(SharedState currentReload, Executor taskExecutor, PreparationBarrier preparationBarrier, Executor reloadExecutor) {
+    return pending.thenCompose(preparationBarrier::wait).thenAccept(map -> {});
+  }
+
+  /**
+   * Waits for the fluid textures of the reload in progress, so {@link #getData(FluidType)} returns them while the model manager bakes the fluid models.
+   * Outside a reload, returns immediately.
+   */
+  static void awaitTextures() {
+    INSTANCE.pending.join();
+  }
+
+  /** Loads all fluid textures from the given resource manager, and makes them the current textures */
+  private Map<FluidType,FluidTexture> load(ResourceManager resourceManager) {
     long time = System.nanoTime();
     // fetch JSONs
     Map<Identifier,JsonElement> jsons = new HashMap<>();
@@ -73,6 +105,7 @@ public class FluidTextureManager implements IEarlySafeManagerReloadListener {
     }
     this.textures = map;
     Mantle.logger.info("Loaded {} fluid textures in {} ms", map.size(), (System.nanoTime() - time) / 1000000f);
+    return map;
   }
 
   /** Gets the texture for the given fluid */

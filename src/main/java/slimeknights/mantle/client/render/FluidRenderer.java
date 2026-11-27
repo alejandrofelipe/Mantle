@@ -3,8 +3,9 @@ package slimeknights.mantle.client.render;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.Lightmap;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -15,9 +16,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
+import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.FluidType;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
@@ -34,6 +34,17 @@ public class FluidRenderer {
    */
   public static TextureAtlasSprite getBlockSprite(Identifier sprite) {
     return Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).getSprite(sprite);
+  }
+
+  /**
+   * Gets the baked fluid model of a fluid: its still, flowing and overlay sprites, render layer and tint.
+   * 26.1: replaces the textures and tint of {@code IClientFluidTypeExtensions}; fluids without a registered model get the missing model.
+   * Prefer {@link FluidRenderInfo#of(FluidStack)} to draw a fluid stack.
+   * @param fluid  Fluid to look up
+   * @return  Fluid model
+   */
+  public static FluidModel getFluidModel(Fluid fluid) {
+    return Minecraft.getInstance().getModelManager().getFluidStateModelSet().get(fluid.defaultFluidState());
   }
 
   /**
@@ -287,22 +298,16 @@ public class FluidRenderer {
    * @param light     Light level from TER
    */
   public static void renderCuboids(PoseStack.Pose pose, VertexConsumer buffer, List<FluidCuboid> cubes, FluidStack fluid, int light) {
-    if (fluid.isEmpty()) {
+    // fluid attributes, fetch once for all fluids to save effort
+    FluidRenderInfo info = FluidRenderInfo.of(fluid);
+    if (info == null) {
       return;
     }
-
-    // fluid attributes, fetch once for all fluids to save effort
-    IClientFluidTypeExtensions clientFluid = IClientFluidTypeExtensions.of(fluid.getFluid());
-    TextureAtlasSprite still = getBlockSprite(clientFluid.getStillTexture(fluid));
-    TextureAtlasSprite flowing = getBlockSprite(clientFluid.getFlowingTexture(fluid));
-    int color = clientFluid.getTintColor(fluid);
-    FluidType type = fluid.getFluid().getFluidType();
-    light = withBlockLight(light, type.getLightLevel(fluid));
-    boolean isGas = type.isLighterThanAir();
+    light = info.light(light);
 
     // render all given cuboids
     for (FluidCuboid cube : cubes) {
-      renderCuboid(pose, buffer, cube, still, flowing, cube.getFromScaled(), cube.getToScaled(), color, light, isGas);
+      renderCuboid(pose, buffer, cube, info.still(), info.flowing(), cube.getFromScaled(), cube.getToScaled(), info.color(), light, info.isGas());
     }
   }
 
@@ -415,13 +420,13 @@ public class FluidRenderer {
     }
 
     // fluid attributes
-    IClientFluidTypeExtensions clientFluid = IClientFluidTypeExtensions.of(fluid.getFluid());
-    TextureAtlasSprite still = getBlockSprite(clientFluid.getStillTexture(fluid));
-    TextureAtlasSprite flowing = getBlockSprite(clientFluid.getFlowingTexture(fluid));
-    FluidType type = fluid.getFluid().getFluidType();
-    boolean isGas = type.isLighterThanAir();
-    int color = clientFluid.getTintColor(fluid);
-    light = withBlockLight(light, type.getLightLevel(fluid));
+    FluidRenderInfo info = FluidRenderInfo.of(fluid);
+    assert info != null;
+    TextureAtlasSprite still = info.still();
+    TextureAtlasSprite flowing = info.flowing();
+    boolean isGas = info.isGas();
+    int color = info.color();
+    light = info.light(light);
 
     // determine height based on fluid amount
     Vector3f from = cube.getFromScaled();
@@ -570,7 +575,7 @@ public class FluidRenderer {
     assert minecraft.player != null;
     BlockPos pos = BlockPos.containing(minecraft.player.getX(), minecraft.player.getEyeY(), minecraft.player.getZ());
     Level level = minecraft.player.level();
-    float brightness = LightTexture.getBrightness(level.dimensionType(), level.getMaxLocalRawBrightness(pos));
+    float brightness = Lightmap.getBrightness(level.dimensionType(), level.getMaxLocalRawBrightness(pos));
     // apply fluid tint if one is set
     int vertexColor;
     if (color != -1) {

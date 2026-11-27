@@ -6,11 +6,14 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.fog.environment.FogEnvironment;
+import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
+import net.neoforged.neoforge.client.fluid.FluidTintSource;
 import net.neoforged.neoforge.fluids.FluidType;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -18,31 +21,39 @@ import slimeknights.mantle.client.render.FluidRenderer;
 
 import org.jspecify.annotations.Nullable;
 
-/** Implementation of {@link IClientFluidTypeExtensions} using {@link FluidTexture} */
+/**
+ * Implementation of {@link IClientFluidTypeExtensions} using {@link FluidTexture}.
+ * <p>
+ * 26.1: the still, flowing and overlay textures and the tint moved out of {@link IClientFluidTypeExtensions} into a {@link FluidModel},
+ * which {@link MantleClientFluidTypes} registers for every fluid of the type from {@link #createFluidModel()}.
+ */
 @RequiredArgsConstructor
 public class ClientTextureFluidType implements IClientFluidTypeExtensions {
   protected final FluidType type;
   private Vector3f fogColor;
 
-  @Override
-  public int getTintColor() {
-    return FluidTextureManager.getColor(type);
+  /**
+   * Creates the fluid model for this type from its current {@link FluidTexture}: still, flowing and overlay textures, tinted by the texture color.
+   * Called while the models bake, after the fluid textures of the reload are loaded.
+   * Replaces the 1.21.11 {@code getStillTexture}, {@code getFlowingTexture}, {@code getOverlayTexture} and {@code getTintColor} overrides.
+   */
+  public FluidModel.Unbaked createFluidModel() {
+    FluidTexture data = FluidTextureManager.getData(type);
+    Identifier overlay = data.overlay();
+    return new FluidModel.Unbaked(new Material(data.still()), new Material(getWorldFlowingTexture(data.flowing())), overlay == null ? null : new Material(overlay), createTintSource());
   }
 
-  @Override
-  public Identifier getStillTexture() {
-    return FluidTextureManager.getStillTexture(type);
+  /**
+   * Gets the flowing texture of the fluid placed in the world
+   * @param flowing  Flowing texture from the fluid texture, also used for fluid stacks
+   */
+  protected Identifier getWorldFlowingTexture(Identifier flowing) {
+    return flowing;
   }
 
-  @Override
-  public Identifier getFlowingTexture() {
-    return FluidTextureManager.getFlowingTexture(type);
-  }
-
-  @Nullable
-  @Override
-  public Identifier getOverlayTexture() {
-    return FluidTextureManager.getOverlayTexture(type);
+  /** Creates the tint for the fluid model, reading the color of the current fluid texture when the fluid is drawn */
+  protected FluidTintSource createTintSource() {
+    return state -> FluidTextureManager.getColor(type);
   }
 
   @Nullable
@@ -61,7 +72,7 @@ public class ClientTextureFluidType implements IClientFluidTypeExtensions {
   }
 
   @Override
-  public Vector4f modifyFogColor(Camera camera, float partialTick, ClientLevel level, int renderDistance, float darkenWorldAmount, Vector4f fluidFogColor) {
+  public void modifyFogColor(Camera camera, float partialTick, ClientLevel level, int renderDistance, float darkenWorldAmount, Vector4f fluidFogColor) {
     // nothing to do if fog color is white
     int fluidColor = FluidTextureManager.getData(type).fogColor();
     if (fluidColor != -1) {
@@ -69,11 +80,11 @@ public class ClientTextureFluidType implements IClientFluidTypeExtensions {
       if (fogColor == null) {
         fogColor = new Vector3f(ARGB.red(fluidColor) / 255f, ARGB.green(fluidColor) / 255f, ARGB.blue(fluidColor) / 255f);
       }
+      // 26.1: the color is modified in place instead of returned
       fluidFogColor.x *= fogColor.x;
       fluidFogColor.y *= fogColor.y;
       fluidFogColor.z *= fogColor.z;
     }
-    return fluidFogColor;
   }
 
   @Override

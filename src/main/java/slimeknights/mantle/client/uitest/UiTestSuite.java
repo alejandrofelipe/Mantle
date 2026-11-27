@@ -6,6 +6,7 @@ import com.google.common.base.Suppliers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.BackupConfirmScreen;
 import net.minecraft.client.tutorial.TutorialSteps;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
@@ -13,6 +14,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.gamerules.GameRule;
 import net.minecraft.world.level.gamerules.GameRules;
+import net.neoforged.fml.ModLoadingIssue;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.gui.LoadingErrorScreen;
 import net.neoforged.neoforge.common.NeoForge;
@@ -25,14 +27,17 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -46,6 +51,12 @@ public class UiTestSuite {
 
   /** Result key of the suite's own environment check (music muted, mobs disabled), recorded before the scenarios. */
   public static final String SETUP_RESULT = "mantle:suite_setup";
+  /** Result key recorded only when the world needed a plain upgrade on load: a {@code warn:} result, which the build reports without failing. */
+  public static final String WORLD_UPGRADE_RESULT = "mantle:world_upgrade";
+  /** Result key recorded only when mod loading warned about one of our own mods: a {@code fail:} result. */
+  public static final String MOD_LOADING_RESULT = "mantle:mod_loading";
+  /** Backup prompt titles of a plain world upgrade, the only prompts the suite confirms ({@code LevelSummary.BackupStatus}) */
+  private static final Set<String> PLAIN_UPGRADE_PROMPTS = Set.of("selectWorld.backupQuestion.file_fixing_required", "selectWorld.backupQuestion.snapshot");
   /**
    * Entity tag (as in {@code /tag} or {@code Tags:[...]} in {@code /summon}) exempting a {@link Mob} from the suite's
    * mob blocking; a scenario that needs a mob adds it before spawning, e.g. {@code mob.addTag(ALLOW_MOB_TAG)}.
@@ -221,13 +232,7 @@ public class UiTestSuite {
             return;
           }
           if (mc.screen instanceof BackupConfirmScreen backupScreen) {
-            // the committed world is saved by an older version: upgrade it without a backup (the run dir copy is re-extracted every run)
-            Mantle.logger.info("uitest: {}; upgrading the world without a backup", backupScreen.getTitle().getString());
-            try {
-              ((BackupConfirmScreen.Listener) BACKUP_PROCEED.get().get(backupScreen)).proceed(false, false);
-            } catch (ReflectiveOperationException e) {
-              throw new IllegalStateException("uitest: cannot confirm the world upgrade", e);
-            }
+            handleBackupScreen(backupScreen);
             return;
           }
           // a screen that blocks quick play (world upgrade prompt, error screen, ...) shows in the log instead of a silent hang
@@ -378,9 +383,51 @@ public class UiTestSuite {
   }
 
   /**
+   * The committed world may be saved by an older version, which opens a backup prompt before quick play continues. A plain upgrade
+   * ({@code file_fixing_required}, or to a snapshot) proceeds without a backup (the run dir copy is re-extracted every run) and is recorded as
+   * a {@code warn:} result under {@link #WORLD_UPGRADE_RESULT}, so the committed world gets upgraded once. Any other prompt (a downgrade, which
+   * vanilla marks severe, or an experimental or customized world) fails {@link #SETUP_RESULT} and ends the run instead of opening that world.
+   */
+  private void handleBackupScreen(BackupConfirmScreen screen) {
+    String title = screen.getTitle().getString();
+    String key = screen.getTitle().getContents() instanceof TranslatableContents translatable ? translatable.getKey() : "";
+    if (!isPlainUpgradePrompt(key)) {
+      Mantle.logger.error("uitest: world prompt '{}' ({}); only a plain upgrade proceeds", title, key);
+      results.put(SETUP_RESULT, "fail: world prompt '" + title + "' (" + key + "), only a plain upgrade proceeds");
+      enter(Phase.FINISH);
+      return;
+    }
+    Mantle.logger.warn("uitest: {}; upgrading the world without a backup", title);
+    results.put(WORLD_UPGRADE_RESULT, "warn: the world was upgraded without a backup (" + key + "); commit an upgraded uitest world");
+    try {
+      ((BackupConfirmScreen.Listener) BACKUP_PROCEED.get().get(screen)).proceed(false, false);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("uitest: cannot confirm the world upgrade", e);
+    }
+  }
+
+  /** Checks if a backup prompt, by the translation key of its title, is a plain world upgrade the suite may confirm */
+  public static boolean isPlainUpgradePrompt(String titleKey) {
+    return PLAIN_UPGRADE_PROMPTS.contains(titleKey);
+  }
+
+  /** Formats the mod loading issues attributed to one of the given mods ({@link ModLoadingIssue#affectedMod()}), others are skipped */
+  public static List<String> ownModWarnings(List<ModLoadingIssue> issues, Set<String> ownMods) {
+    List<String> own = new ArrayList<>();
+    for (ModLoadingIssue issue : issues) {
+      String mod = issue.affectedMod() != null ? issue.affectedMod().getModId() : null;
+      if (mod != null && ownMods.contains(mod)) {
+        own.add(mod + ": " + issue.translationKey() + " " + issue.translationArgs());
+      }
+    }
+    return own;
+  }
+
+  /**
    * NeoForge shows mod loading warnings on a screen before quick play continues (26.1: e.g. any mod still declaring the deprecated
-   * {@code logoFile}, third party mods included), which would stall the suite until its timeout. Logs every issue; warnings only proceed
-   * like the screen's button, errors fail the run.
+   * {@code logoFile}, third party mods included), which would stall the suite until its timeout. Logs every issue; errors fail the run,
+   * warnings from our own mods (Mantle and the mods registering scenarios) fail {@link #MOD_LOADING_RESULT}, other warnings proceed like the
+   * screen's button.
    */
   private void handleLoadingScreen(LoadingErrorScreen screen) {
     try {
@@ -392,6 +439,17 @@ public class UiTestSuite {
         results.put(SETUP_RESULT, "fail: " + errors.size() + " mod loading error(s), see the log");
         enter(Phase.FINISH);
         return;
+      }
+      Set<String> ownMods = new HashSet<>();
+      ownMods.add(Mantle.modId);
+      UiTestScenarios.all().forEach(scenario -> ownMods.add(scenario.id().getNamespace()));
+      List<ModLoadingIssue> issues = new ArrayList<>();
+      for (Object formatted : warnings) {
+        issues.add((ModLoadingIssue) LoadingScreenFields.ISSUE.get().invoke(formatted));
+      }
+      List<String> own = ownModWarnings(issues, ownMods);
+      if (!own.isEmpty()) {
+        results.put(MOD_LOADING_RESULT, "fail: " + own.size() + " mod loading warning(s) from our mods: " + String.join("; ", own));
       }
       ((Runnable) LoadingScreenFields.NEXT.get(screen)).run();
     } catch (ReflectiveOperationException e) {
@@ -415,6 +473,16 @@ public class UiTestSuite {
     private static final Field ERRORS = field("modLoadErrors");
     private static final Field WARNINGS = field("modLoadWarnings");
     private static final Field NEXT = field("nextScreenTask");
+    /** Accessor of the package private {@code FormattedIssue} record the issue lists hold, resolved on the first warning */
+    private static final Supplier<Method> ISSUE = Suppliers.memoize(() -> {
+      try {
+        Method method = Class.forName(LoadingErrorScreen.class.getName() + "$FormattedIssue").getDeclaredMethod("issue");
+        method.setAccessible(true);
+        return method;
+      } catch (ReflectiveOperationException e) {
+        throw new IllegalStateException("uitest: LoadingErrorScreen.FormattedIssue has no method issue", e);
+      }
+    });
 
     private static Field field(String name) {
       try {

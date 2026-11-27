@@ -151,6 +151,7 @@ final class UiTestSelfChecks {
    * The progress bar never reaches a capture: shows the bar in the world during the prepare wait (control: frames with the bar were
    * rendered meanwhile), then opens a screen filled with one color and checks that the left part of the captured frame, where the bar
    * and its label are drawn, is exactly that color. Independent of the suite's own bookkeeping ({@link UiTestProgress#lastFrameClean()}).
+   * Also checks the window title shows the progress.
    */
   static final class ProgressHiddenScenario implements UiTestScenario {
     /** Opaque fill of the screen, ARGB as {@link NativeImage#getPixel} returns it */
@@ -209,6 +210,10 @@ final class UiTestSelfChecks {
       }
       if (UiTestProgress.framesWithBar() <= framesBefore) {
         throw new IllegalStateException("control: no frame showed the progress bar during this scenario, so the strip check proves nothing");
+      }
+      String title = GLFW.glfwGetWindowTitle(ctx.mc().getWindow().handle());
+      if (title == null || !title.startsWith("uitest ") || !title.endsWith(" — " + id())) {
+        throw new IllegalStateException("the window title '" + title + "' does not show the progress 'uitest n/N — " + id() + "'");
       }
       ctx.mc().setScreen(null);
     }

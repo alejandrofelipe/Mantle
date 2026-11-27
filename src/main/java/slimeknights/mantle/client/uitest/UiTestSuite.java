@@ -46,6 +46,10 @@ import java.util.function.Supplier;
  * waits for the quick-play world, applies and verifies the world setup (music muted, mob spawning off, mobs discarded
  * and blocked from joining; recorded as {@link #SETUP_RESULT}), then per scenario prepare -> open -> capture -> close,
  * finally writes uitest-results.json and stops the client. Active only with -Dmantle.uitest=true.
+ * <p>
+ * Scenarios are selected by {@code mantle.uitest.only} / {@code mantle.uitest.tags} ({@link #select}); while the suite runs, OS mouse
+ * and keyboard input is kept away from the game ({@link UiTestInput}) and the progress shows on the window ({@link UiTestProgress}),
+ * never on a captured frame.
  */
 public class UiTestSuite {
   private enum Phase { WAIT_WORLD, SETUP, PREPARE_SETTLE, SETTLE, FINISH }

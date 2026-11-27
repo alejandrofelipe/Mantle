@@ -6,25 +6,23 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.mojang.datafixers.util.Either;
+import com.mojang.serialization.JsonOps;
 import lombok.Getter;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.cuboid.CuboidModelElement;
 import net.minecraft.client.resources.model.cuboid.CuboidFace;
 import net.minecraft.client.resources.model.cuboid.CuboidModel;
-import net.minecraft.client.resources.model.cuboid.FaceBakery;
 import net.minecraft.client.resources.model.cuboid.UnbakedCuboidGeometry;
 import net.minecraft.client.resources.model.sprite.TextureSlots;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
-import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.client.resources.model.sprite.SpriteId;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ModelDebugName;
-import net.minecraft.client.resources.model.ModelManager;
 import net.minecraft.client.renderer.block.dispatch.ModelState;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.client.resources.model.ResolvedModel;
-import net.minecraft.client.resources.model.sprite.SpriteGetter;
 import net.minecraft.client.resources.model.geometry.UnbakedGeometry;
 import net.minecraft.client.resources.model.UnbakedModel;
 import net.minecraft.core.Direction;
@@ -51,7 +49,8 @@ import java.util.function.UnaryOperator;
 /**
  * Simpler version of {@link CuboidModel} as a reusable {@link UnbakedModel}, mainly serving as a shared base several
  * Mantle loaders chain into. Extends {@link AbstractUnbakedModel} to inherit the standard top-level parameters (parent,
- * textures, transforms, ambient occlusion, gui light, root transform and render type) while supplying the elements.
+ * textures, transforms, ambient occlusion, gui light and root transform) while supplying the elements. 26.1: the model format has no
+ * {@code render_type} anymore, each quad picks its render layer from its texture, see {@link ModelHelper#bakeQuad}.
  * <p>
  * 1.21.5: unbaked models no longer bake; they expose an {@link UnbakedGeometry} that bakes into a {@link QuadCollection}
  * (see {@link Geometry}). Dynamic models rebake from data captured at bake time, see {@link ElementModelData}.
@@ -68,7 +67,7 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
    * away. Needed by wrapping models (e.g. connected textures) to follow texture references by name.
    */
   @Getter
-  private final Map<String,Either<SpriteId,String>> textures;
+  private final Map<String,Either<Material,String>> textures;
 
   /**
    * Creates a new simple block model
@@ -76,7 +75,7 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
    * @param textures    Raw texture reference map parsed from JSON
    * @param parts       List of parts in the model
    */
-  public SimpleBlockModel(StandardModelParameters parameters, Map<String,Either<SpriteId,String>> textures, List<CuboidModelElement> parts) {
+  public SimpleBlockModel(StandardModelParameters parameters, Map<String,Either<Material,String>> textures, List<CuboidModelElement> parts) {
     super(parameters);
     this.textures = textures;
     this.parts = parts;
@@ -175,22 +174,26 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
 
   /* Sprites */
 
-  /** Resolves a sprite for the given texture name, matching vanilla's missing-reference fallback */
-  public static TextureAtlasSprite findSprite(Function<SpriteId,TextureAtlasSprite> spriteGetter, TextureSlots textures, String name) {
-    SpriteId material = textures.getMaterial(name);
+  /**
+   * Resolves a sprite for the given texture name at runtime, matching vanilla's missing-reference fallback.
+   * 26.1: model textures are {@link Material}s without an atlas, resolved like the model bakery by {@link ModelHelper#getSprite(Material)},
+   * so this no longer takes a sprite getter.
+   */
+  public static TextureAtlasSprite findSprite(TextureSlots textures, String name) {
+    Material material = textures.getMaterial(name);
     if (material == null) {
-      material = new SpriteId(TextureAtlas.LOCATION_BLOCKS, MissingTextureAtlasSprite.getLocation());
+      material = new Material(MissingTextureAtlasSprite.getLocation());
     }
-    return spriteGetter.apply(material);
+    return ModelHelper.getSprite(material);
   }
 
   /**
    * Resolves a sprite for the given texture name, checking the replacement map first. This is the primitive used for
    * dynamic retexturing: since {@link TextureSlots} is immutable and non-enumerable, callers pass a map of texture name
    * (without the leading {@code '#'}) to a replacement {@link SpriteId}; any name present there wins over the slots.
-   * @param spriteGetter  Sprite getter, typically {@link ModelHelper#getSprite(SpriteId)} when rebaking outside the baking phase
-   * @param textures      Original resolved texture slots, used for names not in the replacement map
-   * @param replacements  Map of texture name (no {@code '#'}) to replacement material; may be empty
+   * @param spriteGetter  Sprite getter for the replacements, typically {@link ModelHelper#getSprite(SpriteId)} when rebaking outside the baking phase
+   * @param textures      Original resolved texture slots, used for names not in the replacement map, see {@link #findSprite(TextureSlots, String)}
+   * @param replacements  Map of texture name (no {@code '#'}) to replacement sprite; may be empty
    * @param name          Texture name to resolve, with or without a leading {@code '#'}
    */
   public static TextureAtlasSprite findSprite(Function<SpriteId,TextureAtlasSprite> spriteGetter, TextureSlots textures, Map<String,SpriteId> replacements, String name) {
@@ -201,15 +204,16 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
         return spriteGetter.apply(replacement);
       }
     }
-    return findSprite(spriteGetter, textures, name);
+    return findSprite(textures, name);
   }
 
   /**
-   * Creates a sprite lookup for baking time, resolving texture names through the baker's sprite getter so missing
+   * Creates a sprite lookup for baking time, resolving texture names through the baker's materials so missing
    * textures and references are reported like vanilla.
+   * 26.1: takes the {@link ModelBaker} as the sprite getter became {@link ModelBaker#materials()}.
    */
-  public static Function<String,TextureAtlasSprite> spriteLookup(TextureSlots textures, SpriteGetter sprites, ModelDebugName name) {
-    return texture -> sprites.resolveSlot(textures, texture, name);
+  public static Function<String,TextureAtlasSprite> spriteLookup(TextureSlots textures, ModelBaker baker, ModelDebugName name) {
+    return texture -> baker.materials().resolveSlot(textures, texture, name).sprite();
   }
 
   /**
@@ -253,9 +257,10 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
   /**
    * Bakes a single face of an element, matching vanilla {@link UnbakedCuboidGeometry#bake} (1.21.11 removed {@code UnbakedCuboidGeometry.bakeFace}).
    * Faces of flat elements are baked too, like 1.21.10.
+   * 26.1: the quad's render layer follows the sprite's transparency, see {@link ModelHelper#bakeQuad}.
    */
   public static BakedQuad bakeFace(CuboidModelElement part, CuboidFace face, TextureAtlasSprite sprite, Direction direction, ModelState state) {
-    return FaceBakery.bakeQuad(ModelHelper.UNCACHED_PARTS, part.from(), part.to(), face, sprite, direction, state, part.rotation(), part.shade(), part.lightEmission());
+    return ModelHelper.bakeQuad(part.from(), part.to(), face, new Material.Baked(sprite, false), direction, state, part.rotation(), part.shade(), part.lightEmission());
   }
 
   /** Adds a baked face to the builder, applying its cull face rotated by the model state */
@@ -336,7 +341,7 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
         }
       }
       state = applyRootTransform(state, additionalProperties);
-      Function<String,TextureAtlasSprite> sprites = spriteLookup(textureSlots, baker.sprites(), debugName);
+      Function<String,TextureAtlasSprite> sprites = spriteLookup(textureSlots, baker, debugName);
       if (colorData.isEmpty()) {
         return bakeElements(elements, sprites, state);
       }
@@ -347,8 +352,16 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
 
   /* Deserializing */
 
-  /** Replicates the now-private {@code CuboidModel.Deserializer} texture parsing: a leading '#' marks a reference, else a material */
-  private static Either<SpriteId,String> parseTextureLocationOrReference(Identifier atlas, String name) {
+  /**
+   * Replicates the now-private {@code TextureSlots} texture parsing: a leading '#' marks a reference, else a material.
+   * 26.1: materials no longer name an atlas (the model bakery checks the blocks atlas, then the items atlas), and may be an object with
+   * {@code sprite} and {@code force_translucent}.
+   */
+  private static Either<Material,String> parseTextureLocationOrReference(String key, JsonElement element) {
+    if (element.isJsonObject()) {
+      return Either.left(Material.CODEC.parse(JsonOps.INSTANCE, element).getOrThrow(error -> new JsonSyntaxException("Invalid texture " + key + ": " + error)));
+    }
+    String name = GsonHelper.convertToString(element, key);
     if (!name.isEmpty() && name.charAt(0) == '#') {
       return Either.right(name.substring(1));
     }
@@ -356,18 +369,16 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
     if (texture == null) {
       throw new JsonSyntaxException(name + " is not valid resource location");
     }
-    return Either.left(new SpriteId(atlas, texture));
+    return Either.left(new Material(texture));
   }
 
   /** Parses the raw texture reference map from JSON */
-  public static Map<String,Either<SpriteId,String>> getTextures(JsonObject json) {
+  public static Map<String,Either<Material,String>> getTextures(JsonObject json) {
     if (json.has("textures")) {
-      // 1.21.11: vanilla parses model textures into the block-or-item pseudo atlas, resolved by the model bakery
-      Identifier atlas = ModelManager.BLOCK_OR_ITEM;
       JsonObject textures = GsonHelper.getAsJsonObject(json, "textures");
-      Map<String,Either<SpriteId,String>> builder = new HashMap<>(textures.size());
+      Map<String,Either<Material,String>> builder = new HashMap<>(textures.size());
       for (Entry<String,JsonElement> entry : textures.entrySet()) {
-        builder.put(entry.getKey(), parseTextureLocationOrReference(atlas, entry.getValue().getAsString()));
+        builder.put(entry.getKey(), parseTextureLocationOrReference(entry.getKey(), entry.getValue()));
       }
       return Map.copyOf(builder);
     }
@@ -382,7 +393,7 @@ public class SimpleBlockModel extends AbstractUnbakedModel {
    */
   public static SimpleBlockModel deserialize(JsonObject json, JsonDeserializationContext context) {
     StandardModelParameters parameters = StandardModelParameters.parse(json, context);
-    Map<String,Either<SpriteId,String>> textures = getTextures(json);
+    Map<String,Either<Material,String>> textures = getTextures(json);
     List<CuboidModelElement> parts;
     if (json.has("elements")) {
       parts = getModelElements(context, GsonHelper.getAsJsonArray(json, "elements"), "elements");

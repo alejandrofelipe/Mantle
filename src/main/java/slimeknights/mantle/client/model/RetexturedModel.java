@@ -24,8 +24,8 @@ import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
 import net.minecraft.client.renderer.texture.TextureAtlas;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.renderer.block.dispatch.BlockModelRotation;
+import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.client.resources.model.sprite.SpriteId;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.renderer.block.dispatch.ModelState;
@@ -41,9 +41,10 @@ import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.client.RenderTypeGroup;
 import net.neoforged.neoforge.client.model.UnbakedModelLoader;
 import net.neoforged.neoforge.client.model.block.CustomUnbakedBlockStateModel;
+import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.joml.Vector3fc;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.model.util.ColoredBlockModel;
@@ -235,12 +236,12 @@ public class RetexturedModel extends ColoredBlockModel {
     }
 
     @Override
-    public TextureAtlasSprite particleIcon(BlockAndTintGetter level, BlockPos pos, BlockState state) {
+    public Material.Baked particleMaterial(BlockAndTintGetter level, BlockPos pos, BlockState state) {
       Block block = getTexture(level, pos);
       if (block != null) {
-        return getCachedModel(block).particleIcon();
+        return getCachedModel(block).particleMaterial();
       }
-      return super.particleIcon(level, pos, state);
+      return super.particleMaterial(level, pos, state);
     }
 
     @Override
@@ -280,7 +281,7 @@ public class RetexturedModel extends ColoredBlockModel {
   /** Shared logic for {@link #getAllRetextured(SimpleBlockModel, Set)} */
   private static Set<String> getAllRetextured(ModelTextureIteratable maps, Set<String> originalSet) {
     Set<String> retextured = Sets.newHashSet(originalSet);
-    for (Map<String,Either<SpriteId, String>> textures : maps) {
+    for (Map<String,Either<Material,String>> textures : maps) {
       textures.forEach((name, either) ->
         either.ifRight(parent -> {
           if (retextured.contains(parent)) {
@@ -352,7 +353,7 @@ public class RetexturedModel extends ColoredBlockModel {
     }
 
     @Override
-    public ItemModel bake(ItemModel.BakingContext context) {
+    public ItemModel bake(ItemModel.BakingContext context, Matrix4fc transformation) {
       ModelBaker baker = context.blockModelBaker();
       ResolvedModel resolved = baker.getModel(model);
       // base model, matching vanilla CuboidItemModelWrapper
@@ -360,7 +361,7 @@ public class RetexturedModel extends ColoredBlockModel {
       List<BakedQuad> quads = resolved.bakeTopGeometry(textures, baker, BlockModelRotation.IDENTITY).getAll();
       ModelRenderProperties properties = ModelRenderProperties.fromResolvedModel(baker, resolved, textures);
       Retexturer retexturer = Retexturer.of(baker, resolved, BlockModelRotation.IDENTITY);
-      return new Baked(new ItemVariant(quads, properties), retexturer, ElementModelData.itemRenderTypes(resolved));
+      return new Baked(new ItemVariant(quads, properties), retexturer, new Matrix4f(transformation));
     }
 
     /** Quads and properties for a single item variant, with lazily computed extents and whether any sprite is animated */
@@ -375,15 +376,14 @@ public class RetexturedModel extends ColoredBlockModel {
       private final ItemVariant base;
       @Nullable
       private final Retexturer retexturer;
-      /** Render type group from the model, null for the item's defaults. 1.21.11: retextured quads may mix the blocks and items atlases, so layers are split per atlas */
-      @Nullable
-      private final RenderTypeGroup renderTypes;
+      /** Transformation the model was baked with, applied as the layer transform */
+      private final Matrix4fc transformation;
       private final Map<Block,ItemVariant> cache = new ConcurrentHashMap<>();
 
-      private Baked(ItemVariant base, @Nullable Retexturer retexturer, @Nullable RenderTypeGroup renderTypes) {
+      private Baked(ItemVariant base, @Nullable Retexturer retexturer, Matrix4fc transformation) {
         this.base = base;
         this.retexturer = retexturer;
-        this.renderTypes = renderTypes;
+        this.transformation = transformation;
       }
 
       /** Gets the variant for the given block */
@@ -391,7 +391,7 @@ public class RetexturedModel extends ColoredBlockModel {
         assert retexturer != null;
         return cache.computeIfAbsent(block, b -> {
           SimpleModelWrapper part = retexturer.getCachedModel(b);
-          return new ItemVariant(part.quads().getAll(), retexturer.getData().itemProperties(part.particleIcon()));
+          return new ItemVariant(part.quads().getAll(), retexturer.getData().itemProperties(part.particleMaterial().sprite()));
         });
       }
 
@@ -404,7 +404,7 @@ public class RetexturedModel extends ColoredBlockModel {
             variant = getVariant(block);
           }
         }
-        ModelHelper.addItemLayers(renderState, stack, displayContext, variant.quads, variant.properties, renderTypes, variant.extents, variant.animated);
+        ModelHelper.addItemLayer(renderState, stack, displayContext, variant.quads, variant.properties, transformation, variant.extents, variant.animated);
       }
     }
   }

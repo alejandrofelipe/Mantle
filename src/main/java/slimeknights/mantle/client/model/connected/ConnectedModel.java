@@ -18,13 +18,12 @@ import net.minecraft.client.renderer.block.dispatch.SingleVariant;
 import net.minecraft.client.resources.model.sprite.TextureSlots;
 import net.minecraft.client.renderer.block.dispatch.Variant;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
-import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.sprite.SpriteId;
+import net.minecraft.client.resources.model.sprite.Material;
+import net.minecraft.client.resources.model.sprite.MaterialBaker;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.renderer.block.dispatch.ModelState;
 import net.minecraft.client.resources.model.ResolvedModel;
-import net.minecraft.client.resources.model.sprite.SpriteGetter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
@@ -110,22 +109,21 @@ public class ConnectedModel extends ColoredBlockModel {
    * @param textures  Resolved base texture slots
    * @return  Map of suffixed texture name to its material
    */
-  private Map<String,SpriteId> computeExtraTextures(TextureSlots textures) {
-    Map<String,SpriteId> extraTextures = new HashMap<>();
+  private Map<String,Material> computeExtraTextures(TextureSlots textures) {
+    Map<String,Material> extraTextures = new HashMap<>();
     for (Entry<String,String[]> entry : connectedTextures.entrySet()) {
       // fetch data from the base texture
       String name = entry.getKey();
-      SpriteId base = textures.getMaterial(name);
+      Material base = textures.getMaterial(name);
       // skip if missing
       if (base == null) {
         continue;
       }
-      Identifier atlas = base.atlasLocation();
-      Identifier texture = base.texture();
+      Identifier texture = base.sprite();
       String namespace = texture.getNamespace();
       String path = texture.getPath();
 
-      // use base atlas and texture, but suffix the name
+      // use base texture settings, but suffix the name
       String[] suffixes = entry.getValue();
       for (String suffix : suffixes) {
         if (suffix.isEmpty()) {
@@ -134,13 +132,13 @@ public class ConnectedModel extends ColoredBlockModel {
         // skip running if we have seen it before
         String suffixedName = name + "_" + suffix;
         if (!extraTextures.containsKey(suffixedName)) {
-          SpriteId mat;
+          Material mat;
           // allow overriding a specific texture
-          SpriteId override = textures.getMaterial(suffixedName);
+          Material override = textures.getMaterial(suffixedName);
           if (override != null) {
             mat = override;
           } else {
-            mat = new SpriteId(atlas, Identifier.fromNamespaceAndPath(namespace, path + "/" + suffix));
+            mat = new Material(Identifier.fromNamespaceAndPath(namespace, path + "/" + suffix), base.forceTranslucent());
           }
           // cache the texture name, we use it a lot in rebaking
           extraTextures.put(suffixedName, mat);
@@ -215,14 +213,14 @@ public class ConnectedModel extends ColoredBlockModel {
       this.cache.set(0, base);
 
       // resolve all sprites now while we have a baker: the base face textures plus all connected suffix variants
-      SpriteGetter spriteGetter = baker.sprites();
-      Map<String,SpriteId> extraTextures = connected.computeExtraTextures(data.textures());
+      MaterialBaker materials = baker.materials();
+      Map<String,Material> extraTextures = connected.computeExtraTextures(data.textures());
       Map<String,TextureAtlasSprite> sprites = new HashMap<>();
       for (CuboidModelElement element : data.elements()) {
         for (CuboidFace face : element.faces().values()) {
           String name = stripReference(face.texture());
           if (!sprites.containsKey(name)) {
-            sprites.put(name, spriteGetter.resolveSlot(data.textures(), name, data.name()));
+            sprites.put(name, materials.resolveSlot(data.textures(), name, data.name()).sprite());
           }
         }
       }
@@ -231,12 +229,12 @@ public class ConnectedModel extends ColoredBlockModel {
       this.connectedNames = ModelHelper.findReferences(resolved, connected.connectedTextures.keySet(), sprites.keySet());
       // PORT 1.21.5: suffix sprites are now resolved eagerly, so a pack missing an unused suffix texture logs it as a
       // missing texture at bake (1.21.4 silently used missingno on demand); check the client log in the uitest phase
-      for (Entry<String,SpriteId> entry : extraTextures.entrySet()) {
-        sprites.put(entry.getKey(), spriteGetter.get(entry.getValue(), data.name()));
+      for (Entry<String,Material> entry : extraTextures.entrySet()) {
+        sprites.put(entry.getKey(), materials.get(entry.getValue(), data.name()).sprite());
       }
       this.sprites = Map.copyOf(sprites);
       // the missing sprite is part of the atlas, so this lookup does not report anything
-      this.missing = spriteGetter.get(new SpriteId(TextureAtlas.LOCATION_BLOCKS, MissingTextureAtlasSprite.getLocation()), data.name());
+      this.missing = materials.get(new Material(MissingTextureAtlasSprite.getLocation()), data.name()).sprite();
     }
 
     /** Removes the leading {@code '#'} from a texture reference */

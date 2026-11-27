@@ -6,52 +6,49 @@ import com.google.gson.JsonParseException;
 import com.mojang.math.MatrixUtil;
 import com.mojang.math.Quadrant;
 import com.mojang.math.Transformation;
+import com.mojang.blaze3d.platform.Transparency;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.renderer.Sheets;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
-import net.minecraft.client.resources.model.sprite.TextureSlots;
-import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.block.dispatch.BlockModelRotation;
+import net.minecraft.client.renderer.block.dispatch.ModelState;
 import net.minecraft.client.renderer.item.CuboidItemModelWrapper;
+import net.minecraft.client.renderer.item.ItemModel;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
-import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.sprite.AtlasManager;
-import net.minecraft.client.renderer.block.dispatch.BlockModelRotation;
-import net.minecraft.client.resources.model.sprite.SpriteId;
 import net.minecraft.client.resources.model.ModelBaker;
-import net.minecraft.client.resources.model.ModelManager;
-import net.minecraft.client.renderer.block.dispatch.ModelState;
 import net.minecraft.client.resources.model.ResolvedModel;
+import net.minecraft.client.resources.model.cuboid.CuboidFace;
+import net.minecraft.client.resources.model.cuboid.CuboidRotation;
+import net.minecraft.client.resources.model.cuboid.FaceBakery;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.sprite.AtlasManager;
+import net.minecraft.client.resources.model.sprite.Material;
+import net.minecraft.client.resources.model.sprite.SpriteId;
+import net.minecraft.client.resources.model.sprite.TextureSlots;
 import net.minecraft.core.BlockMath;
 import net.minecraft.core.Direction;
 import net.minecraft.data.AtlasIds;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.util.GsonHelper;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
-import net.neoforged.neoforge.client.RenderTypeGroup;
+import net.neoforged.neoforge.client.model.ExtraFaceData;
 import net.neoforged.neoforge.client.model.quad.BakedColors;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
-import slimeknights.mantle.Mantle;
 
 import org.jspecify.annotations.Nullable;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -66,27 +63,21 @@ import java.util.function.Function;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class ModelHelper {
   private static final Map<Block,Identifier> TEXTURE_NAME_CACHE = new ConcurrentHashMap<>();
-  /** Models already warned about, keyed by their model identity (the extents supplier); cleared on resource reload */
-  private static final Set<Object> WARNED_MODELS = ConcurrentHashMap.newKeySet();
 
   /** Listener instance to clear cache */
-  public static final ResourceManagerReloadListener LISTENER = manager -> {
-    TEXTURE_NAME_CACHE.clear();
-    WARNED_MODELS.clear();
-  };
+  public static final ResourceManagerReloadListener LISTENER = manager -> TEXTURE_NAME_CACHE.clear();
 
   /**
    * Gets the texture name for a block from the model manager
    * @param block  Block to fetch
    * @return Texture name for the block
    */
-  @SuppressWarnings("deprecation")
   private static Identifier getParticleTextureInternal(Block block) {
-    // 1.21.5: BlockStateModel#particleIcon() is the context-free particle (deprecated by NeoForge in favor of the level-aware overload)
-    TextureAtlasSprite particle = Minecraft.getInstance().getModelManager().getBlockModelShaper().getBlockModel(block.defaultBlockState()).particleIcon();
+    // 26.1: block models live in the model manager's block state model set; the context-free particle uses an empty level
+    Material.Baked particle = Minecraft.getInstance().getModelManager().getBlockStateModelSet().getParticleMaterial(block.defaultBlockState());
     //noinspection ConstantConditions  dumb mods returning null particle icons
-    if (particle != null) {
-      return particle.contents().name();
+    if (particle != null && particle.sprite() != null) {
+      return particle.sprite().contents().name();
     }
     return MissingTextureAtlasSprite.getLocation();
   }
@@ -102,8 +93,6 @@ public class ModelHelper {
 
   /* Texture references */
 
-  /** Atlas used for the probe materials in {@link #findReferences(ResolvedModel, Collection, Collection)}, never a real atlas */
-  private static final Identifier REFERENCE_PROBE = Identifier.fromNamespaceAndPath("mantle", "reference_probe");
 
   /** Gets all texture names defined along the resolved model chain */
   public static Set<String> getTextureNames(ResolvedModel model) {
@@ -135,10 +124,11 @@ public class ModelHelper {
     }
     // probes have the highest priority so they replace whatever the targets resolved to
     TextureSlots.Data.Builder probes = new TextureSlots.Data.Builder();
-    Map<SpriteId,String> probeTargets = new HashMap<>();
+    Map<Material,String> probeTargets = new HashMap<>();
     int index = 0;
     for (String target : targets) {
-      SpriteId probe = new SpriteId(REFERENCE_PROBE, Identifier.fromNamespaceAndPath("mantle", "probe_" + index));
+      // never a real texture
+      Material probe = new Material(Identifier.fromNamespaceAndPath("mantle", "reference_probe/probe_" + index));
       index++;
       probes.addTexture(target, probe);
       probeTargets.put(probe, target);
@@ -146,7 +136,7 @@ public class ModelHelper {
     TextureSlots resolved = resolver.addFirst(probes.build()).resolve(model);
     Map<String,String> references = new HashMap<>();
     for (String name : names) {
-      SpriteId material = resolved.getMaterial(name);
+      Material material = resolved.getMaterial(name);
       if (material != null) {
         String target = probeTargets.get(material);
         if (target != null) {
@@ -161,72 +151,34 @@ public class ModelHelper {
   /* Item models */
 
   /**
-   * Adds the quads to an item render state, matching vanilla {@code CuboidItemModelWrapper#update}. Replaces the
+   * Adds the quads to an item render state as a single layer, matching vanilla {@code CuboidItemModelWrapper#update}. Replaces the
    * 1.21.4 {@code LayerRenderState#setupBlockModel(BakedModel, RenderType)} for dynamic item models.
    * <p>
-   * 1.21.11: blocks and items have separate atlases and a layer binds a single one, so quads mixing both atlases are split
-   * into one layer per atlas (in order of first appearance, keeping the quad order within each atlas), each with the render
-   * type for its atlas, see {@link #addItemLayers}. An explicit {@code renderType} binds a single atlas and cannot be split:
-   * mixed quads then log a warning once per model. Prefer {@link #addItemLayers} with the model's {@link RenderTypeGroup}.
+   * 26.1: every quad carries its own item render type ({@link BakedQuad.MaterialInfo#itemRenderType()}), so a layer may mix the blocks and items
+   * atlases and has no render type: the 1.21.11 per-atlas layer split and the render type (group) parameter are gone. Pick the render type when
+   * baking the quads instead.
    * @param renderState     Render state to fill
-   * @param stack           Stack being rendered, for the foil and default render type
+   * @param stack           Stack being rendered, for the foil
    * @param displayContext  Display context, selects the item transform
    * @param quads           Quads to render
    * @param properties      Item render properties (gui light, particle, transforms)
-   * @param renderType      Render type for the layer, null to use the stack's default for the atlas of the quads
+   * @param transformation  Transformation the item model was baked with ({@link ItemModel.Unbaked#bake(ItemModel.BakingContext, Matrix4fc)}),
+   *                        applied as the layer's local transform like vanilla
    * @param extents         Model extents, see {@link CuboidItemModelWrapper#computeExtents(List)}. Must be memoized and created
    *                        once per cached variant: it doubles as the variant's model identity (see below).
    * @param animated        Whether any quad uses an animated sprite, see {@link #hasAnimatedSprite(List)}; compute once per variant
-   * @return  The added layer (the first one if the quads were split per atlas), for further customization such as tint layers
+   * @return  The added layer, for further customization such as tint layers
    */
   public static ItemStackRenderState.LayerRenderState addItemLayer(ItemStackRenderState renderState, ItemStack stack, ItemDisplayContext displayContext, List<BakedQuad> quads,
-                                                                   ModelRenderProperties properties, @Nullable RenderType renderType, Supplier<Vector3fc[]> extents, boolean animated) {
-    if (renderType == null) {
-      return addItemLayers(renderState, stack, displayContext, quads, properties, null, extents, animated).getFirst();
-    }
-    List<Identifier> atlases = findAtlases(quads);
-    if (atlases.size() > 1) {
-      warnOnce(extents, "Item quads mix the atlases {} but are rendered with the single render type {}, so some quads sample the wrong atlas. Pass the model's render type group instead.",
-               atlases, renderType);
-    }
-    appendModelIdentity(renderState, stack, extents, animated);
-    return addLayer(renderState, stack, displayContext, quads, properties, renderType, extents);
-  }
-
-  /**
-   * Adds the quads to an item render state, one layer per atlas used by their sprites (in order of first appearance, keeping
-   * the quad order within each atlas). Each layer uses the render type for its atlas: from the group if set
-   * ({@link #getEntityRenderType(RenderTypeGroup, List)}), else the stack's default ({@link #getDefaultItemRenderType(ItemStack, List)}).
-   * See {@link #addItemLayer} for the other parameters; the model identity is appended once.
-   * @param renderTypes  Render type group from the model's {@code render_type}, null to use the stack's defaults
-   * @return  The added layers, never empty
-   */
-  public static List<ItemStackRenderState.LayerRenderState> addItemLayers(ItemStackRenderState renderState, ItemStack stack, ItemDisplayContext displayContext, List<BakedQuad> quads,
-                                                                         ModelRenderProperties properties, @Nullable RenderTypeGroup renderTypes, Supplier<Vector3fc[]> extents, boolean animated) {
-    appendModelIdentity(renderState, stack, extents, animated);
-    // common case: a single atlas, no need to copy the quads
-    if (findAtlases(quads).size() <= 1) {
-      return List.of(addLayer(renderState, stack, displayContext, quads, properties, getItemRenderType(stack, quads, renderTypes, extents), extents));
-    }
-    Map<Identifier,List<BakedQuad>> byAtlas = new LinkedHashMap<>();
-    for (BakedQuad quad : quads) {
-      byAtlas.computeIfAbsent(quad.sprite().atlasLocation(), atlas -> new ArrayList<>()).add(quad);
-    }
-    List<ItemStackRenderState.LayerRenderState> layers = new ArrayList<>(byAtlas.size());
-    for (List<BakedQuad> atlasQuads : byAtlas.values()) {
-      layers.add(addLayer(renderState, stack, displayContext, atlasQuads, properties, getItemRenderType(stack, atlasQuads, renderTypes, extents), extents));
-    }
-    return layers;
-  }
-
-  /** Appends the model identity, foil and animation state for the item, shared by every layer of the model */
-  private static void appendModelIdentity(ItemStackRenderState renderState, ItemStack stack, Supplier<Vector3fc[]> extents, boolean animated) {
+                                                                   ModelRenderProperties properties, Matrix4fc transformation, Supplier<Vector3fc[]> extents, boolean animated) {
     // 1.21.6+: GUI items are drawn once into an atlas keyed by the render state's model identity, so every distinct
     // look must append a distinct element (vanilla appends the CuboidItemModelWrapper itself). Without one, all dynamic items
     // share the empty identity and show whichever was drawn first. The memoized extents supplier is unique per variant
     // and compares by identity, so it is a cheap stable key.
     renderState.appendModelIdentityElement(extents);
+    ItemStackRenderState.LayerRenderState layer = renderState.newLayer();
     if (stack.hasFoil()) {
+      layer.setFoilType(ItemStackRenderState.FoilType.STANDARD);
       // glint animates, so re-render the atlas slot every frame like vanilla
       renderState.setAnimated();
       renderState.appendModelIdentityElement(ItemStackRenderState.FoilType.STANDARD);
@@ -235,106 +187,77 @@ public class ModelHelper {
     if (animated) {
       renderState.setAnimated();
     }
-  }
-
-  /** Adds a single layer with the given quads and render type */
-  private static ItemStackRenderState.LayerRenderState addLayer(ItemStackRenderState renderState, ItemStack stack, ItemDisplayContext displayContext, List<BakedQuad> quads,
-                                                                ModelRenderProperties properties, RenderType renderType, Supplier<Vector3fc[]> extents) {
-    ItemStackRenderState.LayerRenderState layer = renderState.newLayer();
-    if (stack.hasFoil()) {
-      layer.setFoilType(ItemStackRenderState.FoilType.STANDARD);
-    }
     layer.setExtents(extents);
-    layer.setRenderType(renderType);
+    layer.setLocalTransform(transformation);
     properties.applyToLayer(layer, displayContext);
     layer.prepareQuadList().addAll(quads);
     return layer;
   }
 
-  /** Gets the render type for quads from a single atlas, warning once per model if item render types cannot bind the atlas */
-  private static RenderType getItemRenderType(ItemStack stack, List<BakedQuad> quads, @Nullable RenderTypeGroup renderTypes, Object model) {
-    if (!quads.isEmpty()) {
-      Identifier atlas = quads.getFirst().sprite().atlasLocation();
-      if (!atlas.equals(TextureAtlas.LOCATION_BLOCKS) && !atlas.equals(TextureAtlas.LOCATION_ITEMS)) {
-        warnOnce(model, "Item quads use the atlas {}, which item render types cannot bind; rendering them with the items atlas", atlas);
-      }
-    }
-    return renderTypes != null ? getEntityRenderType(renderTypes, quads) : getDefaultItemRenderType(stack, quads);
-  }
-
-  /** Gets the distinct atlases of the quads' sprites, in order of first appearance. Does not allocate for a single atlas. */
-  private static List<Identifier> findAtlases(List<BakedQuad> quads) {
-    if (quads.isEmpty()) {
-      return List.of();
-    }
-    Identifier first = quads.getFirst().sprite().atlasLocation();
-    List<Identifier> atlases = null;
-    for (BakedQuad quad : quads) {
-      Identifier atlas = quad.sprite().atlasLocation();
-      if (!atlas.equals(first) && (atlases == null || !atlases.contains(atlas))) {
-        if (atlases == null) {
-          atlases = new ArrayList<>(2);
-          atlases.add(first);
-        }
-        atlases.add(atlas);
-      }
-    }
-    return atlases == null ? List.of(first) : atlases;
-  }
-
-  /** Logs a warning once per model */
-  private static void warnOnce(Object model, String message, Object... args) {
-    if (WARNED_MODELS.add(model)) {
-      Mantle.logger.warn(message, args);
-    }
-  }
-
   /**
-   * Gets the default render type for item quads from a single atlas, matching vanilla {@code CuboidItemModelWrapper#detectRenderType}:
-   * quads from the items atlas (or no quads) use {@link Sheets#translucentItemSheet()}, quads from the blocks atlas use
-   * {@link Sheets#cutoutBlockSheet()} for non-translucent block items and {@link Sheets#translucentBlockItemSheet()} otherwise.
-   * 1.21.11: replaces {@code ItemBlockRenderTypes.getRenderType(ItemStack)}; item textures moved to their own atlas, so the
-   * render type must bind the atlas the sprites came from. The first quad decides; split mixed quads with {@link #addItemLayers}.
+   * Creates item render properties with the given particle sprite.
+   * 26.1: {@link ModelRenderProperties} holds a {@link Material.Baked} particle.
    */
-  public static RenderType getDefaultItemRenderType(ItemStack stack, List<BakedQuad> quads) {
-    if (quads.isEmpty() || !quads.getFirst().sprite().atlasLocation().equals(TextureAtlas.LOCATION_BLOCKS)) {
-      return Sheets.translucentItemSheet();
-    }
-    if (stack.getItem() instanceof BlockItem blockItem) {
-      @SuppressWarnings("deprecation")  // same call as vanilla CuboidItemModelWrapper
-      ChunkSectionLayer layer = ItemBlockRenderTypes.getChunkRenderType(blockItem.getBlock().defaultBlockState());
-      if (layer != ChunkSectionLayer.TRANSLUCENT) {
-        return Sheets.cutoutBlockSheet();
-      }
-    }
-    return Sheets.translucentBlockItemSheet();
-  }
-
-  /**
-   * Picks the entity render type of a render type group for item quads from a single atlas, matching NeoForge's
-   * {@code RenderTypeHelper#detectItemModelRenderType}: blocks atlas uses {@link RenderTypeGroup#entityBlock()},
-   * anything else (items atlas, no quads) uses {@link RenderTypeGroup#entityItem()}. Replaces the 1.21.10 {@code RenderTypeGroup#entity()}.
-   * The first quad decides; split mixed quads with {@link #addItemLayers}.
-   * @param group  Render type group, must not be empty
-   * @param quads  Quads that will be rendered with the type
-   * @return  Entity render type binding the atlas of the quads
-   */
-  public static RenderType getEntityRenderType(RenderTypeGroup group, List<BakedQuad> quads) {
-    if (!quads.isEmpty() && quads.getFirst().sprite().atlasLocation().equals(TextureAtlas.LOCATION_BLOCKS)) {
-      return group.entityBlock();
-    }
-    return group.entityItem();
+  public static ModelRenderProperties itemProperties(ModelRenderProperties properties, TextureAtlasSprite particle) {
+    return new ModelRenderProperties(properties.usesBlockLight(), new Material.Baked(particle, false), properties.transforms());
   }
 
 
   /* Quads */
 
   /**
-   * Part cache for {@link net.minecraft.client.resources.model.cuboid.FaceBakery#bakeQuad} outside the model bakery, which
-   * only exists during baking. The bakery's cache interns positions to save memory; this one keeps them as baked, so the
-   * quads are identical either way.
+   * Interner for {@link FaceBakery} outside the model bakery, which only exists during baking. The bakery's interner shares positions and
+   * material infos to save memory; this one keeps them as baked, so the quads are identical either way.
+   * 26.1: replaces the 1.21.11 {@code UNCACHED_PARTS} ({@code ModelBaker.PartCache} became {@link ModelBaker.Interner}).
    */
-  public static final ModelBaker.PartCache UNCACHED_PARTS = vector -> vector;
+  public static final ModelBaker.Interner UNCACHED_INTERNER = new ModelBaker.Interner() {
+    @Override
+    public Vector3fc vector(Vector3fc vector) {
+      return vector;
+    }
+
+    @Override
+    public BakedQuad.MaterialInfo materialInfo(BakedQuad.MaterialInfo material) {
+      return material;
+    }
+  };
+
+  /**
+   * Bakes an element face outside the model bakery, matching vanilla {@code FaceBakery#bakeQuad(ModelBaker, ...)}.
+   * 26.1: the layer and item render type of the quad come from the transparency of the face's UV region of the sprite, or translucent if the
+   * material forces it ({@link BakedQuad.MaterialInfo#of}), replacing the model's 1.21.11 {@code render_type}.
+   * @param from           Element start
+   * @param to             Element end
+   * @param face           Face data
+   * @param material       Material for the face, wrap a runtime sprite with {@code new Material.Baked(sprite, false)}
+   * @param facing         Direction of the face
+   * @param state          Model state, including UV lock
+   * @param rotation       Element rotation
+   * @param shade          If true, shades the face
+   * @param lightEmission  Light emission of the element, the face's own emission wins if larger
+   * @return  Baked quad
+   */
+  public static BakedQuad bakeQuad(Vector3fc from, Vector3fc to, CuboidFace face, Material.Baked material, Direction facing, ModelState state,
+                                   @Nullable CuboidRotation rotation, boolean shade, int lightEmission) {
+    CuboidFace.UVs uvs = face.uvs();
+    if (uvs == null) {
+      uvs = FaceBakery.defaultFaceUV(from, to, facing);
+    }
+    ExtraFaceData faceData = face.faceData();
+    BakedQuad.MaterialInfo materialInfo = BakedQuad.MaterialInfo.of(material, getTransparency(material, uvs), face.tintIndex(), shade,
+                                                                     Math.max(lightEmission, faceData.lightEmission()), faceData.ambientOcclusion());
+    return FaceBakery.bakeQuad(UNCACHED_INTERNER, from, to, uvs, face.rotation(), materialInfo, facing, state, rotation, faceData);
+  }
+
+  /** Gets the transparency of a face, matching the private {@code FaceBakery#computeMaterialTransparency} */
+  private static Transparency getTransparency(Material.Baked material, CuboidFace.UVs uvs) {
+    if (material.forceTranslucent()) {
+      return Transparency.TRANSLUCENT;
+    }
+    return material.sprite().contents().computeTransparency(
+      Math.min(uvs.minU(), uvs.maxU()) / 16f, Math.min(uvs.minV(), uvs.maxV()) / 16f,
+      Math.max(uvs.minU(), uvs.maxU()) / 16f, Math.max(uvs.minV(), uvs.maxV()) / 16f);
+  }
 
   /**
    * Copies a quad with new baked colors. Replaces writing the vertex colors through NeoForge's removed {@code IQuadTransformer}.
@@ -348,36 +271,44 @@ public class ModelHelper {
     }
     return new BakedQuad(quad.position0(), quad.position1(), quad.position2(), quad.position3(),
                          quad.packedUV0(), quad.packedUV1(), quad.packedUV2(), quad.packedUV3(),
-                         quad.tintIndex(), quad.direction(), quad.sprite(), quad.shade(), quad.lightEmission(),
-                         quad.bakedNormals(), colors, quad.hasAmbientOcclusion());
+                         quad.direction(), quad.materialInfo(), quad.bakedNormals(), colors);
   }
 
 
   /* Sprites */
 
   /**
-   * Gets a sprite for a material at runtime, outside the model bake. Unlike {@link AtlasManager#get(SpriteId)}, supports
-   * {@link ModelManager#BLOCK_OR_ITEM}, the atlas vanilla assigns to every texture parsed from a model JSON since 1.21.11:
-   * like the model bakery's sprite getter, the items atlas is checked first, then the blocks atlas (missing sprite if neither).
-   * @param material  SpriteId to fetch
+   * Gets a sprite for a sprite ID at runtime, outside the model bake.
+   * 26.1: model textures no longer name an atlas (they are {@link Material}s, see {@link #getSprite(Material)}), so the 1.21.11 {@code block_or_item}
+   * pseudo atlas is gone and every sprite ID names a real atlas.
+   * @param sprite  Sprite ID to fetch
    * @return  Sprite, or the missing sprite of the atlas
    */
-  public static TextureAtlasSprite getSprite(SpriteId material) {
+  public static TextureAtlasSprite getSprite(SpriteId sprite) {
+    return Minecraft.getInstance().getAtlasManager().get(sprite);
+  }
+
+  /**
+   * Gets the sprite for a model texture at runtime, outside the model bake. Like the model bakery's material baker, the blocks atlas is checked
+   * first, then the items atlas, falling back to the missing sprite of the blocks atlas.
+   * @param material  Model texture, typically from {@link TextureSlots#getMaterial(String)}
+   * @return  Sprite
+   */
+  public static TextureAtlasSprite getSprite(Material material) {
     AtlasManager atlases = Minecraft.getInstance().getAtlasManager();
-    if (material.atlasLocation().equals(ModelManager.BLOCK_OR_ITEM)) {
-      TextureAtlasSprite sprite = atlases.getAtlasOrThrow(AtlasIds.ITEMS).getTextures().get(material.texture());
-      if (sprite != null) {
-        return sprite;
-      }
-      return atlases.getAtlasOrThrow(AtlasIds.BLOCKS).getSprite(material.texture());
+    TextureAtlas blocks = atlases.getAtlasOrThrow(AtlasIds.BLOCKS);
+    TextureAtlasSprite sprite = blocks.getTextures().get(material.sprite());
+    if (sprite != null) {
+      return sprite;
     }
-    return atlases.get(material);
+    sprite = atlases.getAtlasOrThrow(AtlasIds.ITEMS).getTextures().get(material.sprite());
+    return sprite != null ? sprite : blocks.missingSprite();
   }
 
   /** Checks if any of the quads uses an animated sprite, matching vanilla's {@code CuboidItemModelWrapper} constructor. Call once per baked variant, not per render. */
   public static boolean hasAnimatedSprite(List<BakedQuad> quads) {
     for (BakedQuad quad : quads) {
-      if (quad.sprite().contents().isAnimated()) {
+      if (quad.materialInfo().sprite().contents().isAnimated()) {
         return true;
       }
     }

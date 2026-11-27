@@ -1,23 +1,18 @@
 package slimeknights.mantle.client.model.util;
 
-import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.cuboid.CuboidModelElement;
 import net.minecraft.client.resources.model.SimpleModelWrapper;
+import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.client.resources.model.sprite.TextureSlots;
-import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
-import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.sprite.SpriteId;
-import net.minecraft.client.resources.model.MaterialSet;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ModelDebugName;
 import net.minecraft.client.renderer.block.dispatch.ModelState;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.client.resources.model.ResolvedModel;
 import net.minecraft.util.context.ContextMap;
-import net.neoforged.neoforge.client.RenderTypeGroup;
-import net.neoforged.neoforge.client.model.NeoForgeModelProperties;
 import slimeknights.mantle.client.model.util.ColoredBlockModel.ColorData;
 
 import org.jspecify.annotations.Nullable;
@@ -33,6 +28,9 @@ import java.util.function.Function;
  * only exists during model baking, while dynamic models (retextured blocks, tanks, material blocks) only know their
  * textures at render time, so they keep this record and rebake quads lazily, typically with the atlas manager ({@link ModelHelper#getSprite(SpriteId)})
  * through {@link #runtimeSprites(Map)}, caching the result per texture.
+ * <p>
+ * 26.1: the render type group from the model's {@code render_type} is gone: every quad picks its render layer and item render type from its sprite
+ * when baked (see {@link ModelHelper#bakeQuad}), so block parts and item layers need no render type.
  *
  * @param elements             Elements to bake, including elements inherited from parents
  * @param colorData            Per-element color data, empty for plain elements
@@ -40,12 +38,11 @@ import java.util.function.Function;
  * @param state                Model state with the root transform composed in
  * @param useAmbientOcclusion  Ambient occlusion flag of the model
  * @param particle             Default particle sprite
- * @param renderType           Render type group from the model's {@code render_type}, or {@link RenderTypeGroup#EMPTY}
  * @param itemProperties       Item render properties (gui light, transforms, particle) for item models
  * @param name                 Debug name for error reporting
  */
 public record ElementModelData(List<CuboidModelElement> elements, List<ColorData> colorData, TextureSlots textures, ModelState state, boolean useAmbientOcclusion,
-                               TextureAtlasSprite particle, RenderTypeGroup renderType, ModelRenderProperties itemProperties, ModelDebugName name) {
+                               TextureAtlasSprite particle, ModelRenderProperties itemProperties, ModelDebugName name) {
   /**
    * Captures the data for a resolved model
    * @param baker      Model baker, used to resolve the particle sprite
@@ -57,10 +54,9 @@ public record ElementModelData(List<CuboidModelElement> elements, List<ColorData
   public static ElementModelData of(ModelBaker baker, ResolvedModel model, ModelState state, List<ColorData> colorData) {
     TextureSlots textures = model.getTopTextureSlots();
     ContextMap properties = model.getTopAdditionalProperties();
-    RenderTypeGroup renderType = properties.getOptional(NeoForgeModelProperties.RENDER_TYPE);
     return new ElementModelData(
       SimpleBlockModel.findElements(model), colorData, textures, SimpleBlockModel.applyRootTransform(state, properties),
-      model.getTopAmbientOcclusion(), model.resolveParticleSprite(textures, baker), renderType == null ? RenderTypeGroup.EMPTY : renderType,
+      model.getTopAmbientOcclusion(), model.resolveParticleMaterial(textures, baker).sprite(),
       ModelRenderProperties.fromResolvedModel(baker, model, textures), model);
   }
 
@@ -90,15 +86,14 @@ public record ElementModelData(List<CuboidModelElement> elements, List<ColorData
 
   /** Sprite lookup for the baking phase, reporting missing textures through the baker */
   public Function<String,TextureAtlasSprite> bakingSprites(ModelBaker baker) {
-    return SimpleBlockModel.spriteLookup(textures, baker.sprites(), name);
+    return SimpleBlockModel.spriteLookup(textures, baker, name);
   }
 
   /**
    * Sprite lookup at runtime with the given texture replacements, through the atlas manager.
-   * 1.21.9: {@code SpriteId#sprite()} is gone; {@link net.minecraft.client.resources.model.sprite.AtlasManager} is the runtime {@link MaterialSet}
-   * holding every stitched sprite (missing sprite for unknown textures, like the old atlas lookup).
-   * 1.21.11: model textures use the {@code block_or_item} pseudo atlas, which the atlas manager rejects; {@link ModelHelper#getSprite(SpriteId)}
-   * resolves it like the model bakery.
+   * 1.21.9: {@code SpriteId#sprite()} is gone; {@link net.minecraft.client.resources.model.sprite.AtlasManager} holds every stitched sprite
+   * (missing sprite for unknown textures, like the old atlas lookup).
+   * 26.1: textures not replaced are resolved like the model bakery, see {@link ModelHelper#getSprite(Material)}.
    */
   public Function<String,TextureAtlasSprite> runtimeSprites(Map<String,SpriteId> replacements) {
     return SimpleBlockModel.spriteLookup(textures, replacements, ModelHelper::getSprite);
@@ -128,42 +123,12 @@ public record ElementModelData(List<CuboidModelElement> elements, List<ColorData
     return bake(runtimeSprites(replacements));
   }
 
-  /** Gets the chunk render type for block parts, or null to use the block's default */
-  @Nullable
-  public ChunkSectionLayer blockRenderType() {
-    return renderType.isEmpty() ? null : renderType.block();
-  }
-
   /**
-   * Gets the entity render type for item rendering of the given quads, or null to use the item's default.
-   * 1.21.11: the group holds a type per atlas, so the quads pick it, see {@link ModelHelper#getEntityRenderType(RenderTypeGroup, List)}.
+   * Creates a block model part for the given quads, matching vanilla {@link SimpleModelWrapper#bake}.
+   * 26.1: the part has no render type, each quad holds its layer.
    */
-  @Nullable
-  public RenderType itemRenderType(List<BakedQuad> quads) {
-    return renderType.isEmpty() ? null : ModelHelper.getEntityRenderType(renderType, quads);
-  }
-
-  /** Gets the render type group from the model's {@code render_type}, or null if unset */
-  @Nullable
-  public static RenderTypeGroup itemRenderTypes(ResolvedModel model) {
-    RenderTypeGroup renderType = model.getTopAdditionalProperties().getOptional(NeoForgeModelProperties.RENDER_TYPE);
-    return renderType == null || renderType.isEmpty() ? null : renderType;
-  }
-
-  /**
-   * Gets the entity render type for item rendering of the given model and quads, or null to use the item's default.
-   * 1.21.11: the group holds a type per atlas, so the quads pick it, see {@link ModelHelper#getEntityRenderType(RenderTypeGroup, List)}.
-   * For quads that may mix the blocks and items atlases, pass {@link #itemRenderTypes(ResolvedModel)} to {@link ModelHelper#addItemLayers} instead.
-   */
-  @Nullable
-  public static RenderType itemRenderType(ResolvedModel model, List<BakedQuad> quads) {
-    RenderTypeGroup renderType = itemRenderTypes(model);
-    return renderType == null ? null : ModelHelper.getEntityRenderType(renderType, quads);
-  }
-
-  /** Creates a block model part for the given quads, matching vanilla {@link SimpleModelWrapper#bake} */
   public SimpleModelWrapper part(QuadCollection quads, TextureAtlasSprite particle) {
-    return new SimpleModelWrapper(quads, useAmbientOcclusion, particle, blockRenderType());
+    return new SimpleModelWrapper(quads, useAmbientOcclusion, new Material.Baked(particle, false));
   }
 
   /** Creates a block model part with the default particle */
@@ -173,6 +138,6 @@ public record ElementModelData(List<CuboidModelElement> elements, List<ColorData
 
   /** Creates item render properties using the given particle */
   public ModelRenderProperties itemProperties(TextureAtlasSprite particle) {
-    return new ModelRenderProperties(itemProperties.usesBlockLight(), particle, itemProperties.transforms());
+    return ModelHelper.itemProperties(itemProperties, particle);
   }
 }

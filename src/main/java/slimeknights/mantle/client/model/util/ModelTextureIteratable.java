@@ -1,7 +1,7 @@
 package slimeknights.mantle.client.model.util;
 
 import com.mojang.datafixers.util.Either;
-import net.minecraft.client.resources.model.sprite.SpriteId;
+import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.client.resources.model.ResolvedModel;
 
 import org.jspecify.annotations.Nullable;
@@ -19,16 +19,16 @@ import java.util.Map;
  * <p>
  * 1.21.5: unbaked models only know their parent's location, so walking parents requires a {@link ResolvedModel}.
  */
-public class ModelTextureIteratable implements Iterable<Map<String,Either<SpriteId, String>>> {
+public class ModelTextureIteratable implements Iterable<Map<String,Either<Material,String>>> {
   /** Maps to iterate, child first */
-  private final List<Map<String,Either<SpriteId, String>>> maps;
+  private final List<Map<String,Either<Material,String>>> maps;
 
   /**
    * Creates an iterable over an optional initial map followed by the given resolved model chain
    * @param startMap    Initial map, or null for none
    * @param startModel  Resolved model to iterate, or null for none
    */
-  public ModelTextureIteratable(@Nullable Map<String,Either<SpriteId, String>> startMap, @Nullable ResolvedModel startModel) {
+  public ModelTextureIteratable(@Nullable Map<String,Either<Material,String>> startMap, @Nullable ResolvedModel startModel) {
     this.maps = new ArrayList<>();
     if (startMap != null) {
       maps.add(startMap);
@@ -58,7 +58,7 @@ public class ModelTextureIteratable implements Iterable<Map<String,Either<Sprite
   }
 
   @Override
-  public Iterator<Map<String,Either<SpriteId, String>>> iterator() {
+  public Iterator<Map<String,Either<Material,String>>> iterator() {
     return maps.iterator();
   }
 }

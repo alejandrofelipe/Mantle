@@ -12,6 +12,7 @@ import net.minecraft.client.resources.model.cuboid.CuboidRotation;
 import net.minecraft.client.resources.model.cuboid.FaceBakery;
 import net.minecraft.client.resources.model.sprite.TextureSlots;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.client.resources.model.sprite.SpriteId;
 import net.minecraft.client.renderer.block.dispatch.ModelState;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
@@ -57,7 +58,7 @@ public class ColoredBlockModel extends SimpleBlockModel {
    * @param parts       List of parts in the model
    * @param colorData   Additional information about colors in the model
    */
-  public ColoredBlockModel(StandardModelParameters parameters, Map<String,Either<SpriteId,String>> textures, List<CuboidModelElement> parts, List<ColorData> colorData) {
+  public ColoredBlockModel(StandardModelParameters parameters, Map<String,Either<Material,String>> textures, List<CuboidModelElement> parts, List<ColorData> colorData) {
     super(parameters, textures, parts);
     this.colorData = colorData;
   }
@@ -260,7 +261,8 @@ public class ColoredBlockModel extends SimpleBlockModel {
       lightEmission = Math.max(lightEmission, emissivity);
     }
     // delegate to the vanilla face bakery, which handles UV lock, winding, normals, and neoforge face data
-    return FaceBakery.bakeQuad(ModelHelper.UNCACHED_PARTS, posFrom, posTo, face, sprite, facing, state, partRotation, shade, lightEmission);
+    // 26.1: the render layer follows the sprite's transparency, see ModelHelper#bakeQuad
+    return ModelHelper.bakeQuad(posFrom, posTo, face, new Material.Baked(sprite, false), facing, state, partRotation, shade, lightEmission);
   }
 
   /**

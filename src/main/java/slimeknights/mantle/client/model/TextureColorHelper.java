@@ -3,7 +3,9 @@ package slimeknights.mantle.client.model;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.block.BlockStateModelSet;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
+import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.client.renderer.texture.SpriteContents;
@@ -118,11 +120,12 @@ public class TextureColorHelper {
     Minecraft mc = Minecraft.getInstance();
     ItemStackRenderState renderState = new ItemStackRenderState();
     mc.getItemModelResolver().updateForTopItem(renderState, new ItemStack(item), ItemDisplayContext.GUI, null, null, 0);
-    TextureAtlasSprite particle = renderState.pickParticleIcon(RandomSource.create(0));
-    if (particle == null || particle.contents().name().equals(MissingTextureAtlasSprite.getLocation())) {
+    // 26.1: the particle is a baked material
+    Material.Baked particle = renderState.pickParticleMaterial(RandomSource.create(0));
+    if (particle == null || particle.sprite().contents().name().equals(MissingTextureAtlasSprite.getLocation())) {
       return -1;
     }
-    return getAverageColor(particle);
+    return getAverageColor(particle.sprite());
   };
 
   /** Gets the average color of an item's default particle icon */
@@ -134,11 +137,13 @@ public class TextureColorHelper {
   private static final ToIntFunction<Block> COMPUTE_BLOCK_COLOR = block -> {
     Minecraft mc = Minecraft.getInstance();
     // 1.21.5: block models are BlockStateModels; the context-free particle icon is enough for an average color
-    BlockStateModel model = mc.getBlockRenderer().getBlockModel(block.defaultBlockState());
-    if (model == mc.getModelManager().getMissingBlockStateModel()) {
+    // 26.1: block models moved to the model manager's block state model set
+    BlockStateModelSet models = mc.getModelManager().getBlockStateModelSet();
+    BlockStateModel model = models.get(block.defaultBlockState());
+    if (model == models.missingModel()) {
       return -1;
     }
-    return getAverageColor(model.particleIcon());
+    return getAverageColor(models.getParticleMaterial(block.defaultBlockState()).sprite());
   };
 
   /** Gets the average color of an blocks default particle icon */

@@ -7,9 +7,11 @@ import com.mojang.math.Transformation;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.sprite.TextureSlots;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.SpriteContents;
+import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.sprite.SpriteId;
+import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ModelDebugName;
 import net.minecraft.client.renderer.block.dispatch.ModelState;
@@ -19,9 +21,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.context.ContextMap;
-import net.neoforged.neoforge.client.NamedRenderTypeManager;
 import net.neoforged.neoforge.client.NeoForgeRenderTypes;
-import net.neoforged.neoforge.client.RenderTypeGroup;
 import net.neoforged.neoforge.client.model.AbstractUnbakedModel;
 import net.neoforged.neoforge.client.model.ExtendedUnbakedGeometry;
 import net.neoforged.neoforge.client.model.NeoForgeModelProperties;
@@ -56,8 +56,8 @@ import java.util.function.Function;
  * Also supports luminosity, and when used as a model loader supports telling a layer to not use a tint index.
  * <p>
  * 1.21.5: textures come from the resolved {@link TextureSlots} passed to the {@link UnbakedGeometry}, which bakes all
- * layers into a single {@link QuadCollection}. A geometry has a single render type (the model's {@code render_type}),
- * so per-layer {@link LayerData#renderType()} is no longer applied by this loader.
+ * layers into a single {@link QuadCollection}. Per-layer {@link LayerData#renderType()} is not applied by this loader.
+ * 26.1: quads carry their render type: item layer quads are translucent, see {@link #getItemRenderType(TextureAtlasSprite)}.
  */
 public class MantleItemLayerModel extends AbstractUnbakedModel {
   /** Model loader instance */
@@ -106,14 +106,21 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
     return LogicHelper.getOrDefault(layers, index, LayerData.DEFAULT);
   }
 
-  /** Gets the default render type for an item layer, using the model's render type hint if present */
-  public static RenderTypeGroup getDefaultRenderType(RenderTypeGroup renderTypeHint) {
-    if (!renderTypeHint.isEmpty()) {
-      return renderTypeHint;
-    } else {
-      // 1.21.11: groups hold an entity type per atlas, built like NeoForge's own named render types
-      return new RenderTypeGroup(ChunkSectionLayer.TRANSLUCENT, NeoForgeRenderTypes::getUnsortedTranslucent);
-    }
+  /**
+   * Gets the item render type for item layer quads using the given sprite: NeoForge's unsorted translucent type for the sprite's atlas.
+   * 26.1: replaces {@code getDefaultRenderType(RenderTypeGroup)}. Quads carry their render type, so this is applied when baking the quads
+   * (render layer {@link ChunkSectionLayer#TRANSLUCENT}), matching the 1.21.11 default group {@code RenderTypeGroup(TRANSLUCENT, NeoForgeRenderTypes::getUnsortedTranslucent)}.
+   */
+  public static RenderType getItemRenderType(TextureAtlasSprite sprite) {
+    return sprite.atlasLocation().equals(TextureAtlas.LOCATION_BLOCKS) ? NeoForgeRenderTypes.BLOCK_ITEM_UNSORTED_TRANSLUCENT.get() : NeoForgeRenderTypes.ITEM_UNSORTED_TRANSLUCENT.get();
+  }
+
+  /** Sets the sprite and the item layer quad defaults on the quad builder; baking a quad resets them */
+  private static void setupQuad(QuadBakingVertexConsumer builder, TextureAtlasSprite sprite) {
+    builder.setSprite(sprite, ChunkSectionLayer.TRANSLUCENT, getItemRenderType(sprite));
+    // TODO: should we customize these?
+    builder.setShade(false);
+    builder.setAmbientOcclusion(true);
   }
 
   /**
@@ -130,9 +137,9 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
   /** Bakes the layers into a quad collection, used as this model's geometry */
   private QuadCollection bake(TextureSlots textureSlots, ModelBaker baker, ModelState modelTransform, ModelDebugName debugName, ContextMap additionalProperties) {
     // gather the layer materials from the resolved texture slots
-    List<SpriteId> textures = new ArrayList<>();
+    List<Material> textures = new ArrayList<>();
     for (int i = 0; ; i++) {
-      SpriteId material = textureSlots.getMaterial("layer" + i);
+      Material material = textureSlots.getMaterial("layer" + i);
       if (material == null) {
         break;
       }
@@ -141,12 +148,12 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
     if (textures.isEmpty()) {
       throw new IllegalStateException("Empty textures list");
     }
-    Function<SpriteId,TextureAtlasSprite> spriteGetter = material -> baker.sprites().get(material, debugName);
+    Function<Material,TextureAtlasSprite> spriteGetter = material -> baker.materials().get(material, debugName).sprite();
 
     // setup quad building
     ReversedListBuilder<List<BakedQuad>> quadBuilder = new ReversedListBuilder<>();
     ItemLayerPixels pixels = textures.size() == 1 ? null : new ItemLayerPixels();
-    Transformation rootTransform = additionalProperties.getOrDefault(NeoForgeModelProperties.TRANSFORM, Transformation.identity());
+    Transformation rootTransform = additionalProperties.getOrDefault(NeoForgeModelProperties.TRANSFORM, Transformation.IDENTITY);
     modelTransform = applyTransform(modelTransform, rootTransform);
 
     // skip the pixel tracking if using a single texture only
@@ -269,16 +276,14 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
         BakedQuad quad = super.bakeQuad();
         builder.add(quad);
         // 1.21.11: baking resets the sprite, restore it for the next quad
-        setSprite(textureSprite);
+        // 26.1: it also resets the render types, shade and ambient occlusion
+        setupQuad(this, textureSprite);
         return quad;
       }
     };
     // common settings
-    quadBuilder.setSprite(textureSprite);
+    setupQuad(quadBuilder, textureSprite);
     quadBuilder.setTintIndex(tint);
-    // TODO: should we customize these?
-    quadBuilder.setShade(false);
-    quadBuilder.setHasAmbientOcclusion(true);
     // only need to set up transforms once, isn't that nice?
     VertexConsumer quadConsumer = quadBuilder;
     if (!transform.isIdentity()) {
@@ -407,11 +412,8 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
     // setup quad builder
     QuadBakingVertexConsumer quadBuilder = new QuadBakingVertexConsumer();
     // common settings
-    quadBuilder.setSprite(sprite);
+    setupQuad(quadBuilder, sprite);
     quadBuilder.setTintIndex(tint);
-    // TODO: should we customize these?
-    quadBuilder.setShade(false);
-    quadBuilder.setHasAmbientOcclusion(true);
     // only need to set up transforms once, isn't that nice?
     VertexConsumer quadConsumer = quadBuilder;
     if (!transform.isIdentity()) {
@@ -556,7 +558,9 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
   }
 
   /**
-   * Class holding details about a single layer in the model
+   * Class holding details about a single layer in the model.
+   * The {@code render_type} is still parsed, but has not been applied since 1.21.5; 26.1 removed named render types, so its
+   * {@code getRenderType(RenderTypeGroup)} is gone too.
    */
   public record LayerData(int color, int luminosity, boolean noTint, @Nullable Identifier renderType) {
     public static final LayerData DEFAULT = new LayerData(-1, 0, false, null);
@@ -568,14 +572,6 @@ public class MantleItemLayerModel extends AbstractUnbakedModel {
       Loadables.RESOURCE_LOCATION.nullableField("render_type", LayerData::renderType),
       LayerData::new);
     public static final Loadable<List<LayerData>> LIST_LOADABLE = LOADABLE.list(1);
-
-    /** Gets the render type for this layer, falling back to the passed type if not requested */
-    public RenderTypeGroup getRenderType(RenderTypeGroup defaultType) {
-      if (renderType == null) {
-        return defaultType;
-      }
-      return NamedRenderTypeManager.get(renderType);
-    }
 
     /** @deprecated use {@link #LOADABLE} */
     @Deprecated(forRemoval = true)

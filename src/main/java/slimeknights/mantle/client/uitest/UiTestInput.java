@@ -9,6 +9,7 @@ import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWCharCallback;
 import org.lwjgl.glfw.GLFWCursorPosCallback;
 import org.lwjgl.glfw.GLFWDropCallback;
+import org.lwjgl.glfw.GLFWIMEStatusCallback;
 import org.lwjgl.glfw.GLFWKeyCallback;
 import org.lwjgl.glfw.GLFWMouseButtonCallback;
 import org.lwjgl.glfw.GLFWPreeditCallback;
@@ -62,7 +63,7 @@ final class UiTestInput {
     GLFWDropCallback drop = keep(dropping, GLFWDropCallback.create((w, count, names) -> {}));
     GLFWDropCallback oldDrop = GLFW.glfwSetDropCallback(handle, drop);
     restores.add(() -> GLFW.glfwSetDropCallback(handle, oldDrop));
-    // keyboard: keys, characters, IME composition
+    // keyboard: keys, characters, IME composition and status
     GLFWKeyCallback key = keep(dropping, GLFWKeyCallback.create((w, k, scancode, action, mods) -> {}));
     GLFWKeyCallback oldKey = GLFW.glfwSetKeyCallback(handle, key);
     restores.add(() -> GLFW.glfwSetKeyCallback(handle, oldKey));
@@ -72,6 +73,9 @@ final class UiTestInput {
     GLFWPreeditCallback preedit = keep(dropping, GLFWPreeditCallback.create((w, size, text, blocks, blockSizes, focused, caret) -> {}));
     GLFWPreeditCallback oldPreedit = GLFW.glfwSetPreeditCallback(handle, preedit);
     restores.add(() -> GLFW.glfwSetPreeditCallback(handle, oldPreedit));
+    GLFWIMEStatusCallback imeStatus = keep(dropping, GLFWIMEStatusCallback.create(w -> {}));
+    GLFWIMEStatusCallback oldImeStatus = GLFW.glfwSetIMEStatusCallback(handle, imeStatus);
+    restores.add(() -> GLFW.glfwSetIMEStatusCallback(handle, oldImeStatus));
     // focus: dropped too, the game keeps seeing an unfocused window (restore reads the real focus from GLFW)
     GLFWWindowFocusCallback focus = keep(dropping, GLFWWindowFocusCallback.create((w, focused) -> {}));
     GLFWWindowFocusCallback oldFocus = GLFW.glfwSetWindowFocusCallback(handle, focus);

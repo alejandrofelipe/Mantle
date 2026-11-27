@@ -3,7 +3,9 @@ package slimeknights.mantle.client.uitest;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -36,11 +38,12 @@ final class UiTestSelfChecks {
   private UiTestSelfChecks() {}
 
   /**
-   * Feeds fake OS events through the GLFW callbacks installed on the window, the entry point of real OS input: a focus gain, cursor
-   * moves, a left click, a scroll, the W and E keys and a typed character. While the suite isolates input ({@link UiTestInput}), none
-   * of them may reach the game: the parked mouse stays put, no screen opens (E is the inventory key), the player neither moves (W) nor
-   * turns, the hotbar slot is kept (scroll), and the cursor is not grabbed although {@code setScreen(null)} ran after the focus gain
-   * (vanilla grabs it there when the window is focused).
+   * Feeds fake OS events through the GLFW callbacks installed on the window, the entry point of real OS input: a typed character into a
+   * focused edit box, then a focus gain, cursor moves, a left click, a scroll and the W and E keys in the world. While the suite isolates
+   * input ({@link UiTestInput}), none of them may reach the game: the edit box only holds the character typed into the screen directly
+   * (control), the parked mouse stays put, no screen opens (E is the inventory key), the player neither moves (W) nor turns, the hotbar
+   * slot is kept (scroll), and the cursor is not grabbed although {@code setScreen(null)} ran after the focus gain (vanilla grabs it there
+   * when the window is focused).
    */
   static final class InputIsolationScenario implements UiTestScenario {
     private static final double PARK_X = 37, PARK_Y = 23;
@@ -49,6 +52,7 @@ final class UiTestSelfChecks {
     private Vec3 position = Vec3.ZERO;
     private int slot;
     private List<String> grabbedOnOpen = List.of();
+    private List<String> typedOnOpen = List.of();
 
     @Override
     public Identifier id() {
@@ -62,7 +66,13 @@ final class UiTestSelfChecks {
 
     @Override
     public void prepare(UiTestContext ctx) {
-      ctx.mc().setScreen(null);
+      // vanilla types characters only into a screen (KeyboardHandler#charTyped): a focused edit box, given one character directly as control
+      TextScreen screen = new TextScreen();
+      ctx.mc().setScreen(screen);
+      screen.charTyped(new CharacterEvent(CONTROL_CHAR));
+      long window = ctx.mc().getWindow().handle();
+      // vanilla's callback defers to the client thread (Minecraft#execute), so the box is read in open()
+      charCallback(window).invoke(window, 'e');
     }
 
     @Override
@@ -73,6 +83,14 @@ final class UiTestSelfChecks {
     @Override
     public void open(UiTestContext ctx) {
       Minecraft mc = ctx.mc();
+      if (!(mc.screen instanceof TextScreen screen)) {
+        throw new IllegalStateException("expected the edit box screen, found " + mc.screen);
+      }
+      String typed = screen.box.getValue();
+      if (typed.isEmpty()) {
+        throw new IllegalStateException("control: the edit box took no character typed into the screen, so the OS character check proves nothing");
+      }
+      typedOnOpen = typed.equals(String.valueOf(CONTROL_CHAR)) ? List.of() : List.of("a typed character reached the edit box: '" + typed + "'");
       long window = mc.getWindow().handle();
       // vanilla grabs the cursor on setScreen(null) and on a click in the world, but only while the window is focused
       focusCallback(window).invoke(window, true);
@@ -96,7 +114,6 @@ final class UiTestSelfChecks {
       GLFWKeyCallback key = keyCallback(window);
       key.invoke(window, GLFW.GLFW_KEY_W, GLFW.glfwGetKeyScancode(GLFW.GLFW_KEY_W), GLFW.GLFW_PRESS, 0);
       key.invoke(window, GLFW.GLFW_KEY_E, GLFW.glfwGetKeyScancode(GLFW.GLFW_KEY_E), GLFW.GLFW_PRESS, 0);
-      charCallback(window).invoke(window, 'e');
     }
 
     @Override
@@ -122,6 +139,7 @@ final class UiTestSelfChecks {
       if (mc.options.keyUp.isDown() || mc.options.keyAttack.isDown()) {
         problems.add("a key mapping is down (forward " + mc.options.keyUp.isDown() + ", attack " + mc.options.keyAttack.isDown() + ")");
       }
+      problems.addAll(typedOnOpen);
       grabbedOnOpen.forEach(problem -> problems.add(problem + " after setScreen(null) on a focused window"));
       problems.addAll(cursorProblems(mc));
       if (!problems.isEmpty()) {
@@ -347,6 +365,24 @@ final class UiTestSelfChecks {
     @Override
     public void cleanup(UiTestContext ctx) {
       ctx.clearInventory();
+    }
+  }
+
+  /** Character typed into the edit box directly by {@link InputIsolationScenario}, the only one it may hold */
+  private static final char CONTROL_CHAR = 'x';
+
+  /** Screen with one focused edit box, for {@link InputIsolationScenario} */
+  private static final class TextScreen extends Screen {
+    private EditBox box;
+
+    private TextScreen() {
+      super(Component.empty());
+    }
+
+    @Override
+    protected void init() {
+      box = addRenderableWidget(new EditBox(font, width / 2 - 100, height / 2 - 10, 200, 20, Component.empty()));
+      setInitialFocus(box);
     }
   }
 

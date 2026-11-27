@@ -577,7 +577,7 @@ The suite verifies this before the first scenario and records it as `"mantle:sui
 
 **Input isolation.** From the moment the suite arms (client setup) until it finishes — on every exit path: done, suite
 timeout, a failed setup — Mantle's `UiTestInput` swaps the GLFW callbacks vanilla installs for ones that drop the events:
-mouse move, buttons, scroll and file drop, keys, typed characters, IME composition, and window focus. Moving the mouse over
+mouse move, buttons, scroll and file drop, keys, typed characters, IME composition and status, and window focus. Moving the mouse over
 the window, clicking or typing into it changes nothing in the game. The scenarios still drive the game directly
 (`UiTestContext#parkMouse`/`moveMouse` write the `MouseHandler` position, synthetic screen events, `setScreen`, key
 presses sent to a screen), which never goes through those callbacks.
@@ -593,10 +593,11 @@ presses sent to a screen), which never goes through those callbacks.
 - Not covered: code polling the keyboard directly (`Minecraft#hasShiftDown`/`hasControlDown`/`hasAltDown` read GLFW key
   state), so holding Shift, Ctrl or Alt over the window can still change e.g. a tooltip. Closing the window (title bar X,
   Alt+F4) still works.
-- Guarded by `mantle:input_isolation` (tags `suite`, `smoke`): it fakes a focus gain and feeds cursor moves, a left click,
-  a scroll, the W and E keys and a character through the callbacks installed on the window, then asserts the parked mouse,
-  the screen (none), the player's position, rotation and hotbar slot are unchanged and the cursor is not grabbed
-  (`MouseHandler#isMouseGrabbed` false, GLFW cursor mode normal).
+- Guarded by `mantle:input_isolation` (tags `suite`, `smoke`): through the callbacks installed on the window it types a
+  character into a screen with a focused edit box (vanilla only types into a screen), then fakes a focus gain and feeds cursor
+  moves, a left click, a scroll and the W and E keys in the world. It asserts the edit box holds only the character typed into
+  the screen directly (control), the parked mouse, the screen (none), the player's position, rotation and hotbar slot are
+  unchanged and the cursor is not grabbed (`MouseHandler#isMouseGrabbed` false, GLFW cursor mode normal).
 
 **Progress display.** While the scenarios run, a thin bar on the left edge of the window (XP bar colors: black outline,
 dark track, green fill) fills up as scenarios finish, with an `n/N` label above it, and the window title reads

@@ -86,8 +86,13 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
 //    }
 //  }
 
-  @Override
-  protected void renderBg(GuiGraphicsExtractor graphics, float partialTicks, int mouseX, int mouseY) {
+  /**
+   * Draws the container background after the screen dim, inside the bounds corrected to the main window corner. Replaces the
+   * 1.21.11 {@code renderBg} override (26.1 merged it into {@code Screen#extractBackground}, which also draws the dim, so a subclass
+   * could not draw between its own background and the modules). The default draws the module backgrounds: subclasses draw their
+   * own background first, then call super.
+   */
+  protected void extractContainerBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
     for (ModuleScreen<?,?> module : this.modules) {
       module.handleDrawGuiContainerBackgroundLayer(graphics, partialTicks, mouseX, mouseY);
     }
@@ -102,7 +107,7 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
     for (ModuleScreen<?,?> module : this.modules) {
       // set correct state for the module
       poses.pushMatrix();
-      poses.translate(module.getGuiLeft() - this.leftPos, module.getGuiTop() - this.topPos);
+      poses.translate(module.getLeftPos() - this.leftPos, module.getTopPos() - this.topPos);
       module.handleDrawGuiContainerForegroundLayer(graphics, mouseX, mouseY);
       poses.popMatrix();
     }
@@ -143,20 +148,22 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
 
   @Override
   public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
-    // 1.21.6+: Screen.render no longer calls renderBackground; Screen#renderWithTooltip calls it separately, before render.
-    // AbstractContainerScreen's renderBackground runs renderBg, which up to 1.21.5 ran inside render's corrected bounds,
-    // so wrap it in the same main-window corner here to keep renderBg seeing the same leftPos/topPos/imageWidth/imageHeight.
-    // Note NeoForge's ContainerScreenEvent.Render.Background is now posted by Screen#renderWithTooltip after this, outside the corrected bounds.
-    this.withCorrectedBounds(() -> super.extractBackground(graphics, mouseX, mouseY, partialTicks));
+    // 1.21.6+: Screen#extractRenderStateWithTooltipAndSubtitles calls the background pass separately, before extractRenderState.
+    // Up to 1.21.5 renderBg ran inside render's corrected bounds, so wrap the pass in the same main-window corner here to keep
+    // extractContainerBackground seeing the same leftPos/topPos/imageWidth/imageHeight.
+    // 26.1: super only draws the screen dim/blur (1.21.11's AbstractContainerScreen#renderBackground then called renderBg).
+    // Note NeoForge's ScreenEvent.Render.Background is posted after this, outside the corrected bounds.
+    this.withCorrectedBounds(() -> {
+      super.extractBackground(graphics, mouseX, mouseY, partialTicks);
+      this.extractContainerBackground(graphics, mouseX, mouseY, partialTicks);
+    });
   }
 
   @Override
   public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
-    // Wrap super.render (and the explicit tooltip pass, which vanilla still leaves to subclasses) in the bounds corrected to the main-window corner
-    this.withCorrectedBounds(() -> {
-      super.extractRenderState(graphics, mouseX, mouseY, partialTicks);
-      this.extractTooltip(graphics, mouseX, mouseY);
-    });
+    // Wrap super.extractRenderState in the bounds corrected to the main-window corner
+    // 26.1: AbstractContainerScreen#extractRenderState runs extractTooltip itself (1.21.11 left the tooltip pass to subclasses)
+    this.withCorrectedBounds(() -> super.extractRenderState(graphics, mouseX, mouseY, partialTicks));
   }
 
   /** Runs the action with leftPos/topPos/imageWidth/imageHeight set to the main window corner and size, restoring the module-expanded values after */
@@ -218,14 +225,14 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
   protected void updateSubmodule(ModuleScreen<?,?> module) {
     module.updatePosition(this.cornerX, this.cornerY, this.realWidth, this.realHeight);
 
-    if (module.getGuiLeft() < this.leftPos) {
-      this.imageWidth += this.leftPos - module.getGuiLeft();
-      this.leftPos = module.getGuiLeft();
+    if (module.getLeftPos() < this.leftPos) {
+      this.imageWidth += this.leftPos - module.getLeftPos();
+      this.leftPos = module.getLeftPos();
     }
 
-    if (module.getGuiTop() < this.topPos) {
-      this.imageHeight += this.topPos - module.getGuiTop();
-      this.topPos = module.getGuiTop();
+    if (module.getTopPos() < this.topPos) {
+      this.imageHeight += this.topPos - module.getTopPos();
+      this.topPos = module.getTopPos();
     }
 
     if (module.guiRight() > this.leftPos + this.imageWidth) {
@@ -340,7 +347,7 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
   @Nullable
   protected ModuleScreen<?,?> getModuleForPoint(double x, double y) {
     for (ModuleScreen<?,?> module : this.modules) {
-      if (this.isHovering(module.getGuiLeft(), module.getGuiTop(), module.guiRight(), module.guiBottom(), x + this.cornerX, y + this.cornerY)) {
+      if (this.isHovering(module.getLeftPos(), module.getTopPos(), module.guiRight(), module.guiBottom(), x + this.cornerX, y + this.cornerY)) {
         return module;
       }
     }

@@ -85,8 +85,15 @@ public abstract class ModuleScreen<P extends MultiModuleScreen<?>, C extends Abs
    * Callback to draw background elements
    */
   public void handleDrawGuiContainerBackgroundLayer(GuiGraphicsExtractor graphics, float partialTicks, int mouseX, int mouseY) {
-    this.renderBg(graphics, partialTicks, mouseX, mouseY);
+    this.extractContainerBackground(graphics, mouseX, mouseY, partialTicks);
   }
+
+  /**
+   * Draws the module background, called by the parent screen's background pass. Replaces the 1.21.11 {@code renderBg} override,
+   * which 26.1 merged into {@code Screen#extractBackground}; modules are never the active screen, so they must not use that
+   * method (it draws the full-screen dim).
+   */
+  protected abstract void extractContainerBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks);
 
   /**
    * Callback to draw foreground elements

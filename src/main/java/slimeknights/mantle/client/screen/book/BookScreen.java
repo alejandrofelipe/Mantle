@@ -158,7 +158,7 @@ public class BookScreen extends Screen {
       return;
     }
 
-    // book content is drawn in renderBackground below: super.render runs it before the widgets
+    // book content is drawn in extractBackground below, which the game runs before this (widgets only)
     super.extractRenderState(graphics, mouseX, mouseY, partialTicks);
   }
 

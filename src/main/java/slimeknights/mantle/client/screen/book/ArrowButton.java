@@ -58,7 +58,7 @@ public class ArrowButton extends Button {
     renderButton(graphics, bookData);
   }
 
-  /** 1.21.11: {@code AbstractButton#renderWidget} is final and delegates the drawing here */
+  /** {@code AbstractButton#extractWidgetRenderState} is final and delegates the drawing here */
   @Override
   protected void extractContents(GuiGraphicsExtractor graphics, int pMouseX, int pMouseY, float pPartialTick) {
     renderButton(graphics, bookData);

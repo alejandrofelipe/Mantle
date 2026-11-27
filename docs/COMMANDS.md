@@ -605,9 +605,10 @@ after the HUD layers (`RenderGuiEvent.Post`) with no screen open, else after the
 stratum, so it draws over blur and tooltips. It **never reaches a PNG or a pixel read**: the suite hides it from the tick
 before each capture and only captures once a frame was rendered without it (up to 10 ticks, then the capture fails), and
 `UiTestContext#captureFrame()` — the suite's capture and every pixel assert — fails with `the progress bar is on the frame
-being captured` when the frame still had it. Guarded by `mantle:progress_hidden` (tags `suite`, `smoke`), which checks pixel
-by pixel that the left strip of a solid-color screen capture has no trace of the bar or label, that the bar did show earlier
-in the scenario (control) and that the title shows the progress.
+being captured` when the frame still had it. Guarded by `mantle:progress_hidden` (tags `suite`, `smoke`), which opens a
+solid-color screen and checks the left strip of two of its frames pixel by pixel: the last frame before the capture wait, read
+raw, must show the bar's green fill (control: the bar is drawn over a screen at all), the captured frame must have no trace of
+the bar or label; plus that the title shows the progress.
 
 > **Result-reading rule.** A `FATAL` `Error executing task` line in the log overrides an `"ok"` in
 > `uitest-results.json` — server-thread scenario guards log there instead of failing the recorded result,

@@ -20,8 +20,8 @@ import org.lwjgl.glfw.GLFW;
  * ({@link ScreenEvent.Render.Post}), in a new stratum so it draws over blur and tooltips.
  */
 final class UiTestProgress {
-  /** XP bar colors: the bright green of the filled part and of the level number, a dark track, a black outline */
-  private static final int FILL = 0xFF80FF20;
+  /** XP bar colors: the bright green of the filled part and of the level number (also the self-check's control), a dark track, a black outline */
+  static final int FILL = 0xFF80FF20;
   private static final int TRACK = 0xFF2A2A2A;
   private static final int OUTLINE = 0xFF000000;
   /** Bar geometry in GUI pixels: left edge, width including the outline, top and bottom margins */
@@ -35,8 +35,6 @@ final class UiTestProgress {
   /** Whether the frame being extracted got the bar, and whether the last fully rendered frame had it */
   private static boolean barThisFrame = false;
   private static boolean barLastFrame = false;
-  /** Rendered frames that had the bar, for the self-check that the bar shows at all */
-  private static long framesWithBar = 0;
   private static boolean listening = false;
 
   private UiTestProgress() {}
@@ -74,11 +72,6 @@ final class UiTestProgress {
   /** True if the last rendered frame, the one the main render target holds, was drawn without the bar */
   static boolean lastFrameClean() {
     return !barLastFrame;
-  }
-
-  /** Number of rendered frames that showed the bar */
-  static long framesWithBar() {
-    return framesWithBar;
   }
 
   /** Throws if the frame in the main render target has the bar, call before reading its pixels */
@@ -128,9 +121,6 @@ final class UiTestProgress {
 
   private static void onFramePost(RenderFrameEvent.Post event) {
     barLastFrame = barThisFrame;
-    if (barThisFrame) {
-      framesWithBar++;
-    }
     barThisFrame = false;
   }
 }

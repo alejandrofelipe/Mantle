@@ -20,6 +20,7 @@ import org.lwjgl.glfw.GLFWMouseButtonCallback;
 import org.lwjgl.glfw.GLFWScrollCallback;
 import org.lwjgl.glfw.GLFWWindowFocusCallback;
 import slimeknights.mantle.Mantle;
+import slimeknights.mantle.client.render.RenderTargetCapture;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +29,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.IntPredicate;
 
 /** Scenarios checking the suite itself, registered by {@link UiTestSuite#init()} */
 final class UiTestSelfChecks {
@@ -155,17 +157,19 @@ final class UiTestSelfChecks {
   }
 
   /**
-   * The progress bar never reaches a capture: shows the bar in the world during the prepare wait (control: frames with the bar were
-   * rendered meanwhile), then opens a screen filled with one color and checks that the left part of the captured frame, where the bar
-   * and its label are drawn, is exactly that color. Independent of the suite's own bookkeeping ({@link UiTestProgress#lastFrameClean()}).
-   * Also checks the window title shows the progress.
+   * The progress bar never reaches a capture: opens a screen filled with one color in {@code prepare}, then checks the left part of the
+   * window, where the bar and its label are drawn, on two frames of that screen. Control: the last frame before the suite starts hiding the
+   * bar, read raw in {@code open}, has the bar's fill color there. Check: the captured frame has exactly the screen color there. Both are
+   * pixel reads, independent of the suite's own bookkeeping ({@link UiTestProgress#lastFrameClean()}). Also checks the window title shows
+   * the progress.
    */
   static final class ProgressHiddenScenario implements UiTestScenario {
     /** Opaque fill of the screen, ARGB as {@link NativeImage#getPixel} returns it */
     private static final int COLOR = 0xFF3060A0;
     /** Width in GUI pixels of the checked strip on the left edge, covering the bar and its label */
     private static final int STRIP = 48;
-    private long framesBefore;
+    /** Per channel tolerance when looking for the bar's fill color */
+    private static final int FILL_TOLERANCE = 8;
 
     @Override
     public Identifier id() {
@@ -179,50 +183,75 @@ final class UiTestSelfChecks {
 
     @Override
     public void prepare(UiTestContext ctx) {
-      ctx.mc().setScreen(null);
-      framesBefore = UiTestProgress.framesWithBar();
-    }
-
-    @Override
-    public void open(UiTestContext ctx) {
       ctx.mc().setScreen(new SolidScreen());
       ctx.parkMouse();
     }
 
     @Override
+    public void open(UiTestContext ctx) {
+      requireSolidScreen(ctx);
+      // control: the frame before the capture wait, read raw (captureFrame refuses a frame with the bar), shows the bar over this screen
+      try (NativeImage image = RenderTargetCapture.capture(ctx.mc().getMainRenderTarget(), false)) {
+        int[] fill = scanStrip(ctx, image, color -> isNear(color, UiTestProgress.FILL));
+        if (fill[0] == 0) {
+          throw new IllegalStateException("control: the uncaptured frame of the solid screen has no pixel of the progress bar fill #"
+                                          + Integer.toHexString(UiTestProgress.FILL) + " in the left strip, so the capture check proves nothing");
+        }
+      }
+    }
+
+    @Override
     public void close(UiTestContext ctx) {
-      if (!(ctx.mc().screen instanceof SolidScreen)) {
-        throw new IllegalStateException("expected the solid screen, found " + ctx.mc().screen);
-      }
-      // pixels first: a bar drawn but not recorded by the suite must fail here, before the control below
+      requireSolidScreen(ctx);
       try (NativeImage image = ctx.captureFrame()) {
-        double scale = (double) image.getWidth() / ctx.mc().getWindow().getGuiScaledWidth();
-        int width = Math.min(image.getWidth(), (int) Math.ceil(STRIP * scale));
-        int wrong = 0;
-        String first = "";
-        for (int y = 0; y < image.getHeight(); y++) {
-          for (int x = 0; x < width; x++) {
-            int color = image.getPixel(x, y);
-            if (color != COLOR) {
-              if (wrong == 0) {
-                first = " (first at " + x + ", " + y + ": #" + Integer.toHexString(color) + ")";
-              }
-              wrong++;
-            }
-          }
+        int[] wrong = scanStrip(ctx, image, color -> color != COLOR);
+        if (wrong[0] > 0) {
+          throw new IllegalStateException(wrong[0] + " pixel(s) of the left strip are not the screen color #" + Integer.toHexString(COLOR)
+                                          + " (first at " + wrong[1] + ", " + wrong[2] + ": #" + Integer.toHexString(wrong[3]) + "): the progress display is on the captured frame");
         }
-        if (wrong > 0) {
-          throw new IllegalStateException(wrong + " pixel(s) of the left " + width + " px strip are not the screen color #" + Integer.toHexString(COLOR) + first + ": the progress display is on the captured frame");
-        }
-      }
-      if (UiTestProgress.framesWithBar() <= framesBefore) {
-        throw new IllegalStateException("control: no frame showed the progress bar during this scenario, so the strip check proves nothing");
       }
       String title = GLFW.glfwGetWindowTitle(ctx.mc().getWindow().handle());
       if (title == null || !title.startsWith("uitest ") || !title.endsWith(" — " + id())) {
         throw new IllegalStateException("the window title '" + title + "' does not show the progress 'uitest n/N — " + id() + "'");
       }
       ctx.mc().setScreen(null);
+    }
+
+    private static void requireSolidScreen(UiTestContext ctx) {
+      if (!(ctx.mc().screen instanceof SolidScreen)) {
+        throw new IllegalStateException("expected the solid screen, found " + ctx.mc().screen);
+      }
+    }
+
+    /** Scans the left {@link #STRIP} GUI pixels of the frame: the count of pixels matching, then x, y and color of the first one */
+    private static int[] scanStrip(UiTestContext ctx, NativeImage image, IntPredicate match) {
+      double scale = (double) image.getWidth() / ctx.mc().getWindow().getGuiScaledWidth();
+      int width = Math.min(image.getWidth(), (int) Math.ceil(STRIP * scale));
+      int[] result = new int[4];
+      for (int y = 0; y < image.getHeight(); y++) {
+        for (int x = 0; x < width; x++) {
+          int color = image.getPixel(x, y);
+          if (match.test(color)) {
+            if (result[0] == 0) {
+              result[1] = x;
+              result[2] = y;
+              result[3] = color;
+            }
+            result[0]++;
+          }
+        }
+      }
+      return result;
+    }
+
+    /** Checks each color channel of the pixel is within {@link #FILL_TOLERANCE} of the expected color */
+    private static boolean isNear(int color, int expected) {
+      for (int shift = 0; shift <= 16; shift += 8) {
+        if (Math.abs(((color >> shift) & 0xFF) - ((expected >> shift) & 0xFF)) > FILL_TOLERANCE) {
+          return false;
+        }
+      }
+      return true;
     }
 
     @Override

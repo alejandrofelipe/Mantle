@@ -549,8 +549,9 @@ asserts), `jei_tinker_station_transfer` / `jei_tool_inventory_transfer` (JEI 27 
 `run/clientUiTest/uitest-screenshots/*.png` +
 `run/clientUiTest/uitest-results.json` (scenario id → `"ok"` / `"fail: ..."`), then **exits on its own**
 (verified full run ≈ 6-7 min cold including the build, ~3 min in-world, zero leftover
-processes). **Do not interact with the window while it runs.** A green 1.21.11 run records 49 results: the 48 scenarios
-plus `mantle:suite_setup` (below).
+processes). The suite ignores your mouse and keyboard, so you can keep working while it runs (see **Input isolation**
+below). A green 26.1.2 run records 59 results: the 56 Tinkers scenarios, the Mantle self-checks `mantle:input_isolation`
+and `mantle:progress_hidden`, plus `mantle:suite_setup` (below).
 
 > **The task fails on any failing result (since M5).** The client always exits 0, so `runClientUiTest` deletes
 > `uitest-results.json` before launching and reads it after the client exits: it fails (`BUILD FAILED`, listing each
@@ -574,6 +575,40 @@ The suite verifies this before the first scenario and records it as `"mantle:sui
 (`"ok"` or `"fail: ..."`). A scenario that needs a mob tags it with `UiTestSuite.ALLOW_MOB_TAG`
 (`mantle_uitest_allow_mob`, e.g. `mob.addTag(...)` or `Tags:["mantle_uitest_allow_mob"]` in `/summon`) before spawning.
 
+**Input isolation.** From the moment the suite arms (client setup) until it finishes — on every exit path: done, suite
+timeout, a failed setup — Mantle's `UiTestInput` swaps the GLFW callbacks vanilla installs for ones that drop the events:
+mouse move, buttons, scroll and file drop, keys, typed characters, IME composition, and window focus. Moving the mouse over
+the window, clicking or typing into it changes nothing in the game. The scenarios still drive the game directly
+(`UiTestContext#parkMouse`/`moveMouse` write the `MouseHandler` position, synthetic screen events, `setScreen`, key
+presses sent to a screen), which never goes through those callbacks.
+- **The cursor stays free and visible.** Vanilla grabs it (disabled and warped to the window center) on `setScreen(null)`
+  or a click in the world, but only while the window is focused. With the focus callback dropped, the game keeps seeing an
+  unfocused window, as in an unattended background run, so it never grabs or warps the cursor; you can move the mouse in
+  and out of the window freely. A cursor already grabbed when the suite arms is released in place (no
+  `MouseHandler#releaseMouse`, which would warp it).
+- **Pause on lost focus is off while the suite runs** (the run dir's `options.txt` has `pauseOnLostFocus:true`): an
+  unfocused window would otherwise open the pause menu over in-world captures. Restored at the end, not saved to disk.
+- **Each scenario starts with the cursor at the window center**, where vanilla's grab and release used to leave it, so a
+  scenario never depends on where the previous one parked the mouse.
+- Not covered: code polling the keyboard directly (`Minecraft#hasShiftDown`/`hasControlDown`/`hasAltDown` read GLFW key
+  state), so holding Shift, Ctrl or Alt over the window can still change e.g. a tooltip. Closing the window (title bar X,
+  Alt+F4) still works.
+- Guarded by `mantle:input_isolation` (tags `suite`, `smoke`): it fakes a focus gain and feeds cursor moves, a left click,
+  a scroll, the W and E keys and a character through the callbacks installed on the window, then asserts the parked mouse,
+  the screen (none), the player's position, rotation and hotbar slot are unchanged and the cursor is not grabbed
+  (`MouseHandler#isMouseGrabbed` false, GLFW cursor mode normal).
+
+**Progress display.** While the scenarios run, a thin bar on the left edge of the window (XP bar colors: black outline,
+dark track, green fill) fills up as scenarios finish, with an `n/N` label above it, and the window title reads
+`uitest n/N — <scenario id>` (vanilla's title comes back at the end). The bar is extracted as the last GUI element:
+after the HUD layers (`RenderGuiEvent.Post`) with no screen open, else after the screen (`ScreenEvent.Render.Post`) in a new
+stratum, so it draws over blur and tooltips. It **never reaches a PNG or a pixel read**: the suite hides it from the tick
+before each capture and only captures once a frame was rendered without it (up to 10 ticks, then the capture fails), and
+`UiTestContext#captureFrame()` — the suite's capture and every pixel assert — fails with `the progress bar is on the frame
+being captured` when the frame still had it. Guarded by `mantle:progress_hidden` (tags `suite`, `smoke`), which checks pixel
+by pixel that the left strip of a solid-color screen capture has no trace of the bar or label, that the bar did show earlier
+in the scenario (control) and that the title shows the progress.
+
 > **Result-reading rule.** A `FATAL` `Error executing task` line in the log overrides an `"ok"` in
 > `uitest-results.json` — server-thread scenario guards log there instead of failing the recorded result,
 > so check the log even when the JSON (and so the task) looks clean.
@@ -589,7 +624,11 @@ every exit path — success, a failing phase, a timeout — so unregister listen
 game mode there) — and call `UiTestScenarios.register(...)` during client setup, gated on
 `UiTestScenarios.isActive()`; see `slimeknights.tconstruct.client.uitest.TinkerUiTestScenarios` as the
 template. Registration must happen before world load — the suite snapshots the registry at world load.
-Screens open with the cursor centered, so hover tooltips can cover the capture: call `UiTestContext#parkMouse()` (top
+Every scenario declares `tags()`: at least one, all known to `UiTestTags` (see [tags](#uitest-tags-and-profiles)); the
+suite fails a scenario with no or unknown tags (`fail: tags: …`) instead of running it, and Tinkers' unit test
+`TinkerUiTestScenariosTest` checks its scenarios at build time. Pixel asserts read the frame with
+`UiTestContext#captureFrame()` (never `RenderTargetCapture` directly), which refuses a frame showing the progress bar.
+Each scenario starts with the cursor centered, so hover tooltips can cover the capture: call `UiTestContext#parkMouse()` (top
 left corner; the JEI category scenarios re-park every tick until capture). Handlers that read the real cursor instead of
 the event (Mantle `BookScreen`, JEI key actions) need `UiTestContext#moveMouse(guiX, guiY)` first; synthetic clicks use
 `new MouseButtonEvent(x, y, new MouseButtonInfo(button, 0))`.
@@ -613,7 +652,52 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 ```
 
 The suite logs `uitest: filtered to N of M scenario(s) via mantle.uitest.only=station_`; an empty match
-logs a warning and finishes cleanly (no crash; the task passes with only `mantle:suite_setup` in the results). Property unset = all 48 scenarios run (the default).
+logs a warning and finishes cleanly (no crash; the task passes with only `mantle:suite_setup` in the results). Property unset = all scenarios run (the default).
+
+#### uitest tags and profiles
+
+`-PuitestTags=<tag,...>` (sysprop `mantle.uitest.tags`) keeps the scenarios having **any** of the listed tags. With
+`-PuitestOnly` as well, **both** filters apply (intersection). The suite logs
+`uitest: filtered to N of M scenario(s) via mantle.uitest.only=…, mantle.uitest.tags=…`; a tag the suite doesn't know fails
+`mantle:filter` (so a typo can't pass as an empty green run). In PowerShell, **quote a property holding a comma** — an
+unquoted `-PuitestTags=jei,compat` is parsed as an array and the command fails before Gradle starts:
+
+```powershell
+$env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin25-jdk\current"; & "C:\Users\aleja\DEV\New Tinkers\tinkers\gradlew.bat" -p "C:\Users\aleja\DEV\New Tinkers\tinkers" runClientUiTest "-PuitestTags=jei,compat"
+```
+
+Tags are defined once: the shared ones as constants in Mantle's `UiTestTags`, a mod's own with
+`UiTestTags.register(tag, description)` (Tinkers: `TinkerUiTestScenarios.STATION` / `ARMOR`). A scenario usually has one
+"where" tag (`gui` / `world`) plus its area tags.
+
+| Tag | Defined by | Meaning |
+|-----|------------|---------|
+| `smoke` | Mantle | quick cross-section: `tinker_station` (station GUI), `casting_pour` (in-world render), `book_materials_and_you`, `jei_melting_category`, plus the suite self-checks — boot is covered by `mantle:suite_setup` (≈15 s in-world, ≈1 min 15 s with Gradle) |
+| `suite` | Mantle | checks of the suite itself: `mantle:input_isolation`, `mantle:progress_hidden` |
+| `gui` | Mantle | captures or checks a screen |
+| `world` | Mantle | captures the world with no screen open (rigs, HUD) |
+| `render` | Mantle | model, texture, atlas or render type checks |
+| `fluid` | Mantle | fluid rendering or handling (tanks, casting, fluid blocks) |
+| `jei` | Mantle | JEI integration (categories, transfer, lookups) |
+| `book` | Mantle | Mantle's book system (pages, structures, export) |
+| `compat` | Mantle | integration with another third-party mod (Crafting Tweaks: `crafting_station`, `crafting_tweaks_rotate`) |
+| `station` | Tinkers | Tinkers station screens: tinker station, part builder, crafting station (layout tiers, input, JEI into them) |
+| `armor` | Tinkers | Tinkers armor: trims, armor worn by the player and other entities |
+
+`mantle:suite_setup` (and `mantle:world_upgrade` / `mantle:mod_loading` / `mantle:filter`) are results the suite records
+itself, not scenarios: they are never filtered out.
+
+**Profiles** — which slice to run when:
+
+| Situation | Run |
+|-----------|-----|
+| Iterating on a fix | the area's tags, e.g. `-PuitestTags=station` or `"-PuitestTags=fluid,render"`; add `-PuitestOnly` to narrow further |
+| Datagen phase of a milestone | `-PuitestTags=smoke` |
+| Compat phase | `"-PuitestTags=jei,compat"` |
+| Runtime phase, phase gates, release | everything (no filter) |
+
+> A tag subset changes which scenario runs before which. A scenario that only passes after a particular neighbour has a
+> hidden ordering dependency — fix the scenario rather than the profile.
 
 **gametest** — 1.21.5: `-PgametestOnly=<selector>` forwards to the gametest launcher's `--tests` (wildcards
 allowed), e.g. `runGameTestServer -PgametestOnly=tconstruct:smeltery_*`; unset = all 162 tests (161 Tinkers +

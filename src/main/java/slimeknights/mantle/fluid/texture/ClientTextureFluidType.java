@@ -40,7 +40,10 @@ public class ClientTextureFluidType implements IClientFluidTypeExtensions {
   public FluidModel.Unbaked createFluidModel() {
     FluidTexture data = FluidTextureManager.getData(type);
     Identifier overlay = data.overlay();
-    return new FluidModel.Unbaked(new Material(data.still()), new Material(getWorldFlowingTexture(data.flowing())), overlay == null ? null : new Material(overlay), createTintSource());
+    // the fluid model's render layer follows the textures' transparency, unless the fluid texture forces it translucent
+    boolean translucent = data.forceTranslucent();
+    return new FluidModel.Unbaked(new Material(data.still(), translucent), new Material(getWorldFlowingTexture(data.flowing()), translucent),
+                                  overlay == null ? null : new Material(overlay, translucent), createTintSource());
   }
 
   /**

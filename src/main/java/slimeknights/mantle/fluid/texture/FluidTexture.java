@@ -38,6 +38,12 @@ public final class FluidTexture {
   private final boolean overrideFog;
   private final float fogStart;
   private final float fogEnd;
+  /** If true, the fluid model renders translucent regardless of the texture alpha (26.1: replaces setting a translucent block render layer for the fluid) */
+  private final boolean forceTranslucent;
+
+  public FluidTexture(Identifier still, Identifier flowing, @Nullable Identifier overlay, @Nullable Identifier camera, float cameraOpacity, int color, int fogColor, boolean calculateFogColor, boolean overrideFog, float fogStart, float fogEnd) {
+    this(still, flowing, overlay, camera, cameraOpacity, color, fogColor, calculateFogColor, overrideFog, fogStart, fogEnd, false);
+  }
 
   /** @deprecated use {@link #FluidTexture(Identifier, Identifier, Identifier, Identifier, float, int, int, boolean, boolean, float, float)} */
   @Deprecated(forRemoval = true)
@@ -83,6 +89,9 @@ public final class FluidTexture {
     if (!fog.keySet().isEmpty()) {
       json.add("fog", fog);
     }
+    if (forceTranslucent) {
+      json.addProperty("force_translucent", true);
+    }
 
     return json;
   }
@@ -122,7 +131,8 @@ public final class FluidTexture {
         fogEnd = GsonHelper.getAsFloat(fog, "end", 1);
       }
     }
-    return new FluidTexture(still, flowing, overlay, camera, cameraOpacity, color, fogColor, calculateFogColor, overrideFog, fogStart, fogEnd);
+    boolean forceTranslucent = GsonHelper.getAsBoolean(json, "force_translucent", false);
+    return new FluidTexture(still, flowing, overlay, camera, cameraOpacity, color, fogColor, calculateFogColor, overrideFog, fogStart, fogEnd, forceTranslucent);
   }
 
 
@@ -153,6 +163,7 @@ public final class FluidTexture {
     private boolean overrideFog = false;
     private float fogStart = 0.25f;
     private float fogEnd = 1;
+    private boolean forceTranslucent = false;
 
     /**
      * Adds textures using the fluid registry ID
@@ -240,7 +251,7 @@ public final class FluidTexture {
       if (still == null || flowing == null) {
         throw new IllegalStateException("Must set both still and flowing");
       }
-      return new FluidTexture(still, flowing, overlay, camera, cameraOpacity, color, fogColor, fogColor == -1 && calculateFogColor, overrideFog, fogStart, fogEnd);
+      return new FluidTexture(still, flowing, overlay, camera, cameraOpacity, color, fogColor, fogColor == -1 && calculateFogColor, overrideFog, fogStart, fogEnd, forceTranslucent);
     }
 
     /* Getters for other datagen */

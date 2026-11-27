@@ -7,12 +7,10 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.functions.LootItemConditionalFunction;
-import net.minecraft.world.level.storage.loot.functions.LootItemFunctionType;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.block.entity.IRetexturedBlockEntity;
-import slimeknights.mantle.loot.MantleLoot;
 import slimeknights.mantle.util.RetexturedHelper;
 
 import java.util.List;
@@ -57,7 +55,10 @@ public class RetexturedLootFunction extends LootItemConditionalFunction {
   }
 
   @Override
-  public LootItemFunctionType getType() {
-    return MantleLoot.RETEXTURED_FUNCTION.get();
+
+  public MapCodec<RetexturedLootFunction> codec() {
+
+    return CODEC;
+
   }
 }

@@ -12,8 +12,6 @@ import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
-import net.minecraft.world.level.storage.loot.predicates.LootItemConditionType;
-import slimeknights.mantle.loot.MantleLoot;
 
 import java.util.Optional;
 import java.util.Set;
@@ -45,7 +43,10 @@ public record BlockTagLootCondition(TagKey<Block> tag, Optional<StatePropertiesP
   }
 
   @Override
-  public LootItemConditionType getType() {
-    return MantleLoot.BLOCK_TAG_CONDITION.get();
+
+  public MapCodec<BlockTagLootCondition> codec() {
+
+    return CODEC;
+
   }
 }

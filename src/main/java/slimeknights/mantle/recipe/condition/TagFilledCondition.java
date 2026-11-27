@@ -7,8 +7,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
-import net.minecraft.world.level.storage.loot.predicates.LootItemConditionType;
-import slimeknights.mantle.loot.MantleLoot;
 
 /** Inverted form of {@link TagEmptyCondition} as filled is way more common a desire than empty. */
 public class TagFilledCondition<T> extends TagCondition<T> implements LootItemCondition {
@@ -25,13 +23,8 @@ public class TagFilledCondition<T> extends TagCondition<T> implements LootItemCo
   }
 
   @Override
-  public MapCodec<? extends net.neoforged.neoforge.common.conditions.ICondition> codec() {
+  public MapCodec<TagFilledCondition<?>> codec() {
     return CODEC;
-  }
-
-  @Override
-  public LootItemConditionType getType() {
-    return MantleLoot.TAG_FILLED.get();
   }
 
   @Override

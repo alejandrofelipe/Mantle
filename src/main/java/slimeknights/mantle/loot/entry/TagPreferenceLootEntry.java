@@ -8,11 +8,9 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.loot.LootContext;
-import net.minecraft.world.level.storage.loot.entries.LootPoolEntryType;
 import net.minecraft.world.level.storage.loot.entries.LootPoolSingletonContainer;
 import net.minecraft.world.level.storage.loot.functions.LootItemFunction;
 import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
-import slimeknights.mantle.loot.MantleLoot;
 import slimeknights.mantle.recipe.helper.TagPreference;
 
 import java.util.List;
@@ -35,8 +33,11 @@ public class TagPreferenceLootEntry extends LootPoolSingletonContainer {
   }
 
   @Override
-  public LootPoolEntryType getType() {
-    return MantleLoot.TAG_PREFERENCE.get();
+
+  public MapCodec<TagPreferenceLootEntry> codec() {
+
+    return CODEC;
+
   }
 
   @Override

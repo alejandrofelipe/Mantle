@@ -7,8 +7,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
-import net.minecraft.world.level.storage.loot.predicates.LootItemConditionType;
-import slimeknights.mantle.loot.MantleLoot;
 
 /** Condition that checks when a tag is empty, for any registry. Doubles as a {@link net.neoforged.neoforge.common.conditions.ICondition} and a {@link LootItemCondition}. */
 public class TagEmptyCondition<T> extends TagCondition<T> implements LootItemCondition {
@@ -25,13 +23,8 @@ public class TagEmptyCondition<T> extends TagCondition<T> implements LootItemCon
   }
 
   @Override
-  public MapCodec<? extends net.neoforged.neoforge.common.conditions.ICondition> codec() {
+  public MapCodec<TagEmptyCondition<?>> codec() {
     return CODEC;
-  }
-
-  @Override
-  public LootItemConditionType getType() {
-    return MantleLoot.TAG_EMPTY.get();
   }
 
   @Override

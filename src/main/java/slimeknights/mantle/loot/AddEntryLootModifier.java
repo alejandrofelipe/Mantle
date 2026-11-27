@@ -37,8 +37,8 @@ public class AddEntryLootModifier extends LootModifier {
   /** Functions merged into a single function for ease of use */
   private final BiFunction<ItemStack, LootContext, ItemStack> combinedFunctions;
 
-  protected AddEntryLootModifier(LootItemCondition[] conditionsIn, List<ILootModifierCondition> modifierConditions, LootPoolEntryContainer entry, List<LootItemFunction> functions) {
-    super(conditionsIn);
+  protected AddEntryLootModifier(LootItemCondition[] conditionsIn, int priority, List<ILootModifierCondition> modifierConditions, LootPoolEntryContainer entry, List<LootItemFunction> functions) {
+    super(conditionsIn, priority);
     this.modifierConditions = modifierConditions;
     this.entry = entry;
     this.functions = functions;
@@ -99,7 +99,7 @@ public class AddEntryLootModifier extends LootModifier {
 
     /** Builds the final modifier */
     public AddEntryLootModifier build() {
-      return new AddEntryLootModifier(getConditions(), modifierConditions, entry, List.copyOf(functions));
+      return new AddEntryLootModifier(getConditions(), IGlobalLootModifier.DEFAULT_PRIORITY, modifierConditions, entry, List.copyOf(functions));
     }
   }
 }

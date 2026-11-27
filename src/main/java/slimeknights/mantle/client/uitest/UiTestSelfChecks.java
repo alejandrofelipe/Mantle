@@ -7,6 +7,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWCharCallback;
@@ -21,6 +25,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /** Scenarios checking the suite itself, registered by {@link UiTestSuite#init()} */
 final class UiTestSelfChecks {
@@ -221,6 +228,96 @@ final class UiTestSelfChecks {
     @Override
     public void cleanup(UiTestContext ctx) {
       ctx.mc().setScreen(null);
+    }
+  }
+
+  /**
+   * {@link UiTestContext#clearInventory} empties the inventory like {@code /clear @s} (main inventory, armor, offhand) and in order with
+   * {@link UiTestContext#runOnServer}: the server thread is held while the clear and a following give are scheduled, and the client waits long
+   * enough for a command to reach the server queue meanwhile, so a clear sent as a command (network thread first) would land after the give
+   * and wipe it. The order matters as a scenario's {@code cleanup} and the next one's {@code prepare} run in the same tick.
+   */
+  static final class ClearInventoryScenario implements UiTestScenario {
+    /** Client wait with the server held, far longer than a command needs to reach the server queue */
+    private static final int HOLD_MILLIS = 100;
+    private static final int SEEDED_SLOT = 5;
+
+    @Override
+    public Identifier id() {
+      return Mantle.getResource("clear_inventory");
+    }
+
+    @Override
+    public Set<String> tags() {
+      return Set.of(UiTestTags.SUITE, UiTestTags.SMOKE, UiTestTags.WORLD);
+    }
+
+    @Override
+    public void prepare(UiTestContext ctx) {
+      ctx.mc().setScreen(null);
+      UUID id = ctx.player().getUUID();
+      ctx.runOnServer(() -> {
+        ServerPlayer player = serverPlayer(ctx, id);
+        player.getInventory().setItem(SEEDED_SLOT, new ItemStack(Items.DIRT));
+        player.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
+        player.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.SHIELD));
+      });
+      CountDownLatch release = new CountDownLatch(1);
+      ctx.runOnServer(() -> {
+        try {
+          if (!release.await(5, TimeUnit.SECONDS)) {
+            Mantle.logger.error("uitest: {} held the server thread without release", id());
+          }
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      });
+      try {
+        ctx.clearInventory();
+        ctx.runOnServer(() -> serverPlayer(ctx, id).getInventory().setItem(0, new ItemStack(Items.STONE)));
+        Thread.sleep(HOLD_MILLIS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      } finally {
+        release.countDown();
+      }
+    }
+
+    private static ServerPlayer serverPlayer(UiTestContext ctx, UUID id) {
+      return Objects.requireNonNull(ctx.serverLevel().getServer().getPlayerList().getPlayer(id), "uitest: no server player");
+    }
+
+    @Override
+    public int prepareSettleTicks() {
+      return 20;
+    }
+
+    @Override
+    public void open(UiTestContext ctx) {}
+
+    @Override
+    public void close(UiTestContext ctx) {
+      LocalPlayer player = ctx.player();
+      List<String> problems = new ArrayList<>();
+      if (!player.getInventory().getItem(0).is(Items.STONE)) {
+        problems.add("the stone given after the clear is missing, slot 0 holds " + player.getInventory().getItem(0) + ": the clear ran after it");
+      }
+      if (!player.getInventory().getItem(SEEDED_SLOT).isEmpty()) {
+        problems.add("slot " + SEEDED_SLOT + " still holds " + player.getInventory().getItem(SEEDED_SLOT));
+      }
+      for (EquipmentSlot slot : List.of(EquipmentSlot.HEAD, EquipmentSlot.OFFHAND)) {
+        if (!player.getItemBySlot(slot).isEmpty()) {
+          problems.add(slot + " still holds " + player.getItemBySlot(slot));
+        }
+      }
+      if (!problems.isEmpty()) {
+        throw new IllegalStateException("clearInventory: " + String.join("; ", problems));
+      }
+    }
+
+    @Override
+    public void cleanup(UiTestContext ctx) {
+      ctx.clearInventory();
     }
   }
 

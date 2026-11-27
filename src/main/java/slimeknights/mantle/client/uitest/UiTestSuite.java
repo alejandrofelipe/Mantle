@@ -106,6 +106,7 @@ public class UiTestSuite {
     UiTestProgress.init();
     UiTestScenarios.register(new UiTestSelfChecks.InputIsolationScenario());
     UiTestScenarios.register(new UiTestSelfChecks.ProgressHiddenScenario());
+    UiTestScenarios.register(new UiTestSelfChecks.ClearInventoryScenario());
     Mantle.logger.info("uitest: suite armed; {} scenario(s) registered so far (registry is snapshotted at world load)",
       UiTestScenarios.all().size());
   }

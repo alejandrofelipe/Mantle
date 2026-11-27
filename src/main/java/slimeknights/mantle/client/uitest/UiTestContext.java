@@ -10,6 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -17,6 +18,7 @@ import slimeknights.mantle.client.render.RenderTargetCapture;
 
 import java.lang.reflect.Field;
 import java.util.Objects;
+import java.util.UUID;
 
 /** Helpers handed to scenarios; client-thread unless noted. */
 public record UiTestContext(Minecraft mc) {
@@ -35,9 +37,27 @@ public record UiTestContext(Minecraft mc) {
     Objects.requireNonNull(mc.getSingleplayerServer()).execute(work);
   }
 
-  /** Sends a command as the player (cheats are on in the uitest world). */
+  /**
+   * Sends a command as the player (cheats are on in the uitest world). A command takes a longer way to the server than {@link #runOnServer}
+   * (network thread first, then the server queue), so work scheduled with {@link #runOnServer} right after it, also by the next scenario's
+   * {@code prepare} in the same tick, can run before the command. Use {@link #clearInventory} rather than {@code clear @s}.
+   */
   public void sendCommand(String command) {
     player().connection.sendCommand(command);
+  }
+
+  /**
+   * Empties the player's inventory on the server like {@code /clear @s} (armor, offhand, 2x2 crafting grid and the carried stack included),
+   * scheduled through {@link #runOnServer}, so it runs in order with the server work scheduled before and after it.
+   */
+  public void clearInventory() {
+    UUID id = player().getUUID();
+    runOnServer(() -> {
+      ServerPlayer player = Objects.requireNonNull(serverLevel().getServer().getPlayerList().getPlayer(id), "uitest: no server player");
+      player.getInventory().clearOrCountMatchingItems(stack -> true, -1, player.inventoryMenu.getCraftSlots());
+      player.containerMenu.broadcastChanges();
+      player.inventoryMenu.slotsChanged(player.getInventory());
+    });
   }
 
   /** Client-side block interaction — opens the block's real menu with real server data. Always hits the NORTH face at block center; not suitable for face- or hit-position-sensitive interactions (e.g. channels). */

@@ -550,8 +550,8 @@ asserts), `jei_tinker_station_transfer` / `jei_tool_inventory_transfer` (JEI 27 
 `run/clientUiTest/uitest-results.json` (scenario id → `"ok"` / `"fail: ..."`), then **exits on its own**
 (verified full run ≈ 6-7 min cold including the build, ~3 min in-world, zero leftover
 processes). The suite ignores your mouse and keyboard, so you can keep working while it runs (see **Input isolation**
-below). A green 26.1.2 run records 59 results: the 56 Tinkers scenarios, the Mantle self-checks `mantle:input_isolation`
-and `mantle:progress_hidden`, plus `mantle:suite_setup` (below).
+below). A green 26.1.2 run records 60 results: the 56 Tinkers scenarios, the Mantle self-checks `mantle:input_isolation`,
+`mantle:progress_hidden` and `mantle:clear_inventory`, plus `mantle:suite_setup` (below).
 
 > **The task fails on any failing result (since M5).** The client always exits 0, so `runClientUiTest` deletes
 > `uitest-results.json` before launching and reads it after the client exits: it fails (`BUILD FAILED`, listing each
@@ -632,6 +632,14 @@ Each scenario starts with the cursor centered, so hover tooltips can cover the c
 left corner; the JEI category scenarios re-park every tick until capture). Handlers that read the real cursor instead of
 the event (Mantle `BookScreen`, JEI key actions) need `UiTestContext#moveMouse(guiX, guiY)` first; synthetic clicks use
 `new MouseButtonEvent(x, y, new MouseButtonInfo(button, 0))`.
+**Commands vs `runOnServer`:** `UiTestContext#sendCommand` takes a longer way to the server (network thread, then the server
+queue) than `UiTestContext#runOnServer` (straight into the queue), and a scenario's `cleanup` runs in the same tick as the next
+one's `prepare`. So server work scheduled with `runOnServer` can run **before** a command sent just earlier: a `clear @s` in one
+scenario's cleanup used to wipe the armor or tool the next scenario equipped (flaky `trimmed_armor`, `aoe_outline_high_contrast`).
+Empty the inventory with `UiTestContext#clearInventory()` (same as `/clear @s`, scheduled through `runOnServer`), and never let
+`runOnServer` work depend on a command sent before it; work scheduled with `runOnServer` before a command always runs first.
+Guarded by `mantle:clear_inventory` (tags `suite`, `smoke`), which holds the server thread while the clear and a following give
+are scheduled, so a clear going through a command would land after the give and fail it.
 
 ### Focused testing — run only the changed domain
 
@@ -673,7 +681,7 @@ Tags are defined once: the shared ones as constants in Mantle's `UiTestTags`, a 
 | Tag | Defined by | Meaning |
 |-----|------------|---------|
 | `smoke` | Mantle | quick cross-section: `tinker_station` (station GUI), `casting_pour` (in-world render), `book_materials_and_you`, `jei_melting_category`, plus the suite self-checks — boot is covered by `mantle:suite_setup` (≈15 s in-world, ≈1 min 15 s with Gradle) |
-| `suite` | Mantle | checks of the suite itself: `mantle:input_isolation`, `mantle:progress_hidden` |
+| `suite` | Mantle | checks of the suite itself: `mantle:input_isolation`, `mantle:progress_hidden`, `mantle:clear_inventory` |
 | `gui` | Mantle | captures or checks a screen |
 | `world` | Mantle | captures the world with no screen open (rigs, HUD) |
 | `render` | Mantle | model, texture, atlas or render type checks |

@@ -49,14 +49,11 @@ public class MyManualItem extends TooltipItem {
 
 ### EdibleItem
 
-`EdibleItem` is a food `Item` whose tooltip lists the food's status effects in gray. Food is now a data component, so the constructor that takes raw `FoodProperties` builds `new Properties().food(foodIn)` for you, and the `Properties` constructor asserts `DataComponents.FOOD` is present.
+`EdibleItem` is a food `Item` whose tooltip lists the food's status effects in gray. Food is a data component: pass the item `Properties` (with the registry id set, as for every item since 1.21.2) and call `.food(...)` on them; the constructor can't check that (26.1 binds default components after registration). The old `EdibleItem(FoodProperties)` constructor is gone: it built `new Properties()` without an id, which throws `Item id not set`.
 
 ```java
-// food directly
-Item apple = new EdibleItem(new FoodProperties.Builder().nutrition(4).saturationModifier(0.3f).build());
-
-// or via Properties (must call .food(...))
-Item bread = new EdibleItem(new Item.Properties().food(MyFoods.BREAD));
+// with a DeferredRegister.Items, which sets the id on the properties
+DeferredItem<EdibleItem> bread = ITEMS.registerItem("bread", props -> new EdibleItem(props.food(MyFoods.BREAD)));
 ```
 
 ### ContainerFoodItem

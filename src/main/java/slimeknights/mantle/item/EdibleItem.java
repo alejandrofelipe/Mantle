@@ -5,7 +5,6 @@ import net.minecraft.client.resources.language.I18n;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -18,14 +17,10 @@ import slimeknights.mantle.util.TranslationHelper;
 import java.util.function.Consumer;
 
 public class EdibleItem extends Item {
-  public EdibleItem(FoodProperties foodIn) {
-    this(new Properties().food(foodIn));
-  }
-
   public EdibleItem(Item.Properties properties) {
     super(properties);
     // 26.1: default components are bound after registration (from the loaded registries), so the constructor can no longer check
-    // that DataComponents.FOOD is set; Properties#food is the caller's job (the FoodProperties constructor sets it)
+    // that DataComponents.FOOD is set; Properties#food is the caller's job
   }
 
   @Override

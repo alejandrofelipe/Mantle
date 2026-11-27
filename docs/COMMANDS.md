@@ -226,7 +226,7 @@ Set-Location "C:\Users\aleja\DEV\New Tinkers\repo"; $env:JAVA_HOME = "C:\Users\a
   `maps/26.1.2.overrides.txt`), member renames from the compiler-driven applier with `maps/26.1.2-members.tsv` — workflow
   under [Mechanical renames](#mechanical-renames-between-versions-rename-map). Baseline proof on Mantle (Phase 0.5b, flow
   gate, unique errors): 770 → 300 after the map → 263 → 261 after two applier passes (third pass: 0 edits).
-- **Battery on 26.1.2** (end of M7 Phase 5): Mantle `build` green; Tinkers `build` with **813 unit tests** (811 passing + 2
+- **Battery on 26.1.2** (end of M7 Phase 6): Mantle `build` green; Tinkers `build` with **814 unit tests** (812 passing + 2
   `@Disabled`), `runGameTestServer` **172/172** (`All 172 required tests passed :)`), `runClientUiTest` **57/57** results (56
   scenarios + `mantle:suite_setup`). Same tasks as below, Java 25:
   ```powershell

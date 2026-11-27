@@ -188,29 +188,30 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
   }
 
   /*
-   * GUI bounds for recipe viewers (JEI builds slot areas from getGuiLeft() + slot.x). Outside render, leftPos/topPos include the side
+   * GUI bounds for recipe viewers (JEI 29 builds slot areas from getLeftPos() + slot.x; up to 1.21.11 JEI read NeoForge's getGuiLeft(),
+   * which 26.1.2 deprecated for removal and delegates to these getters). Outside render, leftPos/topPos include the side
    * modules, but slots are drawn and hovered from the main window corner, so report the corner as the GUI left/top. The size keeps
    * the right/bottom edge of the module-expanded area; modules left of or above the corner are covered by getModuleAreas, which
    * Mantle's JEI plugin hands to JEI as extra areas.
    */
 
   @Override
-  public int getGuiLeft() {
+  public int getLeftPos() {
     return this.cornerX;
   }
 
   @Override
-  public int getGuiTop() {
+  public int getTopPos() {
     return this.cornerY;
   }
 
   @Override
-  public int getXSize() {
+  public int getImageWidth() {
     return this.leftPos + this.imageWidth - this.cornerX;
   }
 
   @Override
-  public int getYSize() {
+  public int getImageHeight() {
     return this.topPos + this.imageHeight - this.cornerY;
   }
 

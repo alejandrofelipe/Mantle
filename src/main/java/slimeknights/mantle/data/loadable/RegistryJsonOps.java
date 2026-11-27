@@ -103,6 +103,10 @@ public final class RegistryJsonOps {
    * so it matches nothing until some datapack defines the tag and then matches its contents, and it encodes back as {@code #tag}.
    * Its contents can't be listed (unbound), so use it only for predicates such as {@link net.minecraft.world.item.crafting.Ingredient#test}.
    * Non-registry ops are returned unchanged.
+   * <p>
+   * Limitation: the result is a plain {@link RegistryOps} over {@link JsonOps#INSTANCE} with the same registry lookup; any wrapper or context
+   * the given ops carried is dropped (e.g. NeoForge's {@code ConditionalOps} and its condition context, or a delegating subclass), so values
+   * decoded with the returned ops can't see it. Only wrap the ops right where a tag is decoded, not the ops of a whole file.
    */
   public static DynamicOps<JsonElement> lazyTags(DynamicOps<JsonElement> ops) {
     if (!(ops instanceof RegistryOps<JsonElement> registryOps)) {

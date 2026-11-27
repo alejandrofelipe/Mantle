@@ -2,10 +2,19 @@ package slimeknights.mantle.client.uitest;
 
 import net.minecraft.resources.Identifier;
 
+import java.util.Set;
+
 /** One automated GUI capture: prepare a rig, open a screen, settle, screenshot, close. */
 public interface UiTestScenario {
   /** Stable id; the last path segment names the PNG. */
   Identifier id();
+
+  /**
+   * Tags selecting this scenario with {@code -Dmantle.uitest.tags} (Gradle {@code -PuitestTags}): at least one, all known to
+   * {@link UiTestTags}. A method rather than an annotation, so instances of one class can differ (e.g. one smoke instance).
+   * The suite fails a scenario with no or unknown tags instead of running it.
+   */
+  Set<String> tags();
 
   /** Build the scene (server-side mutations go through {@link UiTestContext#runOnServer}). */
   void prepare(UiTestContext ctx);

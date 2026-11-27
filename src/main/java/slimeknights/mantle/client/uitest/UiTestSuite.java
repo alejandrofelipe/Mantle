@@ -21,6 +21,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforgespi.language.IModInfo;
 import org.apache.commons.io.FileUtils;
+import org.jspecify.annotations.Nullable;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.render.RenderTargetCapture;
 
@@ -56,6 +57,8 @@ public class UiTestSuite {
   public static final String WORLD_UPGRADE_RESULT = "mantle:world_upgrade";
   /** Result key recorded only when mod loading warned about one of our own mods: a {@code fail:} result. */
   public static final String MOD_LOADING_RESULT = "mantle:mod_loading";
+  /** Result key recorded only when the {@code mantle.uitest.tags} filter names an unknown tag ({@link UiTestTags}): a {@code fail:} result. */
+  public static final String FILTER_RESULT = "mantle:filter";
   /** Backup prompt titles of a plain world upgrade, the only prompts the suite confirms ({@code LevelSummary.BackupStatus}) */
   private static final Set<String> PLAIN_UPGRADE_PROMPTS = Set.of("selectWorld.backupQuestion.file_fixing_required", "selectWorld.backupQuestion.snapshot");
   /**
@@ -272,27 +275,62 @@ public class UiTestSuite {
   }
 
   /**
-   * Applies the optional {@code -Dmantle.uitest.only=<tokens>} filter: keeps scenarios whose id path
-   * contains any of the comma-separated (substring) tokens, so {@code station_} keeps every
-   * {@code station_*} scenario. Unset/blank runs everything (default). An empty result is logged and
-   * lets the suite finish gracefully rather than crash.
+   * Drops the scenarios whose tags are missing or unknown ({@link UiTestTags#problems}), recording a {@code fail:} result for each,
+   * then applies the optional filters (see {@link #select}). An empty result is logged and lets the suite finish gracefully rather
+   * than crash. A tag filter naming an unknown tag fails {@link #FILTER_RESULT}, so a typo can't pass as an empty green run.
    */
-  private static List<UiTestScenario> filtered(List<UiTestScenario> all) {
-    String only = System.getProperty("mantle.uitest.only");
-    if (only == null || only.isBlank()) {
-      return all;
+  private List<UiTestScenario> filtered(List<UiTestScenario> all) {
+    Set<String> known = UiTestTags.known();
+    List<UiTestScenario> valid = new ArrayList<>();
+    for (UiTestScenario scenario : all) {
+      List<String> problems = UiTestTags.problems(scenario.tags(), known);
+      if (problems.isEmpty()) {
+        valid.add(scenario);
+      } else {
+        Mantle.logger.error("uitest: {} not run, invalid tags {}: {}", scenario.id(), scenario.tags(), problems);
+        results.put(scenario.id().toString(), "fail: tags: " + String.join("; ", problems));
+      }
     }
-    List<String> tokens = Arrays.stream(only.split(","))
-      .map(String::trim).filter(s -> !s.isEmpty()).toList();
-    List<UiTestScenario> kept = all.stream()
-      .filter(s -> tokens.stream().anyMatch(t -> s.id().getPath().contains(t)))
-      .toList();
-    Mantle.logger.info("uitest: filtered to {} of {} scenario(s) via mantle.uitest.only={}",
-      kept.size(), all.size(), only);
+    String only = System.getProperty("mantle.uitest.only");
+    String tags = System.getProperty("mantle.uitest.tags");
+    List<String> unknown = tokens(tags).stream().filter(tag -> !known.contains(tag)).toList();
+    if (!unknown.isEmpty()) {
+      Mantle.logger.error("uitest: mantle.uitest.tags={} names unknown tag(s) {}; known: {}", tags, unknown, known);
+      results.put(FILTER_RESULT, "fail: unknown tag(s) " + unknown + " in mantle.uitest.tags, known: " + known);
+    }
+    List<UiTestScenario> kept = select(valid, only, tags);
+    if (!tokens(only).isEmpty() || !tokens(tags).isEmpty()) {
+      Mantle.logger.info("uitest: filtered to {} of {} scenario(s) via mantle.uitest.only={}, mantle.uitest.tags={}",
+        kept.size(), valid.size(), only, tags);
+    }
     if (kept.isEmpty()) {
-      Mantle.logger.warn("uitest: mantle.uitest.only={} matched no scenarios; the suite will finish immediately", only);
+      Mantle.logger.warn("uitest: mantle.uitest.only={}, mantle.uitest.tags={} matched no scenarios; the suite will finish immediately", only, tags);
     }
     return kept;
+  }
+
+  /**
+   * Applies the optional filters, both when both are given (intersection). Unset or blank runs everything (default).
+   * <ul>
+   *   <li>{@code only}: comma-separated substrings, keeps scenarios whose id path contains any of them ({@code station_} keeps every {@code station_*})</li>
+   *   <li>{@code tags}: comma-separated tags, keeps scenarios having any of them ({@code jei,compat})</li>
+   * </ul>
+   */
+  public static List<UiTestScenario> select(List<UiTestScenario> all, @Nullable String only, @Nullable String tags) {
+    List<String> paths = tokens(only);
+    List<String> wanted = tokens(tags);
+    return all.stream()
+      .filter(s -> paths.isEmpty() || paths.stream().anyMatch(t -> s.id().getPath().contains(t)))
+      .filter(s -> wanted.isEmpty() || wanted.stream().anyMatch(s.tags()::contains))
+      .toList();
+  }
+
+  /** Splits a comma-separated filter property, empty for unset or blank */
+  private static List<String> tokens(@Nullable String property) {
+    if (property == null || property.isBlank()) {
+      return List.of();
+    }
+    return Arrays.stream(property.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
   }
 
   private UiTestScenario current() {

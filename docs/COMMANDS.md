@@ -1,11 +1,12 @@
-# Build & Run Commands — Mantle / TinkersConstruct (MC 1.21.11 / NeoForge 21.11.48)
+# Build & Run Commands — Mantle / TinkersConstruct (MC 26.1.2 / NeoForge 26.1.2.130)
 
-> **Current target: MC 1.21.11 / NeoForge 21.11.48** (branch `1.21.11` in both repos; `1.21.10` = the 1.21.10 release,
-> `1.21.8` = the 1.21.8 release, `1.21.5` = the 1.21.5 release, `1.21.3` = the 1.21.4 release, `1.21.1` = the 1.21.1
-> release). The 1.21.1 notes below still apply except where the [1.21.4 notes](#1214-notes-m1),
-> [1.21.8 notes](#1218-notes-m4), [1.21.10 notes](#12110-notes-m5) or [1.21.11 notes](#12111-notes-m6) override them.
-> **M7 on branch `26.1.2` (MC 26.1.2 / NeoForge 26.1.2.130), ported and battery green, release pending: every Gradle
-> command there needs Java 25** — see the [26.1.2 notes](#2612-notes-m7).
+> **Current target: MC 26.1.2 / NeoForge 26.1.2.130** (branch `26.1.2` in both repos, the M7 release: Mantle `1.18` /
+> Tinkers `3.17.0`; **every Gradle command there needs Java 25** — see the [26.1.2 notes](#2612-notes-m7)).
+> Released lines: `1.21.11` = the 1.21.11 release, `1.21.10` = the 1.21.10 release, `1.21.8` = the 1.21.8 release,
+> `1.21.5` = the 1.21.5 release, `1.21.3` = the 1.21.4 release, `1.21.1` = the 1.21.1 release (all Java 21).
+> The 1.21.1 notes below still apply except where the [1.21.4 notes](#1214-notes-m1), [1.21.8 notes](#1218-notes-m4),
+> [1.21.10 notes](#12110-notes-m5), [1.21.11 notes](#12111-notes-m6) or [26.1.2 notes](#2612-notes-m7) override them.
+> Release tag messages follow [`RELEASE-TAGS.md`](RELEASE-TAGS.md).
 > Migration gotchas: [`1.21.1-to-1.21.4.md`](migration/1.21.1-to-1.21.4.md), [`1.21.4-to-1.21.5.md`](migration/1.21.4-to-1.21.5.md),
 > [`1.21.5-to-1.21.8.md`](migration/1.21.5-to-1.21.8.md), [`1.21.8-to-1.21.10.md`](migration/1.21.8-to-1.21.10.md),
 > [`1.21.10-to-1.21.11.md`](migration/1.21.10-to-1.21.11.md), [`1.21.11-to-26.1.2.md`](migration/1.21.11-to-26.1.2.md).
@@ -32,7 +33,7 @@ sections **before** running any Gradle task — skipping them is the #1 cause of
 | OS / shell | Windows 10, PowerShell 7 (`pwsh`) | **Use PowerShell for build commands.** Bash PATH is unreliable here (see `running-windows-scripts` skill). |
 | Default Java | Temurin **17** (`JAVA_HOME` → `C:\Users\aleja\scoop\apps\temurin17-jdk\current`) | MC 1.21.1 through 1.21.11 / NeoForge need **Java 21** — must override `JAVA_HOME` per command. From roadmap M7 (MC 26.1.2+) the game needs **Java 25** (installed at `C:\Users\aleja\scoop\apps\temurin25-jdk\current`). |
 | Repo root | `C:\Users\aleja\DEV\New Tinkers\repo` | The working dir of the shell tools is the **parent** (`New Tinkers`). Always target the repo explicitly. |
-| Branch | `1.21.11` | Active port work (M6). Released lines live on `1.21.10`, `1.21.8`, `1.21.5`, `1.21.3` (1.21.4) and `1.21.1`. |
+| Branch | `26.1.2` | Current release (M7, Java 25). Released lines live on `1.21.11`, `1.21.10`, `1.21.8`, `1.21.5`, `1.21.3` (1.21.4) and `1.21.1` (Java 21). |
 | Gradle wrapper | **9.2.1** (`gradle/wrapper/gradle-wrapper.properties`) | Paired with NeoGradle **7.1.39** (used from 1.21.4 through 1.21.11; 1.21.1 used 7.1.38). Already set; don't downgrade. |
 | System Gradle | 9.5.1 (Scoop) | **Do not use** for build tasks — always use the wrapper (9.2.1), which pins the exact Gradle that NeoGradle 7.1.39 requires. |
 | Scoop CLI tools | `git` 2.54, `grep`, `fd`, `jq`, `python`, `dotnet-sdk` | Available; `git`/`grep` work in both Bash and PowerShell. |
@@ -142,6 +143,7 @@ Set-Location "C:\Users\aleja\DEV\New Tinkers\repo"; $env:JAVA_HOME = "C:\Users\a
   - Check after any run: `git -C "<repo>" status --short src/generated` lists only intended changes.
   - The 129 Tinkers part textures that used to regenerate a few pixels off (M1's `GreyToColorMapping` port) now
     regenerate byte-identical to the committed upstream ones (fixed in M5).
+- **Release tags** are annotated, on the release commit, with the message template in [`RELEASE-TAGS.md`](RELEASE-TAGS.md).
 - **Release jars** drop `.DEV` via the `ARTIFACT_VERSION` env var (`version = <mc>-<ARTIFACT_VERSION>`). It
   leaks through the composite build, so build **Mantle and Tinkers separately**:
   ```powershell

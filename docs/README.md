@@ -29,6 +29,7 @@ How to use each Mantle subsystem from a consuming mod:
 ## Build & commands
 
 - [COMMANDS.md](COMMANDS.md) — canonical, retry-proof build/run commands (JDK 21 for 1.21.x, JDK 25 for 26.1.2; NeoGradle, Windows/PowerShell notes).
+- [RELEASE-TAGS.md](RELEASE-TAGS.md) — release tag naming and the annotated tag message template (milestone and patch releases, Mantle and Tinkers).
 
 ## Port design & history
 

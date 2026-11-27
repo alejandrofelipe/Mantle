@@ -143,7 +143,12 @@ public class TextureColorHelper {
     if (model == models.missingModel()) {
       return -1;
     }
-    return getAverageColor(models.getParticleMaterial(block.defaultBlockState()).sprite());
+    Material.Baked particle = models.getParticleMaterial(block.defaultBlockState());
+    //noinspection ConstantConditions  dumb mods returning null particle icons, see ModelHelper#getParticleTexture
+    if (particle == null || particle.sprite() == null) {
+      return -1;
+    }
+    return getAverageColor(particle.sprite());
   };
 
   /** Gets the average color of an blocks default particle icon */

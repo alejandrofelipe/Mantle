@@ -86,6 +86,9 @@ try {
   Assert-Case 'forced removal (-): no row, never paired with the free name' ($members -notmatch "`tdecal`t") $members
   $removed = Get-Content (Join-Path $out 'removed.tsv') -Raw
   Assert-Case 'forced removal listed in removed.tsv' ($removed -match "method`tnet/minecraft/fix/Types`tdecal\(Ljava/lang/String;\)Ljava/lang/String;`tforced") $removed
+  # cutoutAlt (gone, not forced) has the descriptor of the forced swap target cutoutCull: the reservation keeps the two apart
+  Assert-Case 'forced target reserved: a gone member with its descriptor is not paired with it' ($members -notmatch "`tcutoutAlt`t") $members
+  Assert-Case 'gone member left without candidates after the reservation is removed' ($removed -match "(?m)^method`tnet/minecraft/fix/Types`tcutoutAlt\(Ljava/lang/String;\)Ljava/lang/String;\r?$") $removed
 
   Assert-Case 'map: class rules use $ for nested and dotted packages' ($map -match '(?m)^class net\.minecraft\.fix\.Graphics net\.minecraft\.fix\.GraphicsExtractor$') $map
   Assert-Case 'map: implied nested rule omitted' ($map -notmatch 'Graphics\$Pose') $map

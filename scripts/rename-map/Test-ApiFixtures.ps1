@@ -3,7 +3,8 @@
 # per matching rule: moved class, renamed outer class (inner-class votes), cross-package rename, enum rename, the
 # Material -> SpriteId semantic swap, a reused FQN (BlockModel -> CuboidModel), member renames incl. a same-descriptor
 # collision (render / renderBackground), a static field rename, a removed abstract method (renderBg) and a same-name swap
-# (Types: cutoutNoCull -> cutout while the old cutout became cutoutCull; decal removed).
+# (Types: cutoutNoCull -> cutout while the old cutout became cutoutCull; decal removed; cutoutAlt removed with the same
+# descriptor as the reserved cutoutCull, so it must not be paired with it).
 
 $OldApi = @{
   'net/minecraft/fix/Graphics.java'           = @'
@@ -34,7 +35,7 @@ public abstract class Screen implements Renderable {
 '@
   'net/minecraft/fix/Other.java'              = 'package net.minecraft.fix; public class Other { public void drawString(String s, int x) {} }'
   'net/minecraft/fix/Unrelated.java'          = 'package net.minecraft.fix; public class Unrelated { public void paint() {} }'
-  'net/minecraft/fix/Types.java'              = 'package net.minecraft.fix; public class Types { public static String cutout(String t) { return t; } public static String cutoutNoCull(String t) { return t; } public static String decal(String t) { return t; } }'
+  'net/minecraft/fix/Types.java'              = 'package net.minecraft.fix; public class Types { public static String cutout(String t) { return t; } public static String cutoutNoCull(String t) { return t; } public static String decal(String t) { return t; } public static String cutoutAlt(String t) { return t; } }'
   'net/minecraft/fix/a/Thing.java'           = 'package net.minecraft.fix.a; public class Thing { public int size() { return 0; } public String name() { return ""; } public void tick() {} }'
   'net/minecraft/fix/a/Gone.java'             = 'package net.minecraft.fix.a; public class Gone { public void x() {} }'
   'net/minecraft/fix/model/BlockElement.java' = @'

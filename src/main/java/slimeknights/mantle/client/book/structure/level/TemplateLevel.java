@@ -3,6 +3,7 @@
 package slimeknights.mantle.client.book.structure.level;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.particles.ExplosionParticleInfo;
@@ -18,6 +19,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.flag.FeatureFlagSet;
 import net.minecraft.world.item.crafting.RecipeAccess;
+import net.minecraft.world.level.CardinalLighting;
+import net.minecraft.world.level.ColorResolver;
 import net.minecraft.world.level.ExplosionDamageCalculator;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
@@ -53,9 +56,13 @@ import java.util.Objects;
 import java.util.function.Predicate;
 
 /**
- * World implementation for the book structures
+ * World implementation for the book structures.
+ * 26.1: implements the client {@link BlockAndTintGetter} (directional shading, block tints) as {@link Level} no longer does, so block models
+ * render against it directly.
  */
-public class TemplateLevel extends Level {
+public class TemplateLevel extends Level implements BlockAndTintGetter {
+  /** Same brightness on every face, like the old {@code getShade} returning 1 */
+  private static final CardinalLighting NO_SHADING = new CardinalLighting(1, 1, 1, 1, 1, 1);
   /**
    * 1.21.11: environment attributes with no layers, so every attribute reads its default (full sky light, no weather, biome or time effects).
    * Without layers the system holds no per-tick state, so one instance is shared by every template level.
@@ -218,6 +225,18 @@ public class TemplateLevel extends Level {
   public int getSeaLevel() {
     // 1.21.4: LevelReader#getSeaLevel became abstract; the fake world mimics the overworld
     return 63;
+  }
+
+  /** 26.1: replaces {@code getShade} returning 1, structures have no directional shading */
+  @Override
+  public CardinalLighting cardinalLighting() {
+    return NO_SHADING;
+  }
+
+  /** 26.1: block tints moved off {@code LevelReader}; same as its old default, the biome color at the position */
+  @Override
+  public int getBlockTint(BlockPos pos, ColorResolver resolver) {
+    return resolver.getColor(getBiome(pos).value(), pos.getX(), pos.getZ());
   }
 
   @Override

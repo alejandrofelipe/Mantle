@@ -6,9 +6,9 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.block.BlockRenderDispatcher;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
-import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.block.BlockQuadOutput;
+import net.minecraft.client.renderer.block.BlockStateModelSet;
+import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -16,9 +16,6 @@ import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.book.structure.StructureInfo;
 import slimeknights.mantle.client.book.structure.level.TemplateLevel;
 import slimeknights.mantle.client.render.MantleRenderTypes;
-
-import java.util.List;
-import java.util.function.Function;
 
 /**
  * Renders a book structure preview into its own texture, which the GUI then blits.
@@ -77,13 +74,24 @@ public class StructurePiPRenderer extends PictureInPictureRenderer<StructureRend
     int structureHeight = info.structureHeight;
 
     try {
-      poseStack.pushTransformation(state.transform());
+      poseStack.pushPose();
+      poseStack.mulPose(state.transform());
       poseStack.translate(structureLength / -2f, structureHeight / -2f, structureWidth / -2f);
 
-      BlockRenderDispatcher blockRender = minecraft.getBlockRenderer();
+      // 26.1: BlockRenderDispatcher is gone; tesselate like vanilla moving blocks, without face culling
+      ModelBlockRenderer blockRenderer = new ModelBlockRenderer(minecraft.options.ambientOcclusion().get(), false, minecraft.getBlockColors());
+      BlockStateModelSet models = minecraft.getModelManager().getBlockStateModelSet();
       VertexConsumer buffer = this.bufferSource.getBuffer(MantleRenderTypes.TRANSLUCENT_FULLBRIGHT);
-      // every chunk layer goes into the single fullbright translucent buffer
-      Function<ChunkSectionLayer, VertexConsumer> bufferLookup = layer -> buffer;
+      // overlay of the block being drawn, the quad instance carries it since 26.1
+      int[] overlay = {OverlayTexture.NO_OVERLAY};
+      // every chunk layer goes into the single fullbright translucent buffer, offset to the block position
+      BlockQuadOutput output = (x, y, z, quad, instance) -> {
+        poseStack.pushPose();
+        poseStack.translate(x, y, z);
+        instance.setOverlayCoords(overlay[0]);
+        buffer.putBakedQuad(poseStack.last(), quad, instance);
+        poseStack.popPose();
+      };
       for (int h = 0; h < structureHeight; h++) {
         for (int l = 0; l < structureLength; l++) {
           for (int w = 0; w < structureWidth; w++) {
@@ -91,21 +99,13 @@ public class StructurePiPRenderer extends PictureInPictureRenderer<StructureRend
             BlockState blockState = level.getBlockState(pos);
 
             if (!blockState.isAir()) {
-              poseStack.pushPose();
-              poseStack.translate(l, h, w);
-
-              int overlay;
               if (pos.equals(HIGHLIGHT_POS))
-                overlay = OverlayTexture.pack(0, true);
+                overlay[0] = OverlayTexture.pack(0, true);
               else
-                overlay = OverlayTexture.NO_OVERLAY;
+                overlay[0] = OverlayTexture.NO_OVERLAY;
 
               // block models collect parts against the level (block entity data is read through TemplateLevel#getModelData)
-              level.getRandom().setSeed(blockState.getSeed(pos));
-              List<BlockStateModelPart> parts = blockRender.getBlockModel(blockState).collectParts(level, pos, blockState, level.getRandom());
-              blockRender.getModelRenderer().tesselateBlock(level, parts, blockState, pos, poseStack, bufferLookup, false, overlay);
-
-              poseStack.popPose();
+              blockRenderer.tesselateBlock(output, l, h, w, level, pos, blockState, models.get(blockState), blockState.getSeed(pos));
             }
           }
         }

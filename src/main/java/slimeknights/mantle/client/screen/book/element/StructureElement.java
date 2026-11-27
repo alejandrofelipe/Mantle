@@ -106,7 +106,7 @@ public class StructureElement extends SizedBookElement {
     Vector3f axis = new Vector3f((float) rY, (float) rX, 0);
     float dot = axis.dot(axis);
     if (dot < Float.MIN_NORMAL) {
-      return Transformation.identity();
+      return Transformation.IDENTITY;
     }
 
     float angle = (float) (Math.sqrt(axis.dot(axis)) * Math.PI / 180f);

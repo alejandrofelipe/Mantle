@@ -1,6 +1,7 @@
 package slimeknights.mantle.client.render;
 
 import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -37,7 +38,7 @@ public class MantleShaders {
   /** Shared fluid state: translucent, culled, depth tested and written, {@code POSITION_COLOR_TEX_LIGHTMAP} quads. Has no shaders, see {@link #FLUID_SNIPPET} and {@link #FLUID_NO_FOG_SNIPPET}. */
   private static final RenderPipeline.Snippet FLUID_BASE_SNIPPET = RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
     .withSampler("Sampler0")
-    .withBlend(BlendFunction.TRANSLUCENT)
+    .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
     .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP, VertexFormat.Mode.QUADS)
     .buildSnippet();
   /** Fluid pipeline state using Mantle's fluid shader, which applies vanilla fog. Use as the base for fluid pipeline variants, e.g. one with cull disabled. */
@@ -70,7 +71,7 @@ public class MantleShaders {
     .withFragmentShader(Mantle.getResource("core/block_fullbright"))
     .withSampler("Sampler0")
     .withSampler("Sampler1")
-    .withBlend(BlendFunction.TRANSLUCENT)
+    .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
     .withVertexFormat(BLOCK_WITH_OVERLAY, VertexFormat.Mode.QUADS)
     .build();
 

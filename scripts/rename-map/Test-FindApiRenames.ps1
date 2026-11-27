@@ -50,6 +50,9 @@ try {
     'class net.minecraft.fix.a.Gone net.minecraft.fix.b.Replacement'
     'hint net.minecraft.fix.Screen renderBg merge into extractBackground'
     'rule literal Foo.INSTANCE Bar.EMPTY'
+    'method net.minecraft.fix.Types cutoutNoCull (Ljava/lang/String;)Ljava/lang/String; cutout'
+    'method net.minecraft.fix.Types cutout (Ljava/lang/String;)Ljava/lang/String; cutoutCull'
+    'method net.minecraft.fix.Types decal (Ljava/lang/String;)Ljava/lang/String; -'
   )
   $out = Join-Path $tmp 'out'
   $mapOut = Join-Path $tmp 'map.txt'; $memOut = Join-Path $tmp 'members.tsv'
@@ -78,6 +81,11 @@ try {
   Assert-Case 'static field rename' ($members -match "field`tnet/minecraft/fix/Graphics`tnet/minecraft/fix/GraphicsExtractor`tOLD_CONST`tNEW_CONST`tI`tI`t1") $members
   Assert-Case 'hint row from the overrides file' ($members -match "hint`tnet/minecraft/fix/Screen`tnet/minecraft/fix/Screen`trenderBg`t-`t-`t-`t-`tmerge into extractBackground") $members
   Assert-Case 'removed method without candidate is not a rename' ($members -notmatch "`trenderBg`t[a-z]") $members
+  Assert-Case 'forced rename of a gone member' ($members -match "method`tnet/minecraft/fix/Types`tnet/minecraft/fix/Types`tcutoutNoCull`tcutout`t.*`toverride`r?`n") $members
+  Assert-Case 'forced same-name swap of a member that still exists' ($members -match "method`tnet/minecraft/fix/Types`tnet/minecraft/fix/Types`tcutout`tcutoutCull`t.*`toverride-swap") $members
+  Assert-Case 'forced removal (-): no row, never paired with the free name' ($members -notmatch "`tdecal`t") $members
+  $removed = Get-Content (Join-Path $out 'removed.tsv') -Raw
+  Assert-Case 'forced removal listed in removed.tsv' ($removed -match "method`tnet/minecraft/fix/Types`tdecal\(Ljava/lang/String;\)Ljava/lang/String;`tforced") $removed
 
   Assert-Case 'map: class rules use $ for nested and dotted packages' ($map -match '(?m)^class net\.minecraft\.fix\.Graphics net\.minecraft\.fix\.GraphicsExtractor$') $map
   Assert-Case 'map: implied nested rule omitted' ($map -notmatch 'Graphics\$Pose') $map

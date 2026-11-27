@@ -103,6 +103,17 @@ Overrides file lines: `class <old> <new>`, `method|field <oldOwner> <oldName> <o
 `hint <owner> <name> <message>` (printed by the applier for an override/call with no rename, e.g. `renderBg`),
 `rule <kind> <old> <new>` (copied into the map). `-Explain "old.Fqn,new.Fqn"` prints the similarity features of a pair.
 
+**Same-name member swaps — the jar diff can't see them.** Only members whose old name is *gone* get paired, so when a
+version moves a name onto another member (MC 26.1: `RenderTypes.entityCutoutNoCull` → `entityCutout`, while the old
+culled `entityCutout` → `entityCutoutCull`), the old name still resolves: old callers **compile and silently change
+meaning**, and the tie-break hands the freed name (`entityCutoutCull`) to whatever gone member is left. Pin both sides in
+the overrides file: a `method` line for the gone member (row `override`) and one for the member that still exists (row
+`override-swap`: documents the swap and reserves the target; a forced target is never paired again). The applier only
+acts on compile errors, so grep the old name's callers by hand. `<newName>` `-` marks a member removed without a
+same-descriptor successor (listed in `removed.tsv` as `forced`, never paired). When the tie-break moves a name after a
+pin, read the new row's successor in the vanilla callers (e.g. `entitySmoothCutout` → `endCrystalBeam` in
+`EnderDragonRenderer`) before pinning it too.
+
 ## Compiler-driven member renames (`Invoke-CompilerRenames.ps1`, M7+)
 
 Member renames by name alone over-match (`getId`, `draw`), and most of them are hidden until the class rules are applied

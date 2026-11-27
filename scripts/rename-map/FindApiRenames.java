@@ -263,6 +263,7 @@ public class FindApiRenames {
           case "method", "field" -> {
             String[] p = rest.split("\\s+");
             if (p.length != 4) { overrideErrors.add("line " + ln + ": " + f[0] + " <oldOwner> <oldName> <oldDesc|*> <newName>"); continue; }
+            // newName '-' = removed without a successor (never paired by the tie-break)
             forcedMembers.add(new String[]{f[0], p[0].replace('.', '/'), p[1], p[2], p[3]});
           }
           case "hint" -> {
@@ -471,13 +472,19 @@ public class FindApiRenames {
         List<Member> gone = om.stream().filter(x -> !newKeys.contains(isMethod ? x.name + remap(x.desc, null, classMap) : x.name)).toList();
         List<Member> fresh = nm.stream().filter(x -> !oldKeys.contains(isMethod ? x.name + x.desc : x.name)).toList();
         Set<Member> done = new HashSet<>();
-        // forced member renames first
-        for (Member g : gone) {
+        // forced member renames first. A forced row may name a member that still exists (same-name swap, e.g. 26.1
+        // RenderTypes.entityCutout -> entityCutoutCull while entityCutoutNoCull took the name entityCutout): the row
+        // documents it and reserves the target; the applier never sees an error for it, so callers need a manual grep.
+        for (Member g : om) {
           String nName = forcedKey.getOrDefault(kind + "|" + on + "|" + g.name + "|" + g.desc, forcedKey.get(kind + "|" + on + "|" + g.name + "|*"));
           if (nName == null) continue;
-          String nd = remap(g.desc, null, classMap);
-          memberRows.add(String.join("\t", kind, on, nn, g.name, nName, g.desc, nd, g.isStatic ? "1" : "0", "override"));
           done.add(g);
+          if (nName.equals("-")) { removedRows.add(kind + "\t" + on + "\t" + g.name + (isMethod ? g.desc : "") + "\tforced"); continue; }
+          String nd = remap(g.desc, null, classMap);
+          // a forced target is taken: the name tie-break must not hand it to another gone member as well
+          String forcedTarget = nName;
+          fresh = fresh.stream().filter(x -> !(x.name.equals(forcedTarget) && (!isMethod || x.desc.equals(nd)))).toList();
+          memberRows.add(String.join("\t", kind, on, nn, g.name, nName, g.desc, nd, g.isStatic ? "1" : "0", gone.contains(g) ? "override" : "override-swap"));
           if (isMethod) methodCount++; else fieldCount++;
         }
         Map<String, List<Member>> goneBy = new TreeMap<>(), freshBy = new HashMap<>();

@@ -2,7 +2,8 @@
 # tinkers/docs/superpowers/plans/2026-11-26-m7-26.1.2-port.md). Regenerate maps/26.1.2.txt + maps/26.1.2-members.tsv
 # with Find-ApiRenames.ps1 after editing this file. Lines: '#' comments only (no trailing comments).
 #   class <oldFqn> <newFqn>                          force a class pair ($ = nested class)
-#   method|field <oldOwner> <oldName> <oldDesc|*> <newName>   force a member rename (owner = old FQN)
+#   method|field <oldOwner> <oldName> <oldDesc|*> <newName>   force a member rename (owner = old FQN); <newName> '-' =
+#                                                    removed, never paired (a forced target is never paired again)
 #   hint <owner> <name> <message...>                 printed by Invoke-CompilerRenames.ps1 when an override/dead
 #                                                    override of <name> under <owner> has no rename (manual fix)
 #   rule <kind> <old> <new>                          extra Invoke-RenameMap rule, copied into the generated map
@@ -19,6 +20,16 @@ class net.minecraft.world.inventory.ClickType net.minecraft.world.inventory.Cont
 # --- EmptyBlockAndTintGetter is gone: its INSTANCE is BlockAndTintGetter.EMPTY (client.renderer.block) ---
 rule literal EmptyBlockAndTintGetter.INSTANCE BlockAndTintGetter.EMPTY
 rule literal net.minecraft.world.level.EmptyBlockAndTintGetter; net.minecraft.client.renderer.block.BlockAndTintGetter;
+
+# --- same-name swaps (the jar diff only pairs members whose old name is gone, so it cannot see these) ---
+# 26.1 renamed RenderTypes.entityCutoutNoCull -> entityCutout and gave the old culled entityCutout the name entityCutoutCull.
+# Without these pins the tie-break paired entityCutoutNoCull(Identifier) with the free name entityCutoutCull. The second row
+# names a member that still exists (row kind override-swap): old entityCutout(Identifier) callers still compile and
+# silently lose culling, the applier can't see them - grep and switch them to entityCutoutCull by hand.
+method net.minecraft.client.renderer.rendertype.RenderTypes entityCutoutNoCull (Lnet/minecraft/resources/Identifier;)Lnet/minecraft/client/renderer/rendertype/RenderType; entityCutout
+method net.minecraft.client.renderer.rendertype.RenderTypes entityCutout (Lnet/minecraft/resources/Identifier;)Lnet/minecraft/client/renderer/rendertype/RenderType; entityCutoutCull
+# entitySmoothCutout lost its pipeline; its only vanilla caller (EnderDragonRenderer.BEAM) uses endCrystalBeam now.
+method net.minecraft.client.renderer.rendertype.RenderTypes entitySmoothCutout (Lnet/minecraft/resources/Identifier;)Lnet/minecraft/client/renderer/rendertype/RenderType; endCrystalBeam
 
 # --- supertype methods removed without a same-descriptor successor (manual fix; the applier reports them) ---
 hint net.minecraft.client.gui.screens.inventory.AbstractContainerScreen renderBg removed: merge the body into Screen#extractBackground(GuiGraphicsExtractor, int mouseX, int mouseY, float a) - parameters reordered, and extractBackground is NOT abstract (call super.extractBackground for the menu blur; an un-@Override'd renderBg compiles and never runs)

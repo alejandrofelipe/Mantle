@@ -15,6 +15,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.ItemUtils;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.Fluid;
@@ -216,9 +217,11 @@ public class FluidTransferHelper {
             SoundEvent sound = getEmptySound(fluidStack);
             bucket.checkExtraContent(player, world, held, pos.relative(offset));
             world.playSound(null, pos, sound, SoundSource.BLOCKS, 1.0F, 1.0F);
-            player.displayClientMessage(Component.translatable(KEY_FILLED, COMMA_FORMAT.format(FluidType.BUCKET_VOLUME), fluidStack.getHoverName()), true);
+            player.sendOverlayMessage(Component.translatable(KEY_FILLED, COMMA_FORMAT.format(FluidType.BUCKET_VOLUME), fluidStack.getHoverName()));
             if (!player.isCreative()) {
-              player.setItemInHand(hand, held.getCraftingRemainder());
+              // 26.1: the crafting remainder is a nullable template
+              ItemStackTemplate remainder = held.getCraftingRemainder();
+              player.setItemInHand(hand, remainder == null ? ItemStack.EMPTY : remainder.create());
             }
             return FluidInteractionResult.DRAINED_STACK;
           }
@@ -232,13 +235,13 @@ public class FluidTransferHelper {
   /** Plays the sound from filling a TE */
   public static void playEmptySound(Level world, BlockPos pos, Player player, FluidStack transferred) {
     world.playSound(null, pos, getEmptySound(transferred), SoundSource.BLOCKS, 1.0F, 1.0F);
-    player.displayClientMessage(Component.translatable(KEY_FILLED, COMMA_FORMAT.format(transferred.getAmount()), transferred.getHoverName()), true);
+    player.sendOverlayMessage(Component.translatable(KEY_FILLED, COMMA_FORMAT.format(transferred.getAmount()), transferred.getHoverName()));
   }
 
   /** Plays the sound from draining a TE */
   public static void playFillSound(Level world, BlockPos pos, Player player, FluidStack transferred) {
     world.playSound(null, pos, getFillSound(transferred), SoundSource.BLOCKS, 1.0F, 1.0F);
-    player.displayClientMessage(Component.translatable(KEY_DRAINED, COMMA_FORMAT.format(transferred.getAmount()), transferred.getHoverName()), true);
+    player.sendOverlayMessage(Component.translatable(KEY_DRAINED, COMMA_FORMAT.format(transferred.getAmount()), transferred.getHoverName()));
   }
 
   /** @deprecated use {@link #interactWithContainer(Level, BlockPos, Player, InteractionHand, BlockHitResult)} */

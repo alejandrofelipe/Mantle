@@ -92,7 +92,7 @@ public class NetworkWrapper {
    * @param position     Position within range
    */
   public void sendToClientsAround(CustomPacketPayload payload, ServerLevel serverWorld, BlockPos position) {
-    PacketDistributor.sendToPlayersTrackingChunk(serverWorld, new ChunkPos(position), payload);
+    PacketDistributor.sendToPlayersTrackingChunk(serverWorld, ChunkPos.containing(position), payload);
   }
 
   /**

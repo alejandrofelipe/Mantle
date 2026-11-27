@@ -351,9 +351,9 @@ public class BookCommand {
     if (player != null) {
       Component fileComponent = GeneratePackHelper.getOutputComponent(screenshotDir);
       if (htmlDir != null) {
-        player.displayClientMessage(Component.translatable(EXPORT_SUCCESS_HTML, fileComponent, GeneratePackHelper.getOutputComponent(htmlDir)), false);
+        player.sendSystemMessage(Component.translatable(EXPORT_SUCCESS_HTML, fileComponent, GeneratePackHelper.getOutputComponent(htmlDir)));
       } else {
-        player.displayClientMessage(Component.translatable(EXPORT_SUCCESS, fileComponent), false);
+        player.sendSystemMessage(Component.translatable(EXPORT_SUCCESS, fileComponent));
       }
     }
   }
@@ -361,7 +361,7 @@ public class BookCommand {
   public static void bookNotFound(Identifier book) {
     Player player = Minecraft.getInstance().player;
     if (player != null) {
-      player.displayClientMessage(Component.translatable(BOOK_NOT_FOUND, book.toString()).withStyle(ChatFormatting.RED), false);
+      player.sendSystemMessage(Component.translatable(BOOK_NOT_FOUND, book.toString()).withStyle(ChatFormatting.RED));
     }
   }
 }

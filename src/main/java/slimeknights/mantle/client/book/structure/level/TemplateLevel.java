@@ -4,7 +4,6 @@ package slimeknights.mantle.client.book.structure.level;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.particles.ExplosionParticleInfo;
 import net.minecraft.core.particles.ParticleOptions;
@@ -13,6 +12,7 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.random.WeightedList;
 import net.minecraft.world.attribute.EnvironmentAttributeSystem;
+import net.minecraft.world.clock.ClockManager;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -61,6 +61,8 @@ public class TemplateLevel extends Level {
    * Without layers the system holds no per-tick state, so one instance is shared by every template level.
    */
   private static final EnvironmentAttributeSystem ENVIRONMENT_ATTRIBUTES = EnvironmentAttributeSystem.builder().build();
+  /** 26.1: clocks that always read 0 ticks, shared by every template level */
+  private static final ClockManager CLOCK_MANAGER = definition -> 0;
 
   private final Map<MapId, MapItemSavedData> maps = new HashMap<>();
   private final Scoreboard scoreboard = new Scoreboard();
@@ -186,20 +188,10 @@ public class TemplateLevel extends Level {
   @Override
   public void gameEvent(Holder<GameEvent> pEvent, Vec3 pPosition, Context pContext) {}
 
+  /** 26.1: day time moved from the level data to world clocks; the template level's clocks never advance (it used to have day time 0) */
   @Override
-  public void setDayTimePerTick(float dayTimePerTick) {}
-
-  @Override
-  public float getDayTimePerTick() {
-    return 0;
-  }
-
-  @Override
-  public void setDayTimeFraction(float dayTimeFraction) {}
-
-  @Override
-  public float getDayTimeFraction() {
-    return 0;
+  public ClockManager clockManager() {
+    return CLOCK_MANAGER;
   }
 
   @Override
@@ -220,11 +212,6 @@ public class TemplateLevel extends Level {
   @Override
   public FeatureFlagSet enabledFeatures() {
     return FeatureFlagSet.of();
-  }
-
-  @Override
-  public float getShade(Direction p_230487_1_, boolean p_230487_2_) {
-    return 1;
   }
 
   @Override

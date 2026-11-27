@@ -44,7 +44,7 @@ public interface ItemPredicate extends IJsonPredicate<Item> {
   }
 
   /** Predicate matching any items with a remainder after crafting. */
-  ItemPredicate HAS_CONTAINER = simple(item -> !item.getCraftingRemainder().isEmpty());
+  ItemPredicate HAS_CONTAINER = simple(item -> item.getCraftingRemainder() != null);
   /** Predicate matching any items with fluid transfer registered with {@link FluidContainerTransferManager} */
   ItemPredicate MAY_HAVE_TRANSFER = simple(FluidContainerTransferManager.INSTANCE::mayHaveTransfer);
 

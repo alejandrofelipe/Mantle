@@ -7,6 +7,7 @@ import net.minecraft.world.level.storage.WritableLevelData;
 
 public class FakeLevelData implements WritableLevelData {
 
+  // 26.1: day time and weather moved off the level data (world clocks, weather on the level)
   // 1.21.9: spawn position + angle merged into LevelData.RespawnData (dimension, pos, yaw, pitch)
   private RespawnData respawnData = RespawnData.DEFAULT;
 
@@ -23,26 +24,6 @@ public class FakeLevelData implements WritableLevelData {
   @Override
   public long getGameTime() {
     return 0;
-  }
-
-  @Override
-  public long getDayTime() {
-    return 0;
-  }
-
-  @Override
-  public boolean isThundering() {
-    return false;
-  }
-
-  @Override
-  public boolean isRaining() {
-    return false;
-  }
-
-  @Override
-  public void setRaining(boolean isRaining) {
-
   }
 
   @Override

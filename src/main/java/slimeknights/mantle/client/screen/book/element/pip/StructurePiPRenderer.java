@@ -101,8 +101,8 @@ public class StructurePiPRenderer extends PictureInPictureRenderer<StructureRend
                 overlay = OverlayTexture.NO_OVERLAY;
 
               // block models collect parts against the level (block entity data is read through TemplateLevel#getModelData)
-              level.random.setSeed(blockState.getSeed(pos));
-              List<BlockStateModelPart> parts = blockRender.getBlockModel(blockState).collectParts(level, pos, blockState, level.random);
+              level.getRandom().setSeed(blockState.getSeed(pos));
+              List<BlockStateModelPart> parts = blockRender.getBlockModel(blockState).collectParts(level, pos, blockState, level.getRandom());
               blockRender.getModelRenderer().tesselateBlock(level, parts, blockState, pos, poseStack, bufferLookup, false, overlay);
 
               poseStack.popPose();

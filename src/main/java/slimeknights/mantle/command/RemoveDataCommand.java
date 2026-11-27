@@ -5,6 +5,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.Dynamic2CommandExceptionType;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.ResourceKeyArgument;
@@ -15,12 +16,14 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
-import net.neoforged.neoforge.common.NeoForgeMod;
+import net.neoforged.neoforge.common.conditions.ICondition;
+import net.neoforged.neoforge.common.conditions.NeverCondition;
 import net.neoforged.neoforge.common.world.BiomeModifier;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.util.JsonHelper;
 
 import java.nio.file.Path;
+import java.util.List;
 
 import static net.neoforged.neoforge.registries.NeoForgeRegistries.Keys.BIOME_MODIFIERS;
 
@@ -93,7 +96,8 @@ public class RemoveDataCommand {
     // start by fetching the existing structure set JSON
     Identifier modifierLocation = JsonHelper.wrap(id.identifier(), BIOME_MODIFIERS.identifier().getNamespace() + '/' + BIOME_MODIFIERS.identifier().getPath() + '/', ".json");
     JsonObject json = new JsonObject();
-    json.addProperty("type", NeoForgeMod.NONE_BIOME_MODIFIER_TYPE.getId().toString());
+    // 26.1: NeoForge dropped the none biome modifier type; a never-matching load condition removes the entry instead
+    ICondition.writeConditions(JsonOps.INSTANCE, json, List.of(NeverCondition.INSTANCE));
 
     // determine the path for the resulting datapack
     Path pack = GeneratePackHelper.getDatapackPath(context.getSource().getServer());

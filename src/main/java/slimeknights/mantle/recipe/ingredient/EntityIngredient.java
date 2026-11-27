@@ -145,8 +145,8 @@ public abstract class EntityIngredient implements Predicate<EntityType<?>>, IAmL
     if (eggs == null) {
       // use getDisplay to guarantee order is the same, just in case
       eggs = getDisplay().stream().map(type -> {
-        SpawnEggItem egg = SpawnEggItem.byId(type.type);
-        return egg == null ? null : new ItemStack(egg);
+        // 26.1: byId returns the egg holder
+        return SpawnEggItem.byId(type.type).map(ItemStack::new).orElse(null);
       }).toList();
     }
     return eggs;
@@ -190,7 +190,7 @@ public abstract class EntityIngredient implements Predicate<EntityType<?>>, IAmL
 
     @Override
     public boolean test(EntityType<?> type) {
-      return type.is(tag);
+      return type.builtInRegistryHolder().is(tag);
     }
 
     @SuppressWarnings("deprecation")

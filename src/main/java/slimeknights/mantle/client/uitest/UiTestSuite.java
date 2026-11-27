@@ -23,7 +23,6 @@ import net.neoforged.neoforgespi.language.IModInfo;
 import org.apache.commons.io.FileUtils;
 import org.jspecify.annotations.Nullable;
 import slimeknights.mantle.Mantle;
-import slimeknights.mantle.client.render.RenderTargetCapture;
 
 import java.io.File;
 import java.io.IOException;
@@ -76,6 +75,8 @@ public class UiTestSuite {
   private static final double SETUP_MOB_RADIUS = 128;
   /** Per-scenario hard ceiling; overruns record a fail and move on. */
   private static final int SCENARIO_TIMEOUT_TICKS = 20 * 60;
+  /** Ticks a due capture waits for a frame rendered without the progress bar. */
+  private static final int CLEAN_FRAME_TICKS = 10;
   /** Whole-suite ceiling; overruns finish (and report) whatever ran. */
   private static final int SUITE_TIMEOUT_TICKS = 20 * 60 * 10;
 
@@ -98,7 +99,9 @@ public class UiTestSuite {
     muteMusic(Minecraft.getInstance());
     // OS mouse and keyboard input can't reach the game while the suite runs, restored in finish()
     UiTestInput.isolate(Minecraft.getInstance());
+    UiTestProgress.init();
     UiTestScenarios.register(new UiTestSelfChecks.InputIsolationScenario());
+    UiTestScenarios.register(new UiTestSelfChecks.ProgressHiddenScenario());
     Mantle.logger.info("uitest: suite armed; {} scenario(s) registered so far (registry is snapshotted at world load)",
       UiTestScenarios.all().size());
   }
@@ -269,11 +272,18 @@ public class UiTestSuite {
       }
       case SETTLE -> {
         if (scenarioTimedOut(mc)) return;
-        if (phaseTicks >= current().settleTicks()) {
+        int settle = current().settleTicks();
+        // the progress bar is hidden from the tick before; wait for a frame rendered without it (several ticks can run per frame),
+        // past the wait the capture itself fails if the bar is still on the frame
+        if (phaseTicks >= settle && (UiTestProgress.lastFrameClean() || phaseTicks >= settle + CLEAN_FRAME_TICKS)) {
           capture(mc);
         }
       }
       case FINISH -> finish(mc);
+    }
+    if (!finished) {
+      // hide the bar for the frames before a capture: the scenarios read the captured frame again in close()
+      UiTestProgress.setHidden(phase == Phase.SETTLE && phaseTicks >= current().settleTicks() - 1);
     }
   }
 
@@ -347,6 +357,7 @@ public class UiTestSuite {
     }
     scenarioTicks = 0;
     Mantle.logger.info("uitest: [{}/{}] {}", index + 1, scenarios.size(), current().id());
+    UiTestProgress.update(index, scenarios.size(), current().id().toString());
     // each scenario starts with the cursor centered, where vanilla put it when grabbing and releasing it before OS input was isolated
     new UiTestContext(mc).centerMouse();
     if (runGuarded(mc, "prepare", () -> current().prepare(new UiTestContext(mc)))) {
@@ -358,7 +369,7 @@ public class UiTestSuite {
     if (!runGuarded(mc, "capture", () -> {
       // 1.21.5: Screenshot.takeScreenshot reads back asynchronously (callback on a later frame); capture synchronously so the
       // PNG is on disk before the scenario closes, and so the final scenario's file exists before finish() stops the client
-      NativeImage image = RenderTargetCapture.capture(mc.getMainRenderTarget(), false);
+      NativeImage image = new UiTestContext(mc).captureFrame();
       try (image) {
         image.writeToFile(new File(outputDir, current().id().getPath() + ".png"));
       } catch (IOException e) {
@@ -571,6 +582,7 @@ public class UiTestSuite {
     }
     // every way out of the suite (done, suite timeout, a failed setup) ends here
     UiTestInput.restore(mc);
+    UiTestProgress.stop(mc);
     finished = true;
     mc.stop();
   }

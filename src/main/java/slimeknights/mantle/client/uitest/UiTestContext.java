@@ -1,5 +1,6 @@
 package slimeknights.mantle.client.uitest;
 
+import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
@@ -12,6 +13,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import slimeknights.mantle.client.render.RenderTargetCapture;
 
 import java.lang.reflect.Field;
 import java.util.Objects;
@@ -68,6 +70,16 @@ public record UiTestContext(Minecraft mc) {
   public void moveMouse(double guiX, double guiY) {
     Window window = mc.getWindow();
     setMouse(guiX * window.getScreenWidth() / window.getGuiScaledWidth(), guiY * window.getScreenHeight() / window.getGuiScaledHeight());
+  }
+
+  /**
+   * Reads the last rendered frame from the main render target, e.g. for pixel asserts in {@link UiTestScenario#close} on the frame the
+   * suite just captured. Use this rather than {@link RenderTargetCapture} directly: it fails if that frame shows the suite's progress
+   * bar, which must never reach a pixel read. Caller closes the image.
+   */
+  public NativeImage captureFrame() {
+    UiTestProgress.checkCapture();
+    return RenderTargetCapture.capture(mc.getMainRenderTarget(), false);
   }
 
   /** Moves the mouse to the window center, where each scenario starts */

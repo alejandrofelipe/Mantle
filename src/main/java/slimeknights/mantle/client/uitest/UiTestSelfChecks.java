@@ -1,7 +1,11 @@
 package slimeknights.mantle.client.uitest;
 
+import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.glfw.GLFW;
@@ -140,6 +144,91 @@ final class UiTestSelfChecks {
       key.invoke(window, GLFW.GLFW_KEY_E, GLFW.glfwGetKeyScancode(GLFW.GLFW_KEY_E), GLFW.GLFW_RELEASE, 0);
       focusCallback(window).invoke(window, GLFW.glfwGetWindowAttrib(window, GLFW.GLFW_FOCUSED) == GLFW.GLFW_TRUE);
       mc.setScreen(null);
+    }
+  }
+
+  /**
+   * The progress bar never reaches a capture: shows the bar in the world during the prepare wait (control: frames with the bar were
+   * rendered meanwhile), then opens a screen filled with one color and checks that the left part of the captured frame, where the bar
+   * and its label are drawn, is exactly that color. Independent of the suite's own bookkeeping ({@link UiTestProgress#lastFrameClean()}).
+   */
+  static final class ProgressHiddenScenario implements UiTestScenario {
+    /** Opaque fill of the screen, ARGB as {@link NativeImage#getPixel} returns it */
+    private static final int COLOR = 0xFF3060A0;
+    /** Width in GUI pixels of the checked strip on the left edge, covering the bar and its label */
+    private static final int STRIP = 48;
+    private long framesBefore;
+
+    @Override
+    public Identifier id() {
+      return Mantle.getResource("progress_hidden");
+    }
+
+    @Override
+    public Set<String> tags() {
+      return Set.of(UiTestTags.SUITE, UiTestTags.SMOKE, UiTestTags.GUI);
+    }
+
+    @Override
+    public void prepare(UiTestContext ctx) {
+      ctx.mc().setScreen(null);
+      framesBefore = UiTestProgress.framesWithBar();
+    }
+
+    @Override
+    public void open(UiTestContext ctx) {
+      ctx.mc().setScreen(new SolidScreen());
+      ctx.parkMouse();
+    }
+
+    @Override
+    public void close(UiTestContext ctx) {
+      if (!(ctx.mc().screen instanceof SolidScreen)) {
+        throw new IllegalStateException("expected the solid screen, found " + ctx.mc().screen);
+      }
+      // pixels first: a bar drawn but not recorded by the suite must fail here, before the control below
+      try (NativeImage image = ctx.captureFrame()) {
+        double scale = (double) image.getWidth() / ctx.mc().getWindow().getGuiScaledWidth();
+        int width = Math.min(image.getWidth(), (int) Math.ceil(STRIP * scale));
+        int wrong = 0;
+        String first = "";
+        for (int y = 0; y < image.getHeight(); y++) {
+          for (int x = 0; x < width; x++) {
+            int color = image.getPixel(x, y);
+            if (color != COLOR) {
+              if (wrong == 0) {
+                first = " (first at " + x + ", " + y + ": #" + Integer.toHexString(color) + ")";
+              }
+              wrong++;
+            }
+          }
+        }
+        if (wrong > 0) {
+          throw new IllegalStateException(wrong + " pixel(s) of the left " + width + " px strip are not the screen color #" + Integer.toHexString(COLOR) + first + ": the progress display is on the captured frame");
+        }
+      }
+      if (UiTestProgress.framesWithBar() <= framesBefore) {
+        throw new IllegalStateException("control: no frame showed the progress bar during this scenario, so the strip check proves nothing");
+      }
+      ctx.mc().setScreen(null);
+    }
+
+    @Override
+    public void cleanup(UiTestContext ctx) {
+      ctx.mc().setScreen(null);
+    }
+  }
+
+  /** Screen filling the whole window with {@link ProgressHiddenScenario#COLOR} */
+  private static final class SolidScreen extends Screen {
+    private SolidScreen() {
+      super(Component.empty());
+    }
+
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+      super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+      graphics.fill(0, 0, this.width, this.height, ProgressHiddenScenario.COLOR);
     }
   }
 

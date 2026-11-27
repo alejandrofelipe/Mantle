@@ -659,15 +659,16 @@ $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\
 $env:JAVA_HOME = "C:\Users\aleja\scoop\apps\temurin21-jdk\current"; & "C:\Users\aleja\DEV\New Tinkers\tinkers\gradlew.bat" -p "C:\Users\aleja\DEV\New Tinkers\tinkers" runClientUiTest -PuitestOnly=station_
 ```
 
-The suite logs `uitest: filtered to N of M scenario(s) via mantle.uitest.only=station_`; an empty match
-logs a warning and finishes cleanly (no crash; the task passes with only `mantle:suite_setup` in the results). Property unset = all scenarios run (the default).
+The suite logs `uitest: filtered to N of M scenario(s) via mantle.uitest.only=station_`; an empty match (a typo, or an
+empty intersection with `-PuitestTags`) finishes cleanly (no crash) but fails `mantle:filter` (`fail: … matched no scenarios`), so
+the task fails instead of passing green with nothing run. Property unset = all scenarios run (the default).
 
 #### uitest tags and profiles
 
 `-PuitestTags=<tag,...>` (sysprop `mantle.uitest.tags`) keeps the scenarios having **any** of the listed tags. With
 `-PuitestOnly` as well, **both** filters apply (intersection). The suite logs
-`uitest: filtered to N of M scenario(s) via mantle.uitest.only=…, mantle.uitest.tags=…`; a tag the suite doesn't know fails
-`mantle:filter` (so a typo can't pass as an empty green run). In PowerShell, **quote a property holding a comma** — an
+`uitest: filtered to N of M scenario(s) via mantle.uitest.only=…, mantle.uitest.tags=…`; a tag the suite doesn't know, or
+filters keeping no scenario at all, fail `mantle:filter` (so a typo can't pass as an empty green run). In PowerShell, **quote a property holding a comma** — an
 unquoted `-PuitestTags=jei,compat` is parsed as an array and the command fails before Gradle starts:
 
 ```powershell

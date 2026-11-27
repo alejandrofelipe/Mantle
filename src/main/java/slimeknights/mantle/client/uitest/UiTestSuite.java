@@ -60,7 +60,7 @@ public class UiTestSuite {
   public static final String WORLD_UPGRADE_RESULT = "mantle:world_upgrade";
   /** Result key recorded only when mod loading warned about one of our own mods: a {@code fail:} result. */
   public static final String MOD_LOADING_RESULT = "mantle:mod_loading";
-  /** Result key recorded only when the {@code mantle.uitest.tags} filter names an unknown tag ({@link UiTestTags}): a {@code fail:} result. */
+  /** Result key recorded only when a filter keeps no scenario or {@code mantle.uitest.tags} names an unknown tag ({@link UiTestTags}): a {@code fail:} result. */
   public static final String FILTER_RESULT = "mantle:filter";
   /** Backup prompt titles of a plain world upgrade, the only prompts the suite confirms ({@code LevelSummary.BackupStatus}) */
   private static final Set<String> PLAIN_UPGRADE_PROMPTS = Set.of("selectWorld.backupQuestion.file_fixing_required", "selectWorld.backupQuestion.snapshot");
@@ -294,8 +294,8 @@ public class UiTestSuite {
 
   /**
    * Drops the scenarios whose tags are missing or unknown ({@link UiTestTags#problems}), recording a {@code fail:} result for each,
-   * then applies the optional filters (see {@link #select}). An empty result is logged and lets the suite finish gracefully rather
-   * than crash. A tag filter naming an unknown tag fails {@link #FILTER_RESULT}, so a typo can't pass as an empty green run.
+   * then applies the optional filters (see {@link #select}). An empty result lets the suite finish gracefully rather than crash; when a
+   * filter is set it also fails {@link #FILTER_RESULT}, as does a tag filter naming an unknown tag ({@link #filterFailure}).
    */
   private List<UiTestScenario> filtered(List<UiTestScenario> all) {
     Set<String> known = UiTestTags.known();
@@ -311,20 +311,38 @@ public class UiTestSuite {
     }
     String only = System.getProperty("mantle.uitest.only");
     String tags = System.getProperty("mantle.uitest.tags");
-    List<String> unknown = tokens(tags).stream().filter(tag -> !known.contains(tag)).toList();
-    if (!unknown.isEmpty()) {
-      Mantle.logger.error("uitest: mantle.uitest.tags={} names unknown tag(s) {}; known: {}", tags, unknown, known);
-      results.put(FILTER_RESULT, "fail: unknown tag(s) " + unknown + " in mantle.uitest.tags, known: " + known);
-    }
     List<UiTestScenario> kept = select(valid, only, tags);
     if (!tokens(only).isEmpty() || !tokens(tags).isEmpty()) {
       Mantle.logger.info("uitest: filtered to {} of {} scenario(s) via mantle.uitest.only={}, mantle.uitest.tags={}",
         kept.size(), valid.size(), only, tags);
     }
+    String failure = filterFailure(kept.size(), only, tags, known);
+    if (failure != null) {
+      Mantle.logger.error("uitest: {}", failure);
+      results.put(FILTER_RESULT, failure);
+    }
     if (kept.isEmpty()) {
-      Mantle.logger.warn("uitest: mantle.uitest.only={}, mantle.uitest.tags={} matched no scenarios; the suite will finish immediately", only, tags);
+      Mantle.logger.warn("uitest: no scenario to run; the suite will finish immediately");
     }
     return kept;
+  }
+
+  /**
+   * The {@link #FILTER_RESULT} failure of the filters, null when fine: a tag filter naming an unknown tag, or any filter keeping no scenario,
+   * so a typo or an empty intersection can't pass as a green run of nothing.
+   * @param kept   Number of scenarios the filters kept ({@link #select})
+   * @param known  Known tags ({@link UiTestTags#known()})
+   */
+  public static @Nullable String filterFailure(int kept, @Nullable String only, @Nullable String tags, Set<String> known) {
+    List<String> problems = new ArrayList<>();
+    List<String> unknown = tokens(tags).stream().filter(tag -> !known.contains(tag)).toList();
+    if (!unknown.isEmpty()) {
+      problems.add("unknown tag(s) " + unknown + " in mantle.uitest.tags, known: " + known);
+    }
+    if (kept == 0 && (!tokens(only).isEmpty() || !tokens(tags).isEmpty())) {
+      problems.add("mantle.uitest.only=" + only + ", mantle.uitest.tags=" + tags + " matched no scenarios");
+    }
+    return problems.isEmpty() ? null : "fail: " + String.join("; ", problems);
   }
 
   /**

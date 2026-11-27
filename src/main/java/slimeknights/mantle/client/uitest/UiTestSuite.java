@@ -2,7 +2,9 @@ package slimeknights.mantle.client.uitest;
 
 import com.google.gson.GsonBuilder;
 import com.mojang.blaze3d.platform.NativeImage;
+import com.google.common.base.Suppliers;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.BackupConfirmScreen;
 import net.minecraft.client.tutorial.TutorialSteps;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -12,6 +14,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.gamerules.GameRule;
 import net.minecraft.world.level.gamerules.GameRules;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.gui.LoadingErrorScreen;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import org.apache.commons.io.FileUtils;
@@ -21,6 +24,7 @@ import slimeknights.mantle.client.render.RenderTargetCapture;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -29,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * Client-tick state machine driving registered {@link UiTestScenario}s:
@@ -211,6 +216,25 @@ public class UiTestSuite {
           }
         } else {
           phaseTicks = 0; // only count ticks while actually in-world at the title-free screen
+          if (mc.screen instanceof LoadingErrorScreen loadingScreen) {
+            handleLoadingScreen(loadingScreen);
+            return;
+          }
+          if (mc.screen instanceof BackupConfirmScreen backupScreen) {
+            // the committed world is saved by an older version: upgrade it without a backup (the run dir copy is re-extracted every run)
+            Mantle.logger.info("uitest: {}; upgrading the world without a backup", backupScreen.getTitle().getString());
+            try {
+              ((BackupConfirmScreen.Listener) BACKUP_PROCEED.get().get(backupScreen)).proceed(false, false);
+            } catch (ReflectiveOperationException e) {
+              throw new IllegalStateException("uitest: cannot confirm the world upgrade", e);
+            }
+            return;
+          }
+          // a screen that blocks quick play (world upgrade prompt, error screen, ...) shows in the log instead of a silent hang
+          if (suiteTicks % 200 == 0) {
+            Mantle.logger.info("uitest: waiting for the world, screen {} ({})", mc.screen == null ? "none" : mc.screen.getClass().getName(),
+              mc.screen == null ? "" : mc.screen.getTitle().getString());
+          }
         }
       }
       case SETUP -> {
@@ -351,6 +375,56 @@ public class UiTestSuite {
       return true;
     }
     return false;
+  }
+
+  /**
+   * NeoForge shows mod loading warnings on a screen before quick play continues (26.1: e.g. any mod still declaring the deprecated
+   * {@code logoFile}, third party mods included), which would stall the suite until its timeout. Logs every issue; warnings only proceed
+   * like the screen's button, errors fail the run.
+   */
+  private void handleLoadingScreen(LoadingErrorScreen screen) {
+    try {
+      List<?> errors = (List<?>) LoadingScreenFields.ERRORS.get(screen);
+      List<?> warnings = (List<?>) LoadingScreenFields.WARNINGS.get(screen);
+      warnings.forEach(issue -> Mantle.logger.warn("uitest: mod loading warning: {}", issue));
+      if (!errors.isEmpty()) {
+        errors.forEach(issue -> Mantle.logger.error("uitest: mod loading error: {}", issue));
+        results.put(SETUP_RESULT, "fail: " + errors.size() + " mod loading error(s), see the log");
+        enter(Phase.FINISH);
+        return;
+      }
+      ((Runnable) LoadingScreenFields.NEXT.get(screen)).run();
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("uitest: cannot read the mod loading screen", e);
+    }
+  }
+
+  /** {@link BackupConfirmScreen#onProceed}, resolved once on first use */
+  private static final Supplier<Field> BACKUP_PROCEED = Suppliers.memoize(() -> {
+    try {
+      Field field = BackupConfirmScreen.class.getDeclaredField("onProceed");
+      field.setAccessible(true);
+      return field;
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("uitest: BackupConfirmScreen has no field onProceed", e);
+    }
+  });
+
+  /** {@link LoadingErrorScreen} fields, resolved once on first use */
+  private static final class LoadingScreenFields {
+    private static final Field ERRORS = field("modLoadErrors");
+    private static final Field WARNINGS = field("modLoadWarnings");
+    private static final Field NEXT = field("nextScreenTask");
+
+    private static Field field(String name) {
+      try {
+        Field field = LoadingErrorScreen.class.getDeclaredField(name);
+        field.setAccessible(true);
+        return field;
+      } catch (ReflectiveOperationException e) {
+        throw new IllegalStateException("uitest: LoadingErrorScreen has no field " + name, e);
+      }
+    }
   }
 
   private void enter(Phase next) {

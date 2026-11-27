@@ -70,6 +70,12 @@ public record UiTestContext(Minecraft mc) {
     setMouse(guiX * window.getScreenWidth() / window.getGuiScaledWidth(), guiY * window.getScreenHeight() / window.getGuiScaledHeight());
   }
 
+  /** Moves the mouse to the window center, where each scenario starts */
+  void centerMouse() {
+    Window window = mc.getWindow();
+    setMouse(window.getScreenWidth() / 2.0, window.getScreenHeight() / 2.0);
+  }
+
   private void setMouse(double x, double y) {
     try {
       MouseFields.X.setDouble(mc.mouseHandler, x);

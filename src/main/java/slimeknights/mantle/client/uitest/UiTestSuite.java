@@ -96,6 +96,9 @@ public class UiTestSuite {
     // keep captures deterministic: no mob ever joins a server level (saved mobs in lazily loaded chunks included)
     NeoForge.EVENT_BUS.addListener(UiTestSuite::onEntityJoinLevel);
     muteMusic(Minecraft.getInstance());
+    // OS mouse and keyboard input can't reach the game while the suite runs, restored in finish()
+    UiTestInput.isolate(Minecraft.getInstance());
+    UiTestScenarios.register(new UiTestSelfChecks.InputIsolationScenario());
     Mantle.logger.info("uitest: suite armed; {} scenario(s) registered so far (registry is snapshotted at world load)",
       UiTestScenarios.all().size());
   }
@@ -344,6 +347,8 @@ public class UiTestSuite {
     }
     scenarioTicks = 0;
     Mantle.logger.info("uitest: [{}/{}] {}", index + 1, scenarios.size(), current().id());
+    // each scenario starts with the cursor centered, where vanilla put it when grabbing and releasing it before OS input was isolated
+    new UiTestContext(mc).centerMouse();
     if (runGuarded(mc, "prepare", () -> current().prepare(new UiTestContext(mc)))) {
       enter(Phase.PREPARE_SETTLE);
     }
@@ -564,6 +569,8 @@ public class UiTestSuite {
     } catch (Exception e) {
       Mantle.logger.error("uitest: failed to write results", e);
     }
+    // every way out of the suite (done, suite timeout, a failed setup) ends here
+    UiTestInput.restore(mc);
     finished = true;
     mc.stop();
   }

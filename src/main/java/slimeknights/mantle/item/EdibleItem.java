@@ -15,7 +15,6 @@ import net.minecraft.world.item.consume_effects.ApplyStatusEffectsConsumeEffect;
 import net.minecraft.world.item.consume_effects.ConsumeEffect;
 import slimeknights.mantle.util.TranslationHelper;
 
-import java.util.Objects;
 import java.util.function.Consumer;
 
 public class EdibleItem extends Item {
@@ -25,8 +24,8 @@ public class EdibleItem extends Item {
 
   public EdibleItem(Item.Properties properties) {
     super(properties);
-    // food is now a data component (DataComponents.FOOD) rather than the removed Item#foodProperties field
-    Objects.requireNonNull(components().get(DataComponents.FOOD), "Must set food to make an EdibleItem");
+    // 26.1: default components are bound after registration (from the loaded registries), so the constructor can no longer check
+    // that DataComponents.FOOD is set; Properties#food is the caller's job (the FoodProperties constructor sets it)
   }
 
   @Override

@@ -7,6 +7,49 @@
 #   hint <owner> <name> <message...>                 printed by Invoke-CompilerRenames.ps1 when an override/dead
 #                                                    override of <name> under <owner> has no rename (manual fix)
 #   rule <kind> <old> <new>                          extra Invoke-RenameMap rule, copied into the generated map
+#   moved <owner> <member> <replacement>             member reached through another object now (owner = NEW FQN, the
+#                                                    class javac names as the location): Invoke-CompilerRenames.ps1
+#                                                    replaces the identifier at javac's 'cannot find symbol' caret with
+#                                                    <replacement>; a call keeps its own (args): x.setScreen(s) ->
+#                                                    x.gui.setScreen(s); a field may become a call: x.screen -> x.gui.screen()
+
+# --- Minecraft: screen/overlay/toast state moved to the new Gui, render targets/buffers to GameRenderer (D-TOOL) ---
+moved net.minecraft.client.Minecraft screen gui.screen()
+moved net.minecraft.client.Minecraft setScreen gui.setScreen
+moved net.minecraft.client.Minecraft getOverlay gui.overlay
+moved net.minecraft.client.Minecraft setOverlay gui.setOverlay
+moved net.minecraft.client.Minecraft getToastManager gui.toastManager
+moved net.minecraft.client.Minecraft getChatListener gui.chatListener
+moved net.minecraft.client.Minecraft pushGuiLayer gui.pushScreenLayer
+moved net.minecraft.client.Minecraft popGuiLayer gui.popScreenLayer
+moved net.minecraft.client.Minecraft getMainRenderTarget gameRenderer.mainRenderTarget
+moved net.minecraft.client.Minecraft renderBuffers gameRenderer.renderBuffers
+
+# --- the old Gui is Hud now (class map); the new Gui reaches it through its 'hud' field: mc.gui.getChat() -> mc.gui.hud.getChat() ---
+moved net.minecraft.client.gui.Gui leftHeight hud.leftHeight
+moved net.minecraft.client.gui.Gui rightHeight hud.rightHeight
+moved net.minecraft.client.gui.Gui extractSlot hud.extractSlot
+moved net.minecraft.client.gui.Gui getChat hud.getChat
+moved net.minecraft.client.gui.Gui getGuiTicks hud.getGuiTicks
+moved net.minecraft.client.gui.Gui getFont hud.getFont
+moved net.minecraft.client.gui.Gui getTabList hud.getTabList
+moved net.minecraft.client.gui.Gui getBossOverlay hud.getBossOverlay
+moved net.minecraft.client.gui.Gui getDebugOverlay hud.getDebugOverlay
+moved net.minecraft.client.gui.Gui getSpectatorGui hud.getSpectatorGui
+moved net.minecraft.client.gui.Gui getSprite hud.getSprite
+moved net.minecraft.client.gui.Gui getMobEffectSprite hud.getMobEffectSprite
+moved net.minecraft.client.gui.Gui setOverlayMessage hud.setOverlayMessage
+moved net.minecraft.client.gui.Gui setNowPlaying hud.setNowPlaying
+moved net.minecraft.client.gui.Gui setTitle hud.setTitle
+moved net.minecraft.client.gui.Gui setSubtitle hud.setSubtitle
+moved net.minecraft.client.gui.Gui setTimes hud.setTimes
+moved net.minecraft.client.gui.Gui clearTitles hud.clearTitles
+moved net.minecraft.client.gui.Gui resetTitleTimes hud.resetTitleTimes
+moved net.minecraft.client.gui.Gui clearCache hud.clearCache
+moved net.minecraft.client.gui.Gui onDisconnected hud.onDisconnected
+
+# Options#hideGui is gone: reads become Minecraft#gui.hud.isHidden() (Hud#toggle flips it); not receiver-relative, so a hint
+hint net.minecraft.client.Options hideGui removed: read mc.gui.hud.isHidden() (GuiRenderState#isHudHidden while extracting); Hud#toggle() flips it
 
 # --- supertype methods removed without a same-descriptor successor (manual fix; the applier reports them) ---
 # 26.2 replaced the per-block fall-on hook by a block property + entity physics (Entity reads Block#getBounceRestitution).

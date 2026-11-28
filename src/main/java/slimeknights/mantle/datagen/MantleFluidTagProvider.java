@@ -1,11 +1,15 @@
 package slimeknights.mantle.datagen;
 
 import net.minecraft.core.HolderLookup.Provider;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.PackOutput;
 import net.minecraft.data.tags.FluidTagsProvider;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import org.jetbrains.annotations.ApiStatus.Internal;
 import slimeknights.mantle.Mantle;
+import slimeknights.mantle.data.IntrinsicTagAppender;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -21,6 +25,11 @@ import static slimeknights.mantle.datagen.MantleTags.Fluids.WATER;
 public class MantleFluidTagProvider extends FluidTagsProvider {
   public MantleFluidTagProvider(PackOutput output, CompletableFuture<Provider> holders) {
     super(output, holders, Mantle.modId);
+  }
+
+  @Override
+  protected IntrinsicTagAppender<Fluid> tag(TagKey<Fluid> tag) {
+    return IntrinsicTagAppender.of(super.tag(tag), BuiltInRegistries.FLUID);
   }
 
   @Override

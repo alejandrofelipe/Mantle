@@ -7,6 +7,7 @@ import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.ARGB;
 import org.apache.commons.lang3.StringUtils;
+import org.jspecify.annotations.Nullable;
 import org.joml.Matrix3x2fStack;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.book.data.element.TextData;
@@ -15,8 +16,31 @@ import slimeknights.mantle.client.screen.book.element.BookElement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 public class TextDataRenderer {
+
+  /**
+   * Formatting code by name, as the removed {@code ChatFormatting#getByName} (MC 26.2): case and non-letters are ignored,
+   * so {@code dark_blue}, {@code DarkBlue} and {@code darkblue} all find {@link ChatFormatting#DARK_BLUE}; formats such as
+   * {@code bold} or {@code reset} are found too. Null when nothing matches.
+   */
+  static @Nullable ChatFormatting formattingByName(@Nullable String name) {
+    if (name == null) {
+      return null;
+    }
+    String clean = cleanFormattingName(name);
+    for (ChatFormatting formatting : ChatFormatting.values()) {
+      if (cleanFormattingName(formatting.name()).equals(clean)) {
+        return formatting;
+      }
+    }
+    return null;
+  }
+
+  private static String cleanFormattingName(String name) {
+    return name.toLowerCase(Locale.ROOT).replaceAll("[^a-z]", "");
+  }
 
   /**
    * @deprecated Call drawText with tooltip param and then call drawTooltip separately on the tooltip layer to prevent overlap
@@ -76,7 +100,7 @@ public class TextDataRenderer {
       String modifiers = "";
 
       if (item.useOldColor) {
-        ChatFormatting colFormat = ChatFormatting.getByName(item.color);
+        ChatFormatting colFormat = formattingByName(item.color);
         if(colFormat != null) {
           modifiers += colFormat;
         } else {

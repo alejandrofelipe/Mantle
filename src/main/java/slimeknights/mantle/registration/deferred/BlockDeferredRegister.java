@@ -370,7 +370,7 @@ public class BlockDeferredRegister extends DeferredRegisterWrapper<Block> {
    */
   public DeferredHolder<Block, FlowerPotBlock> registerPotted(String name, Supplier<? extends Block> block) {
     DeferredHolder<Block, FlowerPotBlock> potted = registerNoItem("potted_" + name, p -> new FlowerPotBlock(() -> (FlowerPotBlock)Blocks.FLOWER_POT, block, p), POTTED_PROPS);
-    ((FlowerPotBlock)Blocks.FLOWER_POT).addPlant(resource(name), potted);
+    // 26.2: the empty-pot supplier is enough, NeoForge adds every full pot to its empty pot's table (addPlant is a no-op)
     return potted;
   }
 

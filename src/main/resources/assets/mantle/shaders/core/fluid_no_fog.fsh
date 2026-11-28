@@ -1,4 +1,4 @@
-#version 150
+#version 330
 
 // 1.21.9: copy of vanilla's removed core/position_color_tex_lightmap shader, which the no fog fluid pipeline used.
 #moj_import <minecraft:dynamictransforms.glsl>

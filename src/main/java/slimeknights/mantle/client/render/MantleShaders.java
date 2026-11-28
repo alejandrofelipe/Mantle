@@ -1,12 +1,13 @@
 package slimeknights.mantle.client.render;
 
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormatElement;
+import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 import net.neoforged.api.distmarker.Dist;
@@ -22,19 +23,17 @@ import slimeknights.mantle.config.Config;
  * vertex format, blend, depth and cull state that used to live in the shader JSON and in {@code RenderStateShard}s (removed in 1.21.11).
  * Pipelines must be registered in {@link RegisterRenderPipelinesEvent} so they are compiled with the vanilla ones.
  * 1.21.6: uniforms are std140 blocks; Mantle's shaders import the {@code DynamicTransforms}, {@code Projection} and {@code Fog} blocks, matching {@link RenderPipelines#MATRICES_FOG_SNIPPET}.
+ * 26.2: samplers and uniforms are declared as bind group layouts ({@link BindGroupLayouts}; a name may appear only once per pipeline), the vertex
+ * format is a vertex binding plus a primitive topology, and depth is reverse-Z: keep {@link DepthStencilState#DEFAULT}, never a hand-written compare op.
  */
 @EventBusSubscriber(modid = Mantle.modId, value = Dist.CLIENT)
 public class MantleShaders {
-  /** Vertex format for the structure renderer, block format plus overlay UVs. Defined here rather than {@link MantleRenderTypes} so pipelines can be built without loading render types. */
-  public static final VertexFormat BLOCK_WITH_OVERLAY = VertexFormat.builder()
-    .add("Position", VertexFormatElement.POSITION)
-    .add("Color", VertexFormatElement.COLOR)
-    .add("UV0", VertexFormatElement.UV0)
-    .add("UV1", VertexFormatElement.UV1)
-    .add("UV2", VertexFormatElement.UV2)
-    .add("Normal", VertexFormatElement.NORMAL)
-    .padding(1)
-    .build();
+  /**
+   * Vertex format for the structure renderer, block format plus overlay UVs. Defined here rather than {@link MantleRenderTypes} so pipelines can be built without loading render types.
+   * 26.2: the hand-built format had exactly the attributes (and padding) of {@link DefaultVertexFormat#ENTITY}, and typed formats can no longer be
+   * built from the removed {@code VertexFormatElement} constants, so this is that format.
+   */
+  public static final VertexFormat BLOCK_WITH_OVERLAY = DefaultVertexFormat.ENTITY;
 
   /**
    * Shared fluid state: translucent, culled, depth tested and written, {@code POSITION_COLOR_TEX_LIGHTMAP} quads. Has no shaders, see {@link #FLUID_SNIPPET} and {@link #FLUID_NO_FOG_SNIPPET}.
@@ -42,10 +41,11 @@ public class MantleShaders {
    * state is set explicitly; without it fluids drew over every block in front of them.
    */
   private static final RenderPipeline.Snippet FLUID_BASE_SNIPPET = RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
-    .withSampler("Sampler0")
+    .withBindGroupLayout(BindGroupLayouts.SAMPLER0)
     .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
     .withDepthStencilState(DepthStencilState.DEFAULT)
-    .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP, VertexFormat.Mode.QUADS)
+    .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP)
+    .withPrimitiveTopology(PrimitiveTopology.QUADS)
     .buildSnippet();
   /** Fluid pipeline state using Mantle's fluid shader, which applies vanilla fog. Use as the base for fluid pipeline variants, e.g. one with cull disabled. */
   public static final RenderPipeline.Snippet FLUID_SNIPPET = RenderPipeline.builder(FLUID_BASE_SNIPPET)
@@ -75,11 +75,11 @@ public class MantleShaders {
     .withLocation(pipeline("translucent_fullbright"))
     .withVertexShader(Mantle.getResource("core/block_fullbright"))
     .withFragmentShader(Mantle.getResource("core/block_fullbright"))
-    .withSampler("Sampler0")
-    .withSampler("Sampler1")
+    .withBindGroupLayout(BindGroupLayouts.SAMPLER0_SAMPLER1)
     .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
     .withDepthStencilState(DepthStencilState.DEFAULT) // 26.1: no depth test unless set, see FLUID_BASE_SNIPPET
-    .withVertexFormat(BLOCK_WITH_OVERLAY, VertexFormat.Mode.QUADS)
+    .withVertexBinding(0, BLOCK_WITH_OVERLAY)
+    .withPrimitiveTopology(PrimitiveTopology.QUADS)
     .build();
 
   /** Creates a pipeline location under Mantle's namespace */

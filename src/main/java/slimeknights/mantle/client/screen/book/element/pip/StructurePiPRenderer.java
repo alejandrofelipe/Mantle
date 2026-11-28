@@ -5,7 +5,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.BlockQuadOutput;
 import net.minecraft.client.renderer.block.BlockStateModelSet;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
@@ -24,6 +24,8 @@ import slimeknights.mantle.client.render.MantleRenderTypes;
  * <p>
  * Each renderer owns a color and depth texture of {@code (x1 - x0) * guiScale} by {@code (y1 - y0) * guiScale} pixels, so large structures
  * at a high GUI scale allocate large textures.
+ * 26.2: the renderer gets no buffer source; the blocks are tesselated in a custom geometry node submitted to the collector, which the
+ * picture-in-picture base draws right after {@link #renderToTexture} (same frame, so the captured level and structure are still valid).
  */
 public class StructurePiPRenderer extends PictureInPictureRenderer<StructureRenderState> {
   /** Position highlighted with the red overlay */
@@ -34,9 +36,6 @@ public class StructurePiPRenderer extends PictureInPictureRenderer<StructureRend
    */
   private static long lastPrintedErrorTimeMs = -1;
 
-  public StructurePiPRenderer(MultiBufferSource.BufferSource bufferSource) {
-    super(bufferSource);
-  }
 
   @Override
   public Class<StructureRenderState> getRenderStateClass() {
@@ -55,7 +54,7 @@ public class StructurePiPRenderer extends PictureInPictureRenderer<StructureRend
   }
 
   @Override
-  protected void renderToTexture(StructureRenderState state, PoseStack poseStack) {
+  protected void renderToTexture(StructureRenderState state, PoseStack poseStack, SubmitNodeCollector collector) {
     // the fullbright block shader ignores the lights, but keep the GUI block lighting bound like the vanilla 3D picture-in-picture renderers
     Minecraft minecraft = Minecraft.getInstance();
     minecraft.gameRenderer.lighting().setupFor(Lighting.Entry.ITEMS_3D);
@@ -73,15 +72,23 @@ public class StructurePiPRenderer extends PictureInPictureRenderer<StructureRend
     int structureWidth = info.structureWidth;
     int structureHeight = info.structureHeight;
 
+    poseStack.mulPose(state.transform());
+    poseStack.translate(structureLength / -2f, structureHeight / -2f, structureWidth / -2f);
+    collector.submitCustomGeometry(poseStack, MantleRenderTypes.TRANSLUCENT_FULLBRIGHT, (structurePose, buffer) -> tesselate(minecraft, level, info, structurePose, buffer));
+  }
+
+  /** Tesselates every block of the structure into the fullbright translucent buffer, from the structure's corner pose */
+  private static void tesselate(Minecraft minecraft, TemplateLevel level, StructureInfo info, PoseStack.Pose structurePose, VertexConsumer buffer) {
+    int structureLength = info.structureLength;
+    int structureWidth = info.structureWidth;
+    int structureHeight = info.structureHeight;
     try {
-      poseStack.pushPose();
-      poseStack.mulPose(state.transform());
-      poseStack.translate(structureLength / -2f, structureHeight / -2f, structureWidth / -2f);
+      PoseStack poseStack = new PoseStack();
+      poseStack.last().set(structurePose);
 
       // 26.1: BlockRenderDispatcher is gone; tesselate like vanilla moving blocks, without face culling
       ModelBlockRenderer blockRenderer = new ModelBlockRenderer(minecraft.options.ambientOcclusion().get(), false, minecraft.getBlockColors());
       BlockStateModelSet models = minecraft.getModelManager().getBlockStateModelSet();
-      VertexConsumer buffer = this.bufferSource.getBuffer(MantleRenderTypes.TRANSLUCENT_FULLBRIGHT);
       // overlay of the block being drawn, the quad instance carries it since 26.1
       int[] overlay = {OverlayTexture.NO_OVERLAY};
       // every chunk layer goes into the single fullbright translucent buffer, offset to the block position
@@ -111,7 +118,7 @@ public class StructurePiPRenderer extends PictureInPictureRenderer<StructureRend
         }
       }
     } catch (Exception e) {
-      // the pose stack is thrown away after this call, so no need to unwind it
+      // the pose stack is local to this call, so no need to unwind it
       long now = System.currentTimeMillis();
       if (now > lastPrintedErrorTimeMs + 1000) {
         Mantle.logger.error("Error rendering book structure", e);

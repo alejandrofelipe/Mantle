@@ -41,7 +41,6 @@ public class MantleRenderTypes {
       .useLightmap()
       .withTexture("Sampler0", TextureAtlas.LOCATION_BLOCKS, BLOCK_SHEET_MIPPED_SAMPLER)
       .sortOnUpload()
-      .bufferSize(256)
       .createRenderSetup());
 
   /**
@@ -55,7 +54,6 @@ public class MantleRenderTypes {
       .useLightmap()
       .withTexture("Sampler0", TextureAtlas.LOCATION_BLOCKS, BLOCK_SHEET_MIPPED_SAMPLER)
       .sortOnUpload()
-      .bufferSize(256)
       .createRenderSetup());
 
   /**
@@ -70,6 +68,5 @@ public class MantleRenderTypes {
     RenderSetup.builder(MantleShaders.TRANSLUCENT_FULLBRIGHT)
       .useOverlay()
       .withTexture("Sampler0", TextureAtlas.LOCATION_BLOCKS, BLOCK_SHEET_MIPPED_SAMPLER)
-      .bufferSize(256)
       .createRenderSetup());
 }

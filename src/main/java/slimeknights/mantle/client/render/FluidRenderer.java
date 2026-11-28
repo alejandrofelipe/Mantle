@@ -4,7 +4,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.Lightmap;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
@@ -363,28 +362,6 @@ public class FluidRenderer {
   }
 
   /**
-   * Renders a fluid cuboid with partial height based on the capacity
-   * @param matrices  Matrix stack instance
-   * @param buffer    Render type buffer instance
-   * @param fluid     Fluid to render
-   * @param offset    Fluid amount offset, used to animate transitions
-   * @param capacity  Fluid tank capacity, must be above 0
-   * @param light     Quad lighting from TER
-   * @param cube      Fluid cuboid instance
-   * @param flipGas   If true, flips gas cubes
-   * @deprecated immediate-mode only; block entity renderers must use {@link #submitScaledCuboid} from {@code submit}
-   * since 1.21.9 (their buffers belong to the feature dispatcher)
-   */
-  @Deprecated
-  public static void renderScaledCuboid(PoseStack matrices, MultiBufferSource buffer, FluidCuboid cube, FluidStack fluid, float offset, int capacity, int light, boolean flipGas) {
-    // nothing to render
-    if (fluid.isEmpty() || capacity <= 0) {
-      return;
-    }
-    renderScaledCuboid(matrices.last(), buffer.getBuffer(MantleRenderTypes.FLUID), cube, fluid, offset, capacity, light, flipGas);
-  }
-
-  /**
    * Submits a fluid cuboid with partial height based on the capacity in a two phase renderer.
    * The fluid is read when the geometry is drawn later in the frame, so it must be owned by the render state (copied during extraction), never the block entity's stack.
    * @param matrices   Matrix stack instance
@@ -567,11 +544,12 @@ public class FluidRenderer {
   }
 
   /**
-   * Same as {@link net.minecraft.client.renderer.ScreenEffectRenderer#renderFluid(Minecraft, PoseStack, MultiBufferSource, Identifier)} but with opacity and color control.
-   * 1.21.5: immediate mode drawing is gone, so this now draws through {@link RenderTypes#blockScreenEffect(Identifier)} like vanilla,
+   * Same as {@link net.minecraft.client.renderer.ScreenEffectRenderer#submitFluid(Minecraft, PoseStack, SubmitNodeCollector, Identifier)} but with opacity and color control.
+   * 1.21.5: immediate mode drawing is gone, so this draws through {@link RenderTypes#blockScreenEffect(Identifier)} like vanilla,
    * with the tint moved from the shader color into the vertex color.
+   * 26.2: {@code MultiBufferSource} is gone; the quad is submitted to the collector (was {@code renderCamera}).
    */
-  public static void renderCamera(Minecraft minecraft, PoseStack poseStack, MultiBufferSource bufferSource, Identifier texture, float opacity, int color) {
+  public static void submitCamera(Minecraft minecraft, PoseStack poseStack, SubmitNodeCollector collector, Identifier texture, float opacity, int color) {
     assert minecraft.player != null;
     BlockPos pos = BlockPos.containing(minecraft.player.getX(), minecraft.player.getEyeY(), minecraft.player.getZ());
     Level level = minecraft.player.level();
@@ -589,11 +567,12 @@ public class FluidRenderer {
     }
     float yRot = -minecraft.player.getYRot() / 64;
     float xRot = minecraft.player.getXRot() / 64;
-    Matrix4f matrix = poseStack.last().pose();
-    VertexConsumer buffer = bufferSource.getBuffer(RenderTypes.blockScreenEffect(texture));
-    buffer.addVertex(matrix, -1, -1, -0.5f).setUv(4 + yRot, 4 + xRot).setColor(vertexColor);
-    buffer.addVertex(matrix,  1, -1, -0.5f).setUv(0 + yRot, 4 + xRot).setColor(vertexColor);
-    buffer.addVertex(matrix,  1,  1, -0.5f).setUv(0 + yRot, 0 + xRot).setColor(vertexColor);
-    buffer.addVertex(matrix, -1,  1, -0.5f).setUv(4 + yRot, 0 + xRot).setColor(vertexColor);
+    collector.submitCustomGeometry(poseStack, RenderTypes.blockScreenEffect(texture), (pose, buffer) -> {
+      Matrix4f matrix = pose.pose();
+      buffer.addVertex(matrix, -1, -1, -0.5f).setUv(4 + yRot, 4 + xRot).setColor(vertexColor);
+      buffer.addVertex(matrix,  1, -1, -0.5f).setUv(0 + yRot, 4 + xRot).setColor(vertexColor);
+      buffer.addVertex(matrix,  1,  1, -0.5f).setUv(0 + yRot, 0 + xRot).setColor(vertexColor);
+      buffer.addVertex(matrix, -1,  1, -0.5f).setUv(4 + yRot, 0 + xRot).setColor(vertexColor);
+    });
   }
 }

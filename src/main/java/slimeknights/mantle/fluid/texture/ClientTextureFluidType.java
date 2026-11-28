@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.fog.environment.FogEnvironment;
@@ -66,11 +66,11 @@ public class ClientTextureFluidType implements IClientFluidTypeExtensions {
   }
 
   @Override
-  public void renderOverlay(Minecraft mc, PoseStack poseStack, MultiBufferSource buffer) {
+  public void renderOverlay(Minecraft mc, PoseStack poseStack, SubmitNodeCollector collector) {
     FluidTexture data = FluidTextureManager.getData(type);
     Identifier camera = data.camera();
     if (camera != null) {
-      FluidRenderer.renderCamera(mc, poseStack, buffer, camera, data.cameraOpacity(), data.color());
+      FluidRenderer.submitCamera(mc, poseStack, collector, camera, data.cameraOpacity(), data.color());
     }
   }
 

@@ -1,9 +1,11 @@
 package slimeknights.mantle.client.uitest;
 
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.commands.arguments.EntityAnchorArgument.Anchor;
 import net.minecraft.core.BlockPos;
@@ -14,14 +16,39 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import slimeknights.mantle.client.render.RenderTargetCapture;
 
 import java.lang.reflect.Field;
 import java.util.Objects;
 import java.util.UUID;
 
-/** Helpers handed to scenarios; client-thread unless noted. */
+/**
+ * Helpers handed to scenarios; client-thread unless noted. Scenarios reach the screen and the main render target through these accessors
+ * rather than {@link Minecraft} directly, so a version that moves them (26.2: {@code Minecraft#screen} to {@code Gui#screen()}) changes one place.
+ */
 public record UiTestContext(Minecraft mc) {
+  /** Context of the running client, for code without one handed in (tick listeners a scenario registers) */
+  public static UiTestContext current() {
+    return new UiTestContext(Minecraft.getInstance());
+  }
+
+  /** The open screen, null in the world */
+  @Nullable
+  public Screen screen() {
+    return mc.screen;
+  }
+
+  /** Opens the screen, or closes the open one with null */
+  public void setScreen(@Nullable Screen screen) {
+    mc.setScreen(screen);
+  }
+
+  /** The render target the game draws its frames into */
+  public RenderTarget mainRenderTarget() {
+    return mc.getMainRenderTarget();
+  }
+
   public LocalPlayer player() {
     return Objects.requireNonNull(mc.player, "uitest: no player");
   }
@@ -99,7 +126,7 @@ public record UiTestContext(Minecraft mc) {
    */
   public NativeImage captureFrame() {
     UiTestProgress.checkCapture();
-    return RenderTargetCapture.capture(mc.getMainRenderTarget(), false);
+    return RenderTargetCapture.capture(mainRenderTarget(), false);
   }
 
   /** Moves the mouse to the window center, where each scenario starts */

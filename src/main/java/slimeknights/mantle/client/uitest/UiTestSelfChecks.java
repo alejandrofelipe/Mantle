@@ -68,7 +68,7 @@ final class UiTestSelfChecks {
     public void prepare(UiTestContext ctx) {
       // vanilla types characters only into a screen (KeyboardHandler#charTyped): a focused edit box, given one character directly as control
       TextScreen screen = new TextScreen();
-      ctx.mc().setScreen(screen);
+      ctx.setScreen(screen);
       screen.charTyped(new CharacterEvent(CONTROL_CHAR));
       long window = ctx.mc().getWindow().handle();
       // vanilla's callback defers to the client thread (Minecraft#execute), so the box is read in open()
@@ -83,8 +83,8 @@ final class UiTestSelfChecks {
     @Override
     public void open(UiTestContext ctx) {
       Minecraft mc = ctx.mc();
-      if (!(mc.screen instanceof TextScreen screen)) {
-        throw new IllegalStateException("expected the edit box screen, found " + mc.screen);
+      if (!(ctx.screen() instanceof TextScreen screen)) {
+        throw new IllegalStateException("expected the edit box screen, found " + ctx.screen());
       }
       String typed = screen.box.getValue();
       if (typed.isEmpty()) {
@@ -94,7 +94,7 @@ final class UiTestSelfChecks {
       long window = mc.getWindow().handle();
       // vanilla grabs the cursor on setScreen(null) and on a click in the world, but only while the window is focused
       focusCallback(window).invoke(window, true);
-      mc.setScreen(null);
+      ctx.setScreen(null);
       // checked right away too: the E key below would open the inventory, which releases a grabbed cursor again
       grabbedOnOpen = cursorProblems(mc);
       ctx.moveMouse(PARK_X, PARK_Y);
@@ -121,8 +121,8 @@ final class UiTestSelfChecks {
       Minecraft mc = ctx.mc();
       LocalPlayer player = ctx.player();
       List<String> problems = new ArrayList<>();
-      if (mc.screen != null) {
-        problems.add("a screen opened: " + mc.screen.getClass().getSimpleName());
+      if (ctx.screen() != null) {
+        problems.add("a screen opened: " + ctx.screen().getClass().getSimpleName());
       }
       if (mc.mouseHandler.xpos() != mouseX || mc.mouseHandler.ypos() != mouseY) {
         problems.add("the mouse moved from " + mouseX + ", " + mouseY + " to " + mc.mouseHandler.xpos() + ", " + mc.mouseHandler.ypos());
@@ -170,7 +170,7 @@ final class UiTestSelfChecks {
       key.invoke(window, GLFW.GLFW_KEY_W, GLFW.glfwGetKeyScancode(GLFW.GLFW_KEY_W), GLFW.GLFW_RELEASE, 0);
       key.invoke(window, GLFW.GLFW_KEY_E, GLFW.glfwGetKeyScancode(GLFW.GLFW_KEY_E), GLFW.GLFW_RELEASE, 0);
       focusCallback(window).invoke(window, GLFW.glfwGetWindowAttrib(window, GLFW.GLFW_FOCUSED) == GLFW.GLFW_TRUE);
-      mc.setScreen(null);
+      ctx.setScreen(null);
     }
   }
 
@@ -201,7 +201,7 @@ final class UiTestSelfChecks {
 
     @Override
     public void prepare(UiTestContext ctx) {
-      ctx.mc().setScreen(new SolidScreen());
+      ctx.setScreen(new SolidScreen());
       ctx.parkMouse();
     }
 
@@ -209,7 +209,7 @@ final class UiTestSelfChecks {
     public void open(UiTestContext ctx) {
       requireSolidScreen(ctx);
       // control: the frame before the capture wait, read raw (captureFrame refuses a frame with the bar), shows the bar over this screen
-      try (NativeImage image = RenderTargetCapture.capture(ctx.mc().getMainRenderTarget(), false)) {
+      try (NativeImage image = RenderTargetCapture.capture(ctx.mainRenderTarget(), false)) {
         int[] fill = scanStrip(ctx, image, color -> isNear(color, UiTestProgress.FILL));
         if (fill[0] == 0) {
           throw new IllegalStateException("control: the uncaptured frame of the solid screen has no pixel of the progress bar fill #"
@@ -232,12 +232,12 @@ final class UiTestSelfChecks {
       if (title == null || !title.startsWith("uitest ") || !title.endsWith(" — " + id())) {
         throw new IllegalStateException("the window title '" + title + "' does not show the progress 'uitest n/N — " + id() + "'");
       }
-      ctx.mc().setScreen(null);
+      ctx.setScreen(null);
     }
 
     private static void requireSolidScreen(UiTestContext ctx) {
-      if (!(ctx.mc().screen instanceof SolidScreen)) {
-        throw new IllegalStateException("expected the solid screen, found " + ctx.mc().screen);
+      if (!(ctx.screen() instanceof SolidScreen)) {
+        throw new IllegalStateException("expected the solid screen, found " + ctx.screen());
       }
     }
 
@@ -274,7 +274,7 @@ final class UiTestSelfChecks {
 
     @Override
     public void cleanup(UiTestContext ctx) {
-      ctx.mc().setScreen(null);
+      ctx.setScreen(null);
     }
   }
 
@@ -301,7 +301,7 @@ final class UiTestSelfChecks {
 
     @Override
     public void prepare(UiTestContext ctx) {
-      ctx.mc().setScreen(null);
+      ctx.setScreen(null);
       UUID id = ctx.player().getUUID();
       ctx.runOnServer(() -> {
         ServerPlayer player = serverPlayer(ctx, id);

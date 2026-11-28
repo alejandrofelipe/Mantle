@@ -5,6 +5,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import com.google.common.base.Suppliers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.BackupConfirmScreen;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.tutorial.TutorialSteps;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.server.MinecraftServer;
@@ -247,7 +248,8 @@ public class UiTestSuite {
 
     switch (phase) {
       case WAIT_WORLD -> {
-        if (mc.level != null && mc.player != null && mc.screen == null) {
+        Screen screen = new UiTestContext(mc).screen();
+        if (mc.level != null && mc.player != null && screen == null) {
           if (phaseTicks >= WORLD_WARMUP_TICKS) {
             mc.getTutorial().setStep(TutorialSteps.NONE); // stop the movement tutorial toast at the source (also clears the active step)
             scenarios = filtered(UiTestScenarios.all());
@@ -261,18 +263,18 @@ public class UiTestSuite {
           }
         } else {
           phaseTicks = 0; // only count ticks while actually in-world at the title-free screen
-          if (mc.screen instanceof LoadingErrorScreen loadingScreen) {
+          if (screen instanceof LoadingErrorScreen loadingScreen) {
             handleLoadingScreen(loadingScreen);
             return;
           }
-          if (mc.screen instanceof BackupConfirmScreen backupScreen) {
+          if (screen instanceof BackupConfirmScreen backupScreen) {
             handleBackupScreen(backupScreen);
             return;
           }
           // a screen that blocks quick play (world upgrade prompt, error screen, ...) shows in the log instead of a silent hang
           if (suiteTicks % 200 == 0) {
-            Mantle.logger.info("uitest: waiting for the world, screen {} ({})", mc.screen == null ? "none" : mc.screen.getClass().getName(),
-              mc.screen == null ? "" : mc.screen.getTitle().getString());
+            Mantle.logger.info("uitest: waiting for the world, screen {} ({})", screen == null ? "none" : screen.getClass().getName(),
+              screen == null ? "" : screen.getTitle().getString());
           }
         }
       }

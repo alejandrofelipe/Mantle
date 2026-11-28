@@ -97,7 +97,7 @@ try {
   Assert-Case 'map: implied nested rule omitted' ($map -notmatch 'Graphics\$Pose') $map
   Assert-Case 'map: Material -> SpriteId rule' ($map -match '(?m)^class net\.minecraft\.fix\.model\.Material net\.minecraft\.fix\.model\.sprite\.SpriteId$') $map
   Assert-Case 'map: override rule section + extra rule copied' ($map -match '# --- manual overrides' -and $map -match '(?m)^literal Foo\.INSTANCE Bar\.EMPTY$') $map
-  Assert-Case 'summary line' ($r -match 'classPairs=\d+ .*methodRenames=\d+ fieldRenames=\d+ fieldMoves=2 \(weak=0\) collectionRules=24 hints=1 moved=3 ') $r
+  Assert-Case 'summary line' ($r -match 'classPairs=\d+ .*methodRenames=\d+ fieldRenames=\d+ fieldMoves=2 \(weak=1\) collectionRules=40 hints=1 moved=3 ') $r
 
   # --- M8: moved static fields, collections, moved members, same-name changes ---
   Assert-Case 'moved static field rule (same name + descriptor, new in one other class)' ($map -match '(?m)^field net\.minecraft\.fix\.EntityType\.PIG net\.minecraft\.fix\.EntityTypes\.PIG$' -and $map -match '(?m)^field net\.minecraft\.fix\.EntityType\.COW net\.minecraft\.fix\.EntityTypes\.COW$') $map
@@ -106,6 +106,9 @@ try {
   Assert-Case 'moved field is not also a member rename' ($members -notmatch "`tPIG`t") $members
   Assert-Case 'color collection rule (LIGHT_GRAY_ before GRAY_)' ($map -match '(?m)^field net\.minecraft\.fix\.Items\.RED_DYE net\.minecraft\.fix\.Items\.DYE\.pick\(net\.minecraft\.fix\.DyeColor\.RED\)$' -and $map -match '(?m)^field net\.minecraft\.fix\.Items\.LIGHT_GRAY_DYE net\.minecraft\.fix\.Items\.DYE\.pick\(net\.minecraft\.fix\.DyeColor\.LIGHT_GRAY\)$') $map
   Assert-Case 'copper collection rules (accessors; COPPER_BLOCK keeps its name)' ($map -match '(?m)^field net\.minecraft\.fix\.Items\.COPPER_BLOCK net\.minecraft\.fix\.Items\.COPPER_BLOCK\.weathering\(\)\.unaffected\(\)$' -and $map -match '(?m)^field net\.minecraft\.fix\.Items\.EXPOSED_COPPER net\.minecraft\.fix\.Items\.COPPER_BLOCK\.weathering\(\)\.exposed\(\)$' -and $map -match '(?m)^field net\.minecraft\.fix\.Items\.WAXED_OXIDIZED_COPPER net\.minecraft\.fix\.Items\.COPPER_BLOCK\.waxed\(\)\.oxidized\(\)$') $map
+  Assert-Case 'DYED_ color collection: <COLOR>_TERRACOTTA -> DYED_TERRACOTTA.pick' ($map -match '(?m)^field net\.minecraft\.fix\.Items\.RED_TERRACOTTA net\.minecraft\.fix\.Items\.DYED_TERRACOTTA\.pick\(net\.minecraft\.fix\.DyeColor\.RED\)$' -and $map -match '(?m)^field net\.minecraft\.fix\.Items\.LIGHT_GRAY_TERRACOTTA net\.minecraft\.fix\.Items\.DYED_TERRACOTTA\.pick\(net\.minecraft\.fix\.DyeColor\.LIGHT_GRAY\)$') $map
+  Assert-Case 'incomplete copper family (old field was a record): no rule, warning names the old type' ($map -notmatch 'COPPER_BARS' -and $warnings -match 'collection without a complete old copper family \(1/8\): net\.minecraft\.fix\.Items\.COPPER_BARS \(the old field of that name was a CopperItems: its accessor calls break, fix by hand\)') "$warnings $map"
+  Assert-Case 'weak moved field (single field, unrelated class): written commented out' ($map -match '(?m)^# weak \(single field, unrelated class; uncomment after review\): field net\.minecraft\.fix\.Pond\.CODEC net\.minecraft\.fix\.Serializers\.CODEC$' -and $map -notmatch '(?m)^field net\.minecraft\.fix\.Pond\.CODEC') $map
   Assert-Case 'field rules run before the class rules' ($map.IndexOf('field net.minecraft.fix.EntityType.PIG') -lt $map.IndexOf('class net.minecraft.fix.Graphics ') -and $map.IndexOf('field net.minecraft.fix.Items.RED_DYE') -lt $map.IndexOf('class net.minecraft.fix.Graphics ')) $map
   Assert-Case 'moved rows copied into the member table' ($members -match "(?m)^moved`tnet/minecraft/fix/Minecraft`tnet/minecraft/fix/Minecraft`tscreen`tgui\.screen\(\)`t" -and $members -match "(?m)^moved`tnet/minecraft/fix/Minecraft`tnet/minecraft/fix/Minecraft`tsetScreen`tgui\.setScreen`t") $members
   Assert-Case 'moved member that still exists: warning' ($warnings -match 'moved member net\.minecraft\.fix\.Minecraft#tick still exists') $warnings
@@ -117,13 +120,16 @@ try {
   New-Item -ItemType Directory -Force (Join-Path $root 'src') | Out-Null
   Set-Content -LiteralPath (Join-Path $root 'src/U.java') -Value @('import net.minecraft.fix.model.Material;', 'class U { Material m; }')
   Set-Content -LiteralPath (Join-Path $root 'src/F.java') -Value @(
-    'package f;', 'import net.minecraft.fix.EntityType;', 'import net.minecraft.fix.Items;',
-    'class F { Object a = EntityType.PIG, b = Items.RED_DYE, c = Items.COPPER_BLOCK, d = Items.WAXED_EXPOSED_COPPER, e = Items.STICK; }')
+    'package f;', 'import net.minecraft.fix.EntityType;', 'import net.minecraft.fix.Items;', 'import net.minecraft.fix.Pond;',
+    'class F { Object a = EntityType.PIG, b = Items.RED_DYE, c = Items.COPPER_BLOCK, d = Items.WAXED_EXPOSED_COPPER, e = Items.STICK, f = Items.RED_TERRACOTTA, g = Pond.CODEC; }')
   $rm = & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'Invoke-RenameMap.ps1') -Root $root -Map $mapOut -Apply 2>&1 | Out-String
   $u = Get-Content (Join-Path $root 'src/U.java') -Raw
   Assert-Case 'generated map applies (Material user becomes SpriteId)' ($LASTEXITCODE -eq 0 -and $u -match 'import net\.minecraft\.fix\.model\.sprite\.SpriteId;' -and $u -match 'SpriteId m;') "$rm $u"
   $fj = Get-Content (Join-Path $root 'src/F.java') -Raw
-  Assert-Case 'generated field rules apply (imports added)' ($fj -match 'a = EntityTypes\.PIG, b = Items\.DYE\.pick\(DyeColor\.RED\), c = Items\.COPPER_BLOCK\.weathering\(\)\.unaffected\(\), d = Items\.COPPER_BLOCK\.waxed\(\)\.exposed\(\), e = Items\.STICK;' -and $fj -match 'import net\.minecraft\.fix\.EntityTypes;' -and $fj -match 'import net\.minecraft\.fix\.DyeColor;') "$rm $fj"
+  Assert-Case 'generated field rules apply (imports added)' ($fj -match 'a = EntityTypes\.PIG, b = Items\.DYE\.pick\(DyeColor\.RED\), c = Items\.COPPER_BLOCK\.weathering\(\)\.unaffected\(\), d = Items\.COPPER_BLOCK\.waxed\(\)\.exposed\(\), e = Items\.STICK, f = Items\.DYED_TERRACOTTA\.pick\(DyeColor\.RED\), g = Pond\.CODEC;' -and $fj -match 'import net\.minecraft\.fix\.EntityTypes;' -and $fj -match 'import net\.minecraft\.fix\.DyeColor;') "$rm $fj"
+
+  $rm2 = & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'Invoke-RenameMap.ps1') -Root $root -Map $mapOut -Apply 2>&1 | Out-String
+  Assert-Case 'generated map: second apply is a no-op (COPPER_BLOCK.waxed().exposed() not rewritten again)' ($LASTEXITCODE -eq 0 -and $rm2 -match 'written=0' -and $rm2 -match 'hits=0' -and (Get-Content (Join-Path $root 'src/F.java') -Raw) -eq $fj) $rm2
 
   # bad overrides
   Set-Content -LiteralPath $ov -Value 'class net.minecraft.fix.Nope net.minecraft.fix.Graphics'

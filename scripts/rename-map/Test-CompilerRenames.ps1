@@ -194,6 +194,7 @@ public class UsesMc {
 		Supplier<Object> sup = mc::getMainRenderTarget;
 		Object other = u.screen;
 		String str = "mc.screen stays in this string";
+		mc.setScreen(mc.screen);
 	}
 }
 '@).Replace("`r`n", "`n").Replace("`n", "`r`n"))
@@ -215,13 +216,23 @@ public class UsesMc {
   Assert-Case 'moved: chained call on its own line (location = class)' ($mv.Out -match 'UsesMc\.java:17  setScreen -> gui\.setScreen  \[a:moved Minecraft\]') $mv.Out
   Assert-Case 'moved: record component receiver' ($mv.Out -match 'UsesMc\.java:10  getMainRenderTarget -> gameRenderer\.mainRenderTarget  \[a:moved Minecraft\]') $mv.Out
   Assert-Case 'moved: assignment and method reference refused and listed' ($mv.Out -match 'UsesMc\.java:19  Minecraft#screen -> gui\.screen\(\)  MOVED, not rewritten: assignment' -and $mv.Out -match 'UsesMc\.java:20  Minecraft#getMainRenderTarget -> gameRenderer\.mainRenderTarget  MOVED, not rewritten: method reference') $mv.Out
-  Assert-Case 'moved: summary counts the moved edits' ($mv.Out -match 'edits=5 files=1 .* moved=5') ($mv.Out -split "`n" | Select-String 'errors=' | Out-String)
+  # javac reports only the argument of mc.setScreen(mc.screen): the outer call shows up in the next compile (pass 2)
+  Assert-Case 'moved: two moved errors on one line, pass 1 rewrites the argument only' ($mv.Out -match 'UsesMc\.java:23  screen -> gui\.screen\(\)  \[a:moved Minecraft\]' -and $mv.Out -notmatch 'UsesMc\.java:23  setScreen') $mv.Out
+  Assert-Case 'moved: summary counts the moved edits' ($mv.Out -match 'edits=6 files=1 .* moved=6') ($mv.Out -split "`n" | Select-String 'errors=' | Out-String)
   $t2 = [System.IO.File]::ReadAllText($mcFile)
-  Assert-Case 'moved: rewritten text (string and unrelated receiver untouched, CRLF kept)' ($t2.Contains("Screen cur = mc.gui.screen();`r`n") -and $t2.Contains("mc.gui.setScreen(s);") -and $t2.Contains("`t`t`t.gui.setScreen(null);") -and $t2.Contains("Object rt = mc.gameRenderer.mainRenderTarget();") -and $t2.Contains("return mc.gameRenderer.mainRenderTarget();") -and $t2.Contains('Object other = u.screen;') -and $t2.Contains('"mc.screen stays in this string"')) $t2
+  Assert-Case 'moved: rewritten text (string and unrelated receiver untouched, CRLF kept)' ($t2.Contains("Screen cur = mc.gui.screen();`r`n") -and $t2.Contains("mc.gui.setScreen(s);") -and $t2.Contains("`t`t`t.gui.setScreen(null);") -and $t2.Contains("Object rt = mc.gameRenderer.mainRenderTarget();") -and $t2.Contains("return mc.gameRenderer.mainRenderTarget();") -and $t2.Contains('Object other = u.screen;') -and $t2.Contains('"mc.screen stays in this string"') -and $t2.Contains('mc.setScreen(mc.gui.screen());')) $t2
+  $stale = Invoke-Applier2 $m1 -Apply
+  Assert-Case 'moved: re-applying a stale log changes nothing (no gui.gui.screen()())' ($stale.Out -match 'edits=0 ' -and $stale.Out -match 'written=0' -and [System.IO.File]::ReadAllText($mcFile) -eq $t2 -and $stale.Out -match 'UsesMc\.java:14  Minecraft#screen -> gui\.screen\(\)  MOVED, not rewritten: ') ($stale.Out + [System.IO.File]::ReadAllText($mcFile))
   $m2 = Join-Path $tmp 'm2.log'
   Invoke-Javac2 (Join-Path $tmp 'm2') $m2
   $left2 = @(Get-Content $m2 | Select-String ': error: ' | ForEach-Object { $_.Line.Trim() })
-  Assert-Case 'moved: recompile leaves only the assignment, the method reference and the unrelated receiver' ($left2.Count -eq 3 -and ($left2 -join "`n") -match 'UsesMc\.java:19:' -and ($left2 -join "`n") -match 'UsesMc\.java:20:' -and ($left2 -join "`n") -match 'UsesMc\.java:21:') ($left2 -join "`n")
+  Assert-Case 'moved: recompile reports the outer call of line 23' ($left2.Count -eq 4 -and ($left2 -join "`n") -match 'UsesMc\.java:23:') ($left2 -join "`n")
+  $p2m = Invoke-Applier2 $m2 -Apply
+  Assert-Case 'moved: pass 2 rewrites the outer call (mc.gui.setScreen(mc.gui.screen()))' ($p2m.Out -match 'UsesMc\.java:23  setScreen -> gui\.setScreen  \[a:moved Minecraft\]' -and $p2m.Out -match 'edits=1 ' -and [System.IO.File]::ReadAllText($mcFile).Contains('mc.gui.setScreen(mc.gui.screen());')) ($p2m.Out + [System.IO.File]::ReadAllText($mcFile))
+  $m3 = Join-Path $tmp 'm3.log'
+  Invoke-Javac2 (Join-Path $tmp 'm3') $m3
+  $left3 = @(Get-Content $m3 | Select-String ': error: ' | ForEach-Object { $_.Line.Trim() })
+  Assert-Case 'moved: recompile leaves only the assignment, the method reference and the unrelated receiver' ($left3.Count -eq 3 -and ($left3 -join "`n") -match 'UsesMc\.java:19:' -and ($left3 -join "`n") -match 'UsesMc\.java:20:' -and ($left3 -join "`n") -match 'UsesMc\.java:21:') ($left3 -join "`n")
 
   $r = & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'Invoke-CompilerRenames.ps1') -Log (Join-Path $tmp 'nope.log') -Members $script:members -Jar $script:newJar -Root $tmp 2>&1 | Out-String
   Assert-Case 'missing log exits 1' ($LASTEXITCODE -eq 1) $r

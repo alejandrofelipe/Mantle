@@ -33,7 +33,9 @@
   - kind 'field'   : a static field that moved or became an expression: <old> = <owner FQN>.<NAME>, <new> = an
                      expression starting with a class FQN (EntityTypes.PIG, Items.DYE.pick(DyeColor.RED)). 'Owner.NAME'
                      is rewritten only in files importing the old owner, the FQN form everywhere; the expression's class
-                     FQNs become simple names + imports (FQN kept on a simple-name clash, no import in the same package).
+                     FQNs become simple names + imports (FQN kept on a simple-name clash - imported/declared in the file,
+                     or a class of the file's package / a wildcard-imported package among the scanned sources; no import
+                     in the same package or under a wildcard of it; no import when every hit is in a string/comment).
                      A static import is rewritten only for a plain 'Class.FIELD' expression, else reported.
   - Rules apply in file order, each on the output of the previous ones: put specific rules (import FQNs,
     longer names) before the general token rule.
@@ -71,6 +73,10 @@ $Map = (Resolve-Path -LiteralPath $Map).ProviderPath
 
 # ---------- field rules ----------
 $fqnRefRx = [regex]::new('(?<![\w$.])([a-z_]\w*(?:\.[a-z_]\w*)*\.[A-Z]\w*(?:\$[A-Za-z_]\w*)*)')
+# Instance members of the collection types a constant can be folded into (MC 26.2 WeatheringCopperCollection: the record
+# accessors weathering/waxed + asList/forEach/map/apply/zipUnwaxedWaxed; ColorCollection#pick). A same-name field rule
+# never rewrites 'Owner.NAME.<one of these>': that use is already the new collection.
+$collectionMembers = @('weathering', 'waxed', 'asList', 'forEach', 'map', 'apply', 'zipUnwaxedWaxed', 'pick')
 # 'field <owner.Fqn>.<NAME> <expression>': regexes and the class references of the expression (imported where used).
 function Get-FieldRule([string] $old, [string] $new) {
   $i = $old.LastIndexOf('.')
@@ -80,11 +86,14 @@ function Get-FieldRule([string] $old, [string] $new) {
   $ownerQual = $owner.Substring($ownerTop.LastIndexOf('.') + 1).Replace('$', '.')
   $ownerSimple = $ownerQual.Substring($ownerQual.LastIndexOf('.') + 1)
   $simpleExpr = $new -cmatch '^[a-z_]\w*(\.[a-z_]\w*)*\.[A-Z]\w*(\$[A-Za-z_]\w*)*\.[A-Za-z_]\w*$'
-  # same-name rule (COPPER_BLOCK -> COPPER_BLOCK.weathering().unaffected()): never rewrite an already rewritten use
+  # same-name rule (COPPER_BLOCK -> COPPER_BLOCK.weathering().unaffected()): never rewrite an already rewritten use. The
+  # sibling rules of the family write other accessors of the same field (WAXED_COPPER_BLOCK -> COPPER_BLOCK.waxed()...),
+  # so the guard covers every member of the collection types, not just this rule's first segment.
   $guard = ''
   if ($new.StartsWith("$owner.$name.")) {
     $seg = [regex]::Match($new.Substring($owner.Length + $name.Length + 2), '^[A-Za-z_]\w*').Value
-    $guard = '(?!\s*\.\s*' + [regex]::Escape($seg) + '(?![\w$]))'
+    $members = @($seg) + $collectionMembers | Select-Object -Unique | ForEach-Object { [regex]::Escape($_) }
+    $guard = '(?!\s*\.\s*(?:' + ($members -join '|') + ')(?![\w$]))'
   }
   $tail = '\s*\.\s*' + [regex]::Escape($name) + '(?![\w$])' + $guard
   # the FQN form everywhere; with an expression that is not 'Class.FIELD', never inside 'import static' (reported instead)
@@ -99,8 +108,8 @@ function Get-FieldRule([string] $old, [string] $new) {
     $topSimple = $top.Substring($top.LastIndexOf('.') + 1)
     [pscustomobject]@{
       Fqn = $fqn; Dot = $fqn.Replace('$', '.'); Top = $top; Pkg = $top.Substring(0, $top.LastIndexOf('.'))
-      Qual = $fqn.Substring($top.LastIndexOf('.') + 1).Replace('$', '.')
-      Imported = [regex]::new('(?m)^\s*import\s+' + [regex]::Escape($top) + '\s*;')
+      Qual = $fqn.Substring($top.LastIndexOf('.') + 1).Replace('$', '.'); TopSimple = $topSimple
+      Imported = [regex]::new('(?m)^\s*import\s+(' + [regex]::Escape($top) + '|' + [regex]::Escape($top.Substring(0, $top.LastIndexOf('.'))) + '\.\*)\s*;')
       Clash = [regex]::new('(?m)(^\s*import\s+[\w.]+\.' + $topSimple + '\s*;)|((?<![\w$.])(class|interface|enum|record)\s+' + $topSimple + '(?![\w$]))')
     }
   }
@@ -112,14 +121,22 @@ function Get-FieldRule([string] $old, [string] $new) {
 }
 
 # The expression for one file: class FQNs become their (qualified) simple names, imported unless the file is in the class's
-# package or another class of that simple name is imported/declared there (then the FQN stays).
+# package or another class of that simple name is visible there (then the FQN stays): imported or declared in the file, a
+# top-level class of the file's own package, or of a package it imports with a wildcard. The last two are only known for
+# packages whose sources are under -Root/-Include ($typesByPkg); a wildcard import of an outside package is not checked.
+$wildcardRx = [regex]::new('(?m)^\s*import\s+([\w.]+)\.\*\s*;')
+function Test-SimpleNameVisible([string] $simple, [string] $content, [string] $pkg, [string] $exceptPkg) {
+  $pkgs = @($pkg) + @($wildcardRx.Matches($content) | ForEach-Object { $_.Groups[1].Value })
+  foreach ($p in $pkgs) { if ($p -ne $exceptPkg -and $typesByPkg.ContainsKey($p) -and $typesByPkg[$p].Contains($simple)) { return $true } }
+  return $false
+}
 function Get-FieldExpression($field, [string] $content, [string] $pkg) {
   $imports = [System.Collections.Generic.List[string]]::new()
   $expr = $field.NewFull
   foreach ($r in $field.Refs | Sort-Object { $_.Dot.Length } -Descending) {
     $short = $r.Qual
     if ($pkg -ne $r.Pkg -and -not $r.Imported.IsMatch($content)) {
-      if ($r.Clash.IsMatch($content)) { $short = $r.Dot } else { $imports.Add("import $($r.Top);") }
+      if ($r.Clash.IsMatch($content) -or (Test-SimpleNameVisible $r.TopSimple $content $pkg $r.Pkg)) { $short = $r.Dot } else { $imports.Add("import $($r.Top);") }
     }
     $expr = [regex]::Replace($expr, '(?<![\w$.])' + [regex]::Escape($r.Dot) + '(?![\w$])', $short.Replace('$', '$$'))
   }
@@ -225,6 +242,19 @@ foreach ($glob in $globs) {
   }
 }
 
+# top-level classes per package of the scanned sources (file name = class), for the field rules' simple-name clash check
+$typesByPkg = @{}
+if (@($rules | Where-Object { $_.Field }).Count -gt 0) {
+  $pkgRx = [regex]::new('(?m)^\s*package\s+([\w.]+)\s*;')
+  foreach ($path in $files) {
+    if (-not $path.EndsWith('.java', [System.StringComparison]::OrdinalIgnoreCase)) { continue }
+    $m = $pkgRx.Match([System.IO.File]::ReadAllText($path))
+    $p = if ($m.Success) { $m.Groups[1].Value } else { '' }
+    if (-not $typesByPkg.ContainsKey($p)) { $typesByPkg[$p] = [System.Collections.Generic.HashSet[string]]::new() }
+    [void]$typesByPkg[$p].Add([System.IO.Path]::GetFileNameWithoutExtension($path))
+  }
+}
+
 # ---------- string-literal heuristic ----------
 # True when position $pos (on its line) is inside a "..." string: scans the line prefix, honouring
 # backslash escapes inside strings and skipping char literals such as '"'.
@@ -249,6 +279,21 @@ function Test-InString([string] $content, [int] $pos) {
     $i++
   }
   return $inString
+}
+
+# True when $pos is inside a comment: after a '//' that is not in a string on its line, or after an unclosed '/*'
+# (heuristic: '/*' inside a string literal is not excluded).
+function Test-InComment([string] $content, [int] $pos) {
+  $ord = [System.StringComparison]::Ordinal
+  $open = if ($pos -gt 0) { $content.LastIndexOf('/*', $pos - 1, $ord) } else { -1 }
+  if ($open -ge 0 -and $content.LastIndexOf('*/', $pos - 1, $ord) -lt $open) { return $true }
+  $lineStart = if ($pos -gt 0) { $content.LastIndexOf("`n", $pos - 1, $ord) + 1 } else { 0 }
+  $k = $lineStart
+  while (($k = $content.IndexOf('//', $k, $ord)) -ge 0 -and $k -lt $pos) {
+    if (-not (Test-InString $content $k)) { return $true }
+    $k += 2
+  }
+  return $false
 }
 
 function Get-LineInfo([string] $content, [int] $pos) {
@@ -310,14 +355,18 @@ foreach ($path in $files) {
     foreach ($step in $steps) {
       $matches_ = $step[0].Matches($content)
       if ($matches_.Count -eq 0) { continue }
+      $codeHits = 0
       foreach ($m in $matches_) {
         if (Test-InString $content $m.Index) {
           $info = Get-LineInfo $content $m.Index
           $stringHits.Add([pscustomobject]@{ File = $rel; Line = $info.Number; Rule = $rule.Index; Old = $rule.Old; Text = $info.Text })
         }
+        elseif (-not (Test-InComment $content $m.Index)) { $codeHits++ }
       }
       $ruleHits += $matches_.Count
       $content = $step[0].Replace($content, $step[1].Replace('$', '$$'))
+      # imports only for code hits: a rewrite inside a string or comment needs none
+      if ($codeHits -eq 0) { continue }
       # 'Outer.Inner' now names another top-level class: import it (after all rules, so line numbers stay put)
       if ($rule.Class -and $step[0] -eq $rule.Class.Qual -and $rule.Class.NewTopImport) { [void]$newImports.Add($rule.Class.NewTopImport) }
       if ($step[2]) { foreach ($imp in $step[2]) { if (-not $newImports.Contains($imp)) { [void]$newImports.Add($imp) } } }

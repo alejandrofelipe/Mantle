@@ -10,13 +10,17 @@
 # Items.DYE.pick(DyeColor.<COLOR>), Items.[WAXED_][EXPOSED_|...]COPPER -> Items.COPPER_BLOCK.weathering()/.waxed() accessors,
 # COPPER_BLOCK keeps its name with a new type), and members moved behind another object (Minecraft#screen ->
 # gui.screen(), #setScreen -> gui.setScreen, #getMainRenderTarget -> gameRenderer.mainRenderTarget) for 'moved' lines.
+# 0.5a follow-ups: a DYED_ collection (Items.<COLOR>_TERRACOTTA -> Items.DYED_TERRACOTTA.pick), an incomplete copper family
+# (COPPER_BARS was already a CopperItems record: warning, no rule) and a weak moved field (Pond.CODEC -> Serializers.CODEC).
 
 $FixColors = 'WHITE', 'ORANGE', 'MAGENTA', 'LIGHT_BLUE', 'YELLOW', 'LIME', 'PINK', 'GRAY', 'LIGHT_GRAY', 'CYAN', 'PURPLE', 'BLUE', 'BROWN', 'GREEN', 'RED', 'BLACK'
 $FixCopper = 'COPPER_BLOCK', 'EXPOSED_COPPER', 'WEATHERED_COPPER', 'OXIDIZED_COPPER', 'WAXED_COPPER_BLOCK', 'WAXED_EXPOSED_COPPER', 'WAXED_WEATHERED_COPPER', 'WAXED_OXIDIZED_COPPER'
-$oldItemFields = (@('STICK') + ($FixColors | ForEach-Object { "${_}_DYE" }) + $FixCopper | ForEach-Object { "  public static final Item $_ = new Item();" }) -join "`n"
+$oldItemFields = ((@('STICK') + ($FixColors | ForEach-Object { "${_}_DYE" }) + ($FixColors | ForEach-Object { "${_}_TERRACOTTA" }) + $FixCopper | ForEach-Object { "  public static final Item $_ = new Item();" }) + '  public static final CopperItems COPPER_BARS = null;') -join "`n"
 
 $OldApi = @{
   'net/minecraft/fix/Item.java'               = 'package net.minecraft.fix; public class Item {}'
+  'net/minecraft/fix/CopperItems.java'        = 'package net.minecraft.fix; public record CopperItems(Item unaffected, Item exposed, Item weathered, Item oxidized) {}'
+  'net/minecraft/fix/Pond.java'               = 'package net.minecraft.fix; public class Pond { public static final String CODEC = ""; public void fill() {} }'
   'net/minecraft/fix/Items.java'              = "package net.minecraft.fix;`npublic class Items {`n$oldItemFields`n}"
   'net/minecraft/fix/EntityType.java'         = 'package net.minecraft.fix; public class EntityType { public static final EntityType PIG = new EntityType(); public static final EntityType COW = new EntityType(); public static final int UNRELATED_COUNT = 3; public String id() { return ""; } }'
   'net/minecraft/fix/Slime.java'              = 'package net.minecraft.fix; public class Slime { public static final int MAX_SIZE = 4; public int size() { return 1; } }'
@@ -79,10 +83,13 @@ public record BlockModel(String parent, Object geometry, Boolean ambientOcclusio
 
 $NewApi = @{
   'net/minecraft/fix/Item.java'                       = 'package net.minecraft.fix; public class Item {}'
+  'net/minecraft/fix/CopperItems.java'                = 'package net.minecraft.fix; public record CopperItems(Item unaffected, Item exposed, Item weathered, Item oxidized) {}'
+  'net/minecraft/fix/Pond.java'                       = 'package net.minecraft.fix; public class Pond { public void fill() {} }'
+  'net/minecraft/fix/Serializers.java'                = 'package net.minecraft.fix; public class Serializers { public static final String CODEC = ""; }'
   'net/minecraft/fix/DyeColor.java'                   = "package net.minecraft.fix; public enum DyeColor { $($FixColors -join ', ') }"
   'net/minecraft/fix/ColorCollection.java'            = 'package net.minecraft.fix; public record ColorCollection<T>(T white) { public T pick(DyeColor c) { return white; } }'
   'net/minecraft/fix/WeatheringCopperCollection.java' = 'package net.minecraft.fix; public record WeatheringCopperCollection<T>(ByState<T> weathering, ByState<T> waxed) { public record ByState<T>(T unaffected, T exposed, T weathered, T oxidized) {} }'
-  'net/minecraft/fix/Items.java'                      = 'package net.minecraft.fix; public class Items { public static final Item STICK = new Item(); public static final ColorCollection<Item> DYE = null; public static final WeatheringCopperCollection<Item> COPPER_BLOCK = null; }'
+  'net/minecraft/fix/Items.java'                      = 'package net.minecraft.fix; public class Items { public static final Item STICK = new Item(); public static final ColorCollection<Item> DYE = null; public static final ColorCollection<Item> DYED_TERRACOTTA = null; public static final WeatheringCopperCollection<Item> COPPER_BLOCK = null; public static final WeatheringCopperCollection<Item> COPPER_BARS = null; }'
   'net/minecraft/fix/EntityType.java'                 = 'package net.minecraft.fix; public class EntityType { public String id() { return ""; } }'
   'net/minecraft/fix/EntityTypes.java'                = 'package net.minecraft.fix; public class EntityTypes { public static final EntityType PIG = new EntityType(); public static final EntityType COW = new EntityType(); }'
   'net/minecraft/fix/Cube.java'                       = 'package net.minecraft.fix; public class Cube { public static final int MAX_SIZE = 4; public int size() { return 1; } }'

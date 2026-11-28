@@ -200,10 +200,32 @@ try {
     'class User {'
     '  Object p = EntityType.PIG, q = EntityType'
     '      .COW, r = net.mc.world.EntityType.PIG, keep = EntityType.PIGLIN, s = "EntityType.PIG";'
-    '  Object d = Items.RED_DYE, c = Items.COPPER_BLOCK, stick = Items.STICK;'
+    '  Object d = Items.RED_DYE, c = Items.COPPER_BLOCK, w = Items.WAXED_COPPER_BLOCK, stick = Items.STICK;'
     '  EntityType<?> type;'
     '}'
   ) "`r`n" $false
+  # imports only for code hits: here the only uses are in a string and in comments
+  $fOnlyText = New-Fixture $root7 'src/e/OnlyText.java' @(
+    'package e;'
+    'import net.mc.item.Items;'
+    '/* Items.RED_DYE in a block comment */'
+    'class OnlyText { String s = "Items.RED_DYE"; } // Items.RED_DYE'
+  ) "`n" $false
+  # a DyeColor of the file's own package / of a wildcard-imported package (sources under -Root) is a clash too
+  $null = New-Fixture $root7 'src/my/pkg/DyeColor.java' @('package my.pkg;', 'public class DyeColor {}') "`n" $false
+  $fSibling = New-Fixture $root7 'src/my/pkg/Sibling.java' @(
+    'package my.pkg;'
+    'import net.mc.item.Items;'
+    'class Sibling { Object d = Items.RED_DYE; DyeColor mine; }'
+  ) "`n" $false
+  $fWild = New-Fixture $root7 'src/w/Wild.java' @(
+    'package w;'
+    'import my.pkg.*;'
+    'import net.mc.world.*;'
+    'import net.mc.world.EntityType;'
+    'import net.mc.item.Items;'
+    'class Wild { Object d = Items.RED_DYE, p = EntityType.PIG; DyeColor mine; }'
+  ) "`n" $false
   $fOther = New-Fixture $root7 'src/b/Other.java' @(
     'package b;'
     'import my.own.EntityType;'
@@ -233,6 +255,7 @@ try {
       'field net.mc.world.EntityType.COW net.mc.world.EntityTypes.COW'
       'field net.mc.item.Items.RED_DYE net.mc.item.Items.DYE.pick(net.mc.item.DyeColor.RED)'
       'field net.mc.item.Items.COPPER_BLOCK net.mc.item.Items.COPPER_BLOCK.weathering().unaffected()'
+      'field net.mc.item.Items.WAXED_COPPER_BLOCK net.mc.item.Items.COPPER_BLOCK.waxed().unaffected()'
     ) -join "`n")
   $r7 = Invoke-Tool $root7 $map7 -Apply
   Assert-Case 'field rule exits 0' ($r7.Exit -eq 0) $r7.Out
@@ -240,15 +263,20 @@ try {
   Assert-Case 'field rule: moved field in a file importing the old owner (+ import, CRLF kept, line break inside the access)' ($u7 -eq (@(
         'package a;', 'import net.mc.world.EntityType;', 'import net.mc.item.Items;', 'import net.mc.world.EntityTypes;', 'import net.mc.item.DyeColor;', 'class User {'
         '  Object p = EntityTypes.PIG, q = EntityTypes.COW, r = net.mc.world.EntityTypes.PIG, keep = EntityType.PIGLIN, s = "EntityTypes.PIG";'
-        '  Object d = Items.DYE.pick(DyeColor.RED), c = Items.COPPER_BLOCK.weathering().unaffected(), stick = Items.STICK;'
+        '  Object d = Items.DYE.pick(DyeColor.RED), c = Items.COPPER_BLOCK.weathering().unaffected(), w = Items.COPPER_BLOCK.waxed().unaffected(), stick = Items.STICK;'
         '  EntityType<?> type;', '}', '') -join "`r`n")) $u7
   Assert-Case 'field rule: string hit flagged' ($r7.Out -match 'User\.java:6 ') ($r7.Out -split "`n" | Select-String 'WARNING|User' | Out-String)
   Assert-Case 'field rule: another EntityType class keeps its simple name, the FQN form is still rewritten' ((Get-Text $fOther) -eq "package b;`nimport my.own.EntityType;`nclass Other { Object p = EntityType.PIG, q = net.mc.world.EntityTypes.COW; }`n") (Get-Text $fOther)
   Assert-Case 'field rule: static import of a moved field rewritten; of an expression left alone and reported' ((Get-Text $fStatic) -match 'import static net\.mc\.world\.EntityTypes\.PIG;' -and (Get-Text $fStatic) -match 'import static net\.mc\.item\.Items\.RED_DYE;' -and $r7.Out -match 'Static\.java:3  \[rule 3\]  static import of net\.mc\.item\.Items\.RED_DYE not rewritten') "$(Get-Text $fStatic) $($r7.Out)"
   Assert-Case 'field rule: a clashing simple name keeps the FQN in the expression (no import)' ((Get-Text $fClash) -match 'Items\.DYE\.pick\(net\.mc\.item\.DyeColor\.RED\)' -and (Get-Text $fClash) -notmatch 'import net\.mc\.item\.DyeColor;') (Get-Text $fClash)
   Assert-Case 'field rule: no import for a class of the same package' ((Get-Text $fSamePkg) -match 'Items\.DYE\.pick\(DyeColor\.RED\)' -and (Get-Text $fSamePkg) -notmatch 'import net\.mc\.item\.DyeColor;') (Get-Text $fSamePkg)
+  $o7 = Get-Text $fOnlyText
+  Assert-Case 'field rule: matches only in a string / comments add no import' ($o7 -notmatch 'import net\.mc\.item\.DyeColor;' -and $o7 -match '"Items\.DYE\.pick\(DyeColor\.RED\)"') $o7
+  Assert-Case 'field rule: a same-package class of that simple name keeps the FQN (no import)' ((Get-Text $fSibling) -match 'Items\.DYE\.pick\(net\.mc\.item\.DyeColor\.RED\)' -and (Get-Text $fSibling) -notmatch 'import net\.mc\.item\.DyeColor;') (Get-Text $fSibling)
+  $w7 = Get-Text $fWild
+  Assert-Case 'field rule: a wildcard-imported class of that simple name keeps the FQN; a wildcard of the target package needs no import' ($w7 -match 'Items\.DYE\.pick\(net\.mc\.item\.DyeColor\.RED\)' -and $w7 -notmatch 'import net\.mc\.item\.DyeColor;' -and $w7 -match 'p = EntityTypes\.PIG;' -and $w7 -notmatch 'import net\.mc\.world\.EntityTypes;') $w7
   $again7 = Invoke-Tool $root7 $map7 -Apply
-  Assert-Case 'field rule: second apply is a no-op (same-name rule guarded)' ($again7.Exit -eq 0 -and $again7.Out -match 'written=0' -and $again7.Out -match 'hits=0') $again7.Out
+  Assert-Case 'field rule: second apply is a no-op (same-name rule guarded against its siblings'' accessors)' ($again7.Exit -eq 0 -and $again7.Out -match 'written=0' -and $again7.Out -match 'hits=0') $again7.Out
   $badField = Join-Path $tmp 'badfield.txt'
   [System.IO.File]::WriteAllText($badField, "field NoOwner.X net.mc.A.X`nfield net.mc.A.X lowercase.expr`n")
   $r = Invoke-Tool $root7 $badField

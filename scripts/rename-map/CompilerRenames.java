@@ -725,8 +725,14 @@ public class CompilerRenames {
     String before = f.masked.substring(f.lineStarts[e.line - 1], pos);
     String after = f.masked.substring(pos + name.length());
     boolean callRepl = mv.replacement.endsWith(")");
+    // the replacement's receiver path ('gui.' of 'gui.screen()'): already in front of the name = applied before
+    String head = mv.replacement.indexOf('(') < 0 ? mv.replacement : mv.replacement.substring(0, mv.replacement.indexOf('('));
+    String prefix = head.lastIndexOf('.') < 0 ? "" : head.substring(0, head.lastIndexOf('.') + 1);
     String why = null;
-    if (before.matches("(?s).*::\\s*$")) why = "method reference";
+    // a moved replacement is not idempotent: never rewrite a position the caret did not pin (stale log -> 'gui.gui.screen()()')
+    if (!caretMatches(e, f)) why = "the source line changed since the compile (stale log?)";
+    else if (!prefix.isEmpty() && before.replaceAll("\\s+", "").endsWith(prefix)) why = "already rewritten";
+    else if (before.matches("(?s).*::\\s*$")) why = "method reference";
     else if (isMethod && callRepl) why = "call, but the replacement is a call already";
     else if (!isMethod && callRepl && after.matches("(?s)^\\s*(?:[-+*/%&|^]|<<|>>>?)?=(?!=).*")) why = "assignment to a field that became a call";
     if (why != null) { unresolvedOverrides.add(where + "  " + label + "  MOVED, not rewritten: " + why + "  (" + typeName + ")"); return true; }
@@ -742,14 +748,22 @@ public class CompilerRenames {
 
   static String simpleOwner(String internal) { return internal.substring(internal.lastIndexOf('/') + 1).replace('$', '.'); }
 
-  /** Offset of the symbol name at the error's caret (skipping '.', blanks, explicit type arguments, '::'), or -1. */
+  /** True when javac's caret applies to the file as it is now: a column, and the logged source line equals the file's line. */
+  static boolean caretMatches(JErr e, SrcFile f) {
+    return e.line <= f.lineStarts.length && e.col >= 0 && lineText(f, e.line).equals(e.srcLine.replaceAll("[\\r\\n]+$", ""));
+  }
+
+  /**
+   * Offset of the symbol name at the error's caret (skipping '.', blanks, explicit type arguments, '::'), or -1. Without a
+   * usable caret ({@link #caretMatches}) the name's only whole-word occurrence on the line is used.
+   */
   int namePosition(JErr e, SrcFile f, String name) {
     if (e.line > f.lineStarts.length) return -1;
     String fileLine = lineText(f, e.line);
     int base = f.lineStarts[e.line - 1];
     String ml = f.masked.substring(base, base + fileLine.length());
     Pattern word = Pattern.compile("(?<![\\w$])" + Pattern.quote(name) + "(?![\\w$])");
-    if (e.col >= 0 && fileLine.equals(e.srcLine.replaceAll("[\\r\\n]+$", ""))) {
+    if (caretMatches(e, f)) {
       int i = e.col;
       while (i < ml.length() && (Character.isWhitespace(ml.charAt(i)) || ml.charAt(i) == '.' || ml.charAt(i) == ':')) i++;
       if (i < ml.length() && ml.charAt(i) == '<') { int k = skipBalanced(ml, i, '<', '>'); if (k > 0) i = k; while (i < ml.length() && Character.isWhitespace(ml.charAt(i))) i++; }

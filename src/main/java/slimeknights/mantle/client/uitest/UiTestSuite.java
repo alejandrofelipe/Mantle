@@ -54,6 +54,11 @@ import java.util.function.Supplier;
 public class UiTestSuite {
   private enum Phase { WAIT_WORLD, SETUP, PREPARE_SETTLE, SETTLE, FINISH }
 
+  /** Folder (in the game directory) holding this run's PNGs. */
+  static final String SCREENSHOT_DIR = "uitest-screenshots";
+  /** Folder holding the previous run's PNGs, kept for side-by-side comparison; replaced on every run. */
+  static final String PREVIOUS_SCREENSHOT_DIR = "uitest-screenshots-previous";
+
   /** Result key of the suite's own environment check (music muted, mobs disabled), recorded before the scenarios. */
   public static final String SETUP_RESULT = "mantle:suite_setup";
   /** Result key recorded only when the world needed a plain upgrade on load: a {@code warn:} result, which the build reports without failing. */
@@ -246,10 +251,8 @@ public class UiTestSuite {
           if (phaseTicks >= WORLD_WARMUP_TICKS) {
             mc.getTutorial().setStep(TutorialSteps.NONE); // stop the movement tutorial toast at the source (also clears the active step)
             scenarios = filtered(UiTestScenarios.all());
-            outputDir = new File(mc.gameDirectory, "uitest-screenshots");
-            try {
-              FileUtils.deleteDirectory(outputDir);
-            } catch (Exception ignored) {}
+            outputDir = new File(mc.gameDirectory, SCREENSHOT_DIR);
+            rotateScreenshots(outputDir, new File(mc.gameDirectory, PREVIOUS_SCREENSHOT_DIR));
             outputDir.mkdirs();
             muteMusic(mc); // re-assert in case something reset the option since arming
             MinecraftServer server = Objects.requireNonNull(mc.getSingleplayerServer(), "uitest: no integrated server");
@@ -387,6 +390,26 @@ public class UiTestSuite {
       problems.add("mantle.uitest.only=" + only + ", mantle.uitest.tags=" + tags + " matched no scenarios");
     }
     return problems.isEmpty() ? null : "fail: " + String.join("; ", problems);
+  }
+
+  /**
+   * Keeps the last two runs' PNGs: the previous run's {@code current} folder becomes {@code previous} (replacing the older
+   * copy) before this run writes its own. With no previous run, {@code previous} is left alone. If the move fails (e.g. a
+   * PNG open in a viewer), {@code current} is cleared so this run never mixes with an older one.
+   */
+  static void rotateScreenshots(File current, File previous) {
+    if (!current.isDirectory()) {
+      return;
+    }
+    try {
+      FileUtils.deleteDirectory(previous);
+      Files.move(current.toPath(), previous.toPath());
+    } catch (IOException e) {
+      Mantle.logger.warn("uitest: could not keep the previous run's screenshots in {}, clearing them instead", previous, e);
+      try {
+        FileUtils.deleteDirectory(current);
+      } catch (IOException ignored) {}
+    }
   }
 
   /**

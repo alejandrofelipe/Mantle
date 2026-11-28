@@ -547,7 +547,9 @@ with a carried stack), `jei_tank_clickable` / `jei_smeltery_tank_clickable` / `j
 icons across the blocks/items atlas split), `trimmed_armor` / `worn_armor` (worn Tinkers armor and trims, with pixel
 asserts), `jei_tinker_station_transfer` / `jei_tool_inventory_transfer` (JEI 27 transfers), and since the R3 pilot `smeltery_tank_world` (the in-world smeltery tank: a liquid below a gas, pixel asserts)), writes
 `run/clientUiTest/uitest-screenshots/*.png` +
-`run/clientUiTest/uitest-results.json` (scenario id → `"ok"` / `"fail: ..."`), then **exits on its own**
+`run/clientUiTest/uitest-results.json` (scenario id → `"ok"` / `"fail: ..."`), then **exits on its own**. The previous run
+is kept for comparison in `uitest-screenshots-previous/` + `uitest-results-previous.json` (each run replaces the older
+copy; a filtered run's folder holds only the scenarios it ran)
 (verified full run ≈ 6-7 min cold including the build, ~3 min in-world, zero leftover
 processes). The suite ignores your mouse and keyboard, so you can keep working while it runs (see **Input isolation**
 below). A green 26.1.2 run records 60 results: the 56 Tinkers scenarios, the Mantle self-checks `mantle:input_isolation`,

@@ -24,8 +24,12 @@ import org.lwjgl.glfw.GLFWWindowFocusCallback;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.client.render.RenderTargetCapture;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -365,6 +369,132 @@ final class UiTestSelfChecks {
     @Override
     public void cleanup(UiTestContext ctx) {
       ctx.clearInventory();
+    }
+  }
+
+  /**
+   * The suite's capture path reads the frame the right way up, with the right channel order, and the latest frame (M8 plan R1 guard S2: a rewrite of
+   * {@link RenderTargetCapture} on a new buffer or texture format API can flip the rows, swap red and blue or return an older frame while every
+   * scenario still reports ok). The screen fills the four quadrants with colors whose channels all differ and draws a marker square encoding a
+   * counter of its extracted frames. Checked twice: the frame read by {@link UiTestContext#captureFrame()} and the PNG the suite wrote from it must
+   * have the exact quadrant color in each corner, and a marker equal to the counter of the last extracted frame.
+   */
+  static final class CaptureOrientationScenario implements UiTestScenario {
+    /** Quadrant colors, ARGB as {@link NativeImage#getPixel} returns it: no two share a channel value, so a swap or a flip changes them all */
+    static final int TOP_LEFT = 0xFFE01020, TOP_RIGHT = 0xFF20C040, BOTTOM_LEFT = 0xFF3050D0, BOTTOM_RIGHT = 0xFFF0B060;
+    /** Half the size of the marker square in GUI pixels */
+    private static final int MARKER = 4;
+
+    @Override
+    public Identifier id() {
+      return Mantle.getResource("capture_orientation");
+    }
+
+    @Override
+    public Set<String> tags() {
+      return Set.of(UiTestTags.SUITE, UiTestTags.SMOKE, UiTestTags.GUI, UiTestTags.RENDER);
+    }
+
+    @Override
+    public void prepare(UiTestContext ctx) {
+      ctx.setScreen(new QuadrantScreen());
+      ctx.parkMouse();
+    }
+
+    @Override
+    public int prepareSettleTicks() {
+      return 5;
+    }
+
+    @Override
+    public void open(UiTestContext ctx) {
+      requireScreen(ctx);
+    }
+
+    @Override
+    public int settleTicks() {
+      return 5;
+    }
+
+    @Override
+    public void close(UiTestContext ctx) {
+      QuadrantScreen screen = requireScreen(ctx);
+      int frame = screen.frames;
+      List<String> problems = new ArrayList<>();
+      try (NativeImage image = ctx.captureFrame()) {
+        check(ctx, image, "captured frame", frame, problems);
+      }
+      File png = new File(new File(ctx.mc().gameDirectory, UiTestSuite.SCREENSHOT_DIR), id().getPath() + ".png");
+      try (NativeImage image = NativeImage.read(Files.newInputStream(png.toPath()))) {
+        check(ctx, image, "written PNG", frame, problems);
+      } catch (IOException e) {
+        problems.add("cannot read back " + png + ": " + e);
+      }
+      if (!problems.isEmpty()) {
+        throw new IllegalStateException("capture: " + String.join("; ", problems));
+      }
+      ctx.setScreen(null);
+    }
+
+    private static QuadrantScreen requireScreen(UiTestContext ctx) {
+      if (!(ctx.screen() instanceof QuadrantScreen screen)) {
+        throw new IllegalStateException("expected the quadrant screen, found " + ctx.screen());
+      }
+      return screen;
+    }
+
+    /** Checks the corners and the marker of one image of the screen */
+    private static void check(UiTestContext ctx, NativeImage image, String name, int frame, List<String> problems) {
+      int width = image.getWidth(), height = image.getHeight();
+      int[][] corners = {{0, 0, TOP_LEFT}, {width - 1, 0, TOP_RIGHT}, {0, height - 1, BOTTOM_LEFT}, {width - 1, height - 1, BOTTOM_RIGHT}};
+      String[] names = {"top left", "top right", "bottom left", "bottom right"};
+      for (int i = 0; i < corners.length; i++) {
+        int color = image.getPixel(corners[i][0], corners[i][1]);
+        if (color != corners[i][2]) {
+          problems.add(String.format(Locale.ROOT, "%s: the %s corner is #%08X, expected #%08X", name, names[i], color, corners[i][2]));
+        }
+      }
+      int marker = image.getPixel(width / 2, height / 2);
+      if (marker != markerColor(frame)) {
+        int seen = marker & 0xFFFF;
+        problems.add(String.format(Locale.ROOT, "%s: the frame marker is #%08X (frame %d), expected frame %d: not the latest frame", name, marker, seen, frame & 0xFFFF));
+      }
+      if (width != ctx.mc().getWindow().getWidth() || height != ctx.mc().getWindow().getHeight()) {
+        problems.add(name + " is " + width + "x" + height + ", the window " + ctx.mc().getWindow().getWidth() + "x" + ctx.mc().getWindow().getHeight());
+      }
+    }
+
+    /** Marker color of the extracted frame: the low 16 bits of the counter in green and blue, red fixed */
+    static int markerColor(int frame) {
+      return 0xFF800000 | (frame & 0xFFFF);
+    }
+
+    @Override
+    public void cleanup(UiTestContext ctx) {
+      ctx.setScreen(null);
+    }
+  }
+
+  /** Screen for {@link CaptureOrientationScenario}: four colored quadrants and a frame counter marker in the middle */
+  private static final class QuadrantScreen extends Screen {
+    /** Frames extracted so far */
+    private int frames;
+
+    private QuadrantScreen() {
+      super(Component.empty());
+    }
+
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+      super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+      frames++;
+      int halfWidth = this.width / 2, halfHeight = this.height / 2;
+      graphics.fill(0, 0, halfWidth, halfHeight, CaptureOrientationScenario.TOP_LEFT);
+      graphics.fill(halfWidth, 0, this.width, halfHeight, CaptureOrientationScenario.TOP_RIGHT);
+      graphics.fill(0, halfHeight, halfWidth, this.height, CaptureOrientationScenario.BOTTOM_LEFT);
+      graphics.fill(halfWidth, halfHeight, this.width, this.height, CaptureOrientationScenario.BOTTOM_RIGHT);
+      int marker = CaptureOrientationScenario.MARKER;
+      graphics.fill(halfWidth - marker, halfHeight - marker, halfWidth + marker, halfHeight + marker, CaptureOrientationScenario.markerColor(frames));
     }
   }
 

@@ -84,7 +84,7 @@ public class ExtraHeartRenderHandler {
       return;
     }
     // ensure its visible
-    if (mc.options.hideGui) {
+    if (mc.gui.hud.isHidden()) {
       return;
     }
     Entity renderViewEnity = this.mc.getCameraEntity();

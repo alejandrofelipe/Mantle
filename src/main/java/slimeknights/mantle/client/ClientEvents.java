@@ -206,7 +206,7 @@ public class ClientEvents {
     switch (indicator) {
       case CROSSHAIR:
         if (!isHotbar && minecraft.options.getCameraType().isFirstPerson()) {
-          if (!minecraft.getDebugOverlay().showDebugScreen() || settings.hideGui || minecraft.player.isReducedDebugInfo() || settings.reducedDebugInfo().get()) {
+          if (!minecraft.getDebugOverlay().showDebugScreen() || minecraft.gui.hud.isHidden() || minecraft.player.isReducedDebugInfo() || settings.reducedDebugInfo().get()) {
             // mostly cloned from vanilla attack indicator
             // the inverting blend lives in the crosshair render pipeline (RenderPipelines.CROSSHAIR, as vanilla Hud#renderCrosshair)
             int scaledHeight = minecraft.getWindow().getGuiScaledHeight();

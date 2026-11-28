@@ -44,6 +44,12 @@ public class FindApiRenames {
 
   record Rule(String kind, String old, String replacement) {}
 
+  /** Overrides {@code moved} line: a member gone from {@code owner} (new jar), reached through another object now. */
+  record Moved(String owner, String member, String replacement) {}
+
+  static final String[] DYE_COLORS = {"LIGHT_BLUE", "LIGHT_GRAY", "WHITE", "ORANGE", "MAGENTA", "YELLOW", "LIME", "PINK", "GRAY", "CYAN",
+    "PURPLE", "BLUE", "BROWN", "GREEN", "RED", "BLACK"}; // longest prefixes first (LIGHT_GRAY_ before GRAY_)
+
   // ---------- reading ----------
   static Map<String, Cls> read(Path jar, List<String> prefixes) throws IOException {
     Map<String, Cls> out = new HashMap<>();
@@ -242,7 +248,8 @@ public class FindApiRenames {
     List<String[]> forcedMembers = new ArrayList<>();
     List<Hint> hints = new ArrayList<>();
     List<Rule> extraRules = new ArrayList<>();
-    List<String> overrideErrors = new ArrayList<>();
+    List<Moved> moves = new ArrayList<>();
+    List<String> overrideErrors = new ArrayList<>(), overrideWarnings = new ArrayList<>();
     if (opt.containsKey("overrides")) {
       int ln = 0;
       for (String raw : Files.readAllLines(Path.of(opt.get("overrides")), StandardCharsets.UTF_8)) {
@@ -277,6 +284,19 @@ public class FindApiRenames {
             String[] p = rest.split("\\s+");
             if (p.length != 3) { overrideErrors.add("line " + ln + ": rule <kind> <old> <new>"); continue; }
             extraRules.add(new Rule(p[0], p[1], p[2]));
+          }
+          case "moved" -> {
+            // moved <owner> <member> <replacement>: owner is the NEW jar's class javac reports as the location
+            String[] p = rest.split("\\s+");
+            if (p.length != 3) { overrideErrors.add("line " + ln + ": moved <owner> <member> <replacement>"); continue; }
+            String o = p[0].replace('.', '/');
+            Cls oc = newJar.get(o);
+            if (oc == null) { overrideErrors.add("line " + ln + ": moved owner not in new jar: " + p[0]); continue; }
+            if (!p[1].matches("[A-Za-z_$][\\w$]*")) { overrideErrors.add("line " + ln + ": moved member must be an identifier: " + p[1]); continue; }
+            if (!p[2].matches("[A-Za-z_$][\\w$.()]*")) { overrideErrors.add("line " + ln + ": moved replacement must be an identifier path (a.b, a.b()): " + p[2]); continue; }
+            if (oc.methods.stream().anyMatch(x -> x.name.equals(p[1])) || oc.fields.stream().anyMatch(x -> x.name.equals(p[1])))
+              overrideWarnings.add("line " + ln + ": moved member " + p[0] + "#" + p[1] + " still exists in the new jar (only rejected call sites are rewritten)");
+            moves.add(new Moved(o, p[1], p[2]));
           }
           default -> overrideErrors.add("line " + ln + ": unknown kind '" + f[0] + "'");
         }
@@ -453,6 +473,22 @@ public class FindApiRenames {
       }
     }
 
+    // ---------- moved static fields + constants folded into collections ----------
+    // newStaticFields: name:desc -> new classes where that static field is new (class added, or its old counterpart lacked the name)
+    Map<String, String> inverse = new HashMap<>();
+    for (String o : oldJar.keySet()) { String n = classMap.getOrDefault(o, o); if (newJar.containsKey(n)) inverse.put(n, o); }
+    Map<String, List<String>> newStaticFields = new HashMap<>();
+    for (Cls c : newJar.values()) {
+      if (isAnonymousOrLocal(c.name)) continue;
+      Cls oc = inverse.containsKey(c.name) ? oldJar.get(inverse.get(c.name)) : null;
+      Set<String> oldNames = new HashSet<>();
+      if (oc != null) oc.fields.forEach(x -> oldNames.add(x.name));
+      for (Member x : c.fields) if (x.isStatic && !x.isPrivate && !oldNames.contains(x.name)) newStaticFields.computeIfAbsent(x.name + ":" + x.desc, k -> new ArrayList<>()).add(c.name);
+    }
+    Map<String, String> collectionRules = collectionRules(oldJar, newJar, classMap, warnings); // oldOwner|NAME -> expression
+    List<String[]> fieldMoves = new ArrayList<>(); // oldOwner, name, newOwner
+    List<String> changedRows = new ArrayList<>();
+
     // ---------- member renames ----------
     List<String> memberRows = new ArrayList<>(), removedRows = new ArrayList<>();
     Map<String, String> forcedKey = new HashMap<>(); // kind|owner|name|desc -> newName
@@ -487,6 +523,26 @@ public class FindApiRenames {
           memberRows.add(String.join("\t", kind, on, nn, g.name, nName, g.desc, nd, g.isStatic ? "1" : "0", gone.contains(g) ? "override" : "override-swap"));
           if (isMethod) methodCount++; else fieldCount++;
         }
+        if (!isMethod) {
+          for (Member g : gone) {
+            if (done.contains(g) || !g.isStatic) continue;
+            if (collectionRules.containsKey(on + "|" + g.name)) { done.add(g); continue; }
+            // moved static field: the same name + descriptor is new in exactly one other class (EntityType.PIG -> EntityTypes.PIG)
+            List<String> owners = newStaticFields.getOrDefault(g.name + ":" + remap(g.desc, null, classMap), List.of()).stream().filter(x -> !x.equals(nn)).toList();
+            // pulled up into a supertype (Slime.MAX_NATURAL_SIZE -> AbstractCubeMob): old uses still compile, no rule
+            if (owners.stream().anyMatch(x -> isSubtype(nn, x, newJar))) { done.add(g); continue; }
+            if (owners.size() == 1) { done.add(g); fieldMoves.add(new String[]{on, g.name, owners.get(0)}); }
+          }
+        }
+        // same name, other descriptor (overload swapped / field retyped): compiles at some callers, so the S16 caller review needs it
+        Map<String, List<String>> newDescs = new HashMap<>();
+        for (Member x : nm) newDescs.computeIfAbsent(x.name, k -> new ArrayList<>()).add(x.desc);
+        for (Member g : om) {
+          List<String> nds = newDescs.get(g.name);
+          if (nds == null || nds.contains(remap(g.desc, null, classMap))) continue;
+          if (isMethod && !gone.contains(g)) continue;
+          changedRows.add(String.join("\t", kind, on, nn, g.name, g.desc, String.join(" ", nds), g.isStatic ? "1" : "0", "pair"));
+        }
         Map<String, List<Member>> goneBy = new TreeMap<>(), freshBy = new HashMap<>();
         for (Member g : gone) if (!done.contains(g)) goneBy.computeIfAbsent(remap(g.desc, null, classMap) + g.isStatic, k -> new ArrayList<>()).add(g);
         for (Member a : fresh) freshBy.computeIfAbsent(a.desc + a.isStatic, k -> new ArrayList<>()).add(a);
@@ -506,7 +562,40 @@ public class FindApiRenames {
       }
     }
     for (Hint h : hints) memberRows.add(String.join("\t", "hint", h.owner, classMap.getOrDefault(h.owner, h.owner), h.name, "-", "-", "-", "-", h.message));
+    for (Moved mv : moves) memberRows.add(String.join("\t", "moved", mv.owner, mv.owner, mv.member, mv.replacement, "-", "-", "-", "moved"));
+    // same FQN, another class (MC 26.2: the old Gui is Hud, Gui is new): old callers of a name both classes have still compile
+    for (var e : classMap.entrySet()) {
+      Cls reused = newJar.get(e.getKey());
+      if (reused == null || isAnonymousOrLocal(e.getKey())) continue;
+      Cls oc = oldJar.get(e.getKey());
+      for (String kind : List.of("method", "field")) {
+        boolean isMethod = kind.equals("method");
+        Map<String, List<String>> nd = new TreeMap<>();
+        for (Member x : isMethod ? reused.methods : reused.fields) if (!x.isPrivate && !x.name.equals("<init>")) nd.computeIfAbsent(x.name, k -> new ArrayList<>()).add(x.desc);
+        Set<String> seen = new HashSet<>();
+        for (Member g : isMethod ? oc.methods : oc.fields)
+          if (!g.isPrivate && !g.name.equals("<init>") && nd.containsKey(g.name) && seen.add(g.name + g.desc))
+            changedRows.add(String.join("\t", kind, e.getKey(), e.getKey(), g.name, g.desc, String.join(" ", nd.get(g.name)), g.isStatic ? "1" : "0",
+              "fqn-reuse(old class -> " + dotted(e.getValue()) + ")"));
+      }
+    }
     Collections.sort(removedRows);
+    Collections.sort(changedRows);
+
+    // moved static fields: a class receiving >= 2 fields of the old owner, or sharing a name token with it, is trusted;
+    // a single field landing in an unrelated class (a generic CODEC) is listed commented out for review
+    Map<String, Integer> moveGroups = new HashMap<>();
+    for (String[] m : fieldMoves) moveGroups.merge(m[0] + "|" + m[2], 1, Integer::sum);
+    List<String> fieldRules = new ArrayList<>(), weakFieldRules = new ArrayList<>(), collectionLines = new ArrayList<>();
+    for (String[] m : fieldMoves) {
+      String line = "field " + dotted(m[0]) + "." + m[1] + " " + dotted(m[2]) + "." + m[1];
+      if (moveGroups.get(m[0] + "|" + m[2]) >= 2 || tokenDice(innermost(m[0]), innermost(m[2])) > 0) fieldRules.add(line);
+      else weakFieldRules.add("# weak (single field, unrelated class; uncomment after review): " + line);
+    }
+    for (var e : collectionRules.entrySet()) {
+      String[] k = e.getKey().split("\\|");
+      collectionLines.add("field " + dotted(k[0]) + "." + k[1] + " " + e.getValue());
+    }
 
     // ---------- map.txt ----------
     List<String> nestedRules = new ArrayList<>(), renamedRules = new ArrayList<>(), movedRules = new ArrayList<>(), forcedRules = new ArrayList<>();
@@ -529,7 +618,12 @@ public class FindApiRenames {
     map.add("# edit the overrides file and regenerate. Format: see Invoke-RenameMap.ps1 / README.md.");
     map.add("# class <old> <new>: FQN everywhere; simple name too in files that import the old class ($ = nested class).");
     map.add("# Member renames are NOT here: they are receiver-dependent and go through Invoke-CompilerRenames.ps1.");
+    map.add("# field <oldOwner>.<NAME> <expression>: moved static fields / constants folded into collections; they run first,");
+    map.add("# while the old owner's import is still there (the class rules below may rename it).");
     map.add("");
+    addSection(map, "moved static fields (same name + descriptor, new in exactly one other class)", fieldRules);
+    if (!weakFieldRules.isEmpty()) addSection(map, "moved static fields to review (not applied)", weakFieldRules);
+    addSection(map, "constants folded into collections (ColorCollection#pick, WeatheringCopperCollection accessors)", collectionLines);
     addSection(map, "nested classes renamed independently of their outer class (must run before their outer rule)", nestedRules);
     addSection(map, "manual overrides (overrides file)", forcedRules);
     addSection(map, "renamed classes (different simple name; matched by inner classes or member similarity)", renamedRules);
@@ -543,13 +637,79 @@ public class FindApiRenames {
     members.addAll(memberRows);
     Files.write(out.resolve("members.tsv"), members);
     Files.write(out.resolve("removed.tsv"), removedRows);
+    List<String> changed = new ArrayList<>();
+    changed.add("# same name, other descriptor (S16 caller review). kind\toldOwner\tnewOwner\tname\toldDesc\tnewDescs\tstatic\thow");
+    changed.addAll(changedRows);
+    Files.write(out.resolve("changed.tsv"), changed);
+    warnings.addAll(overrideWarnings);
     Files.write(out.resolve("warnings.txt"), warnings);
     Files.write(out.resolve("map.txt"), map);
     long renamedCount = classMap.entrySet().stream().filter(e -> !simple(e.getKey()).equals(simple(e.getValue()))).count();
-    System.out.printf(Locale.ROOT, "old=%d new=%d removedClasses=%d addedClasses=%d classPairs=%d (renamed=%d moved=%d) mapRules=%d methodRenames=%d fieldRenames=%d hints=%d warnings=%d unmatched=%d%n",
+    System.out.printf(Locale.ROOT, "old=%d new=%d removedClasses=%d addedClasses=%d classPairs=%d (renamed=%d moved=%d) mapRules=%d methodRenames=%d fieldRenames=%d fieldMoves=%d (weak=%d) collectionRules=%d hints=%d moved=%d changed=%d warnings=%d unmatched=%d%n",
       oldJar.size(), newJar.size(), removed.size(), added.size(), classMap.size(), renamedCount, classMap.size() - renamedCount,
-      nestedRules.size() + forcedRules.size() + renamedRules.size() + movedRules.size() + extra.size(), methodCount, fieldCount, hints.size(), warnings.size(), removedRows.size());
+      nestedRules.size() + forcedRules.size() + renamedRules.size() + movedRules.size() + extra.size() + fieldRules.size() + collectionLines.size(),
+      methodCount, fieldCount, fieldRules.size(), weakFieldRules.size(), collectionLines.size(), hints.size(), moves.size(), changedRows.size(), warnings.size(), removedRows.size());
     for (String w : warnings) System.out.println("WARNING: " + w);
+  }
+
+  /**
+   * Constants folded into collections (MC 26.2): {@code Items.RED_DYE} -> {@code Items.DYE.pick(DyeColor.RED)} for every
+   * new static {@code ColorCollection} field whose 16 {@code <COLOR>_<X>} (or {@code DYED_<X>}) old fields are gone, and
+   * {@code Items.EXPOSED_CUT_COPPER} -> {@code Items.CUT_COPPER.weathering().exposed()} for every new static
+   * {@code WeatheringCopperCollection} field whose 8 old fields ({@code [WAXED_][EXPOSED_|WEATHERED_|OXIDIZED_]<X>}, the
+   * unaffected one may keep the collection's name: {@code COPPER_BLOCK}) existed. Incomplete families are warnings.
+   */
+  static Map<String, String> collectionRules(Map<String, Cls> oldJar, Map<String, Cls> newJar, Map<String, String> classMap, List<String> warnings) {
+    Map<String, String> out = new TreeMap<>();
+    String dye = newJar.keySet().stream().filter(k -> simple(k).equals("DyeColor")).findFirst().orElse(null);
+    for (String on : new TreeSet<>(oldJar.keySet())) {
+      String nn = classMap.getOrDefault(on, on);
+      Cls oc = oldJar.get(on), nc = newJar.get(nn);
+      if (nc == null) continue;
+      Map<String, Member> oldStatic = new HashMap<>();
+      for (Member x : oc.fields) if (x.isStatic && !x.isPrivate) oldStatic.put(x.name, x);
+      Set<String> newNames = new HashSet<>();
+      nc.fields.forEach(x -> newNames.add(x.name));
+      for (Member n : nc.fields) {
+        if (!n.isStatic || n.isPrivate) continue;
+        String type = n.desc.startsWith("L") ? simple(n.desc.substring(1, n.desc.length() - 1)) : "";
+        String owner = dotted(nn) + "." + n.name;
+        if (type.equals("ColorCollection") && dye != null) {
+          boolean found = false;
+          for (String suffix : n.name.startsWith("DYED_") ? List.of(n.name, n.name.substring(5)) : List.of(n.name)) {
+            Map<String, String> fam = new LinkedHashMap<>();
+            for (String c : DYE_COLORS) if (oldStatic.containsKey(c + "_" + suffix) && !newNames.contains(c + "_" + suffix)) fam.put(c + "_" + suffix, c);
+            if (fam.size() != DYE_COLORS.length) continue;
+            fam.forEach((old, c) -> out.put(on + "|" + old, owner + ".pick(" + dotted(dye) + "." + c + ")"));
+            found = true;
+            break;
+          }
+          if (!found) warnings.add("collection without a complete old color family: " + owner);
+        } else if (type.equals("WeatheringCopperCollection")) {
+          List<String> bases = n.name.endsWith("_BLOCK") ? List.of(n.name, n.name.substring(0, n.name.length() - 6)) : List.of(n.name);
+          Map<String, String> fam = new LinkedHashMap<>();
+          String[][] states = {{"unaffected", ""}, {"exposed", "EXPOSED_"}, {"weathered", "WEATHERED_"}, {"oxidized", "OXIDIZED_"}};
+          for (String[] w : new String[][]{{"weathering", ""}, {"waxed", "WAXED_"}}) {
+            for (String[] s : states) {
+              List<String> cands = new ArrayList<>();
+              for (String b : bases) cands.add(w[1] + s[1] + b);
+              for (String old : cands) {
+                // gone, or the collection kept the old name (COPPER_BLOCK: Item -> WeatheringCopperCollection<Item>)
+                if (oldStatic.containsKey(old) && (!newNames.contains(old) || old.equals(n.name))) { fam.put(old, "." + w[0] + "()." + s[0] + "()"); break; }
+              }
+            }
+          }
+          if (fam.size() != 8) {
+            Member same = oldStatic.get(n.name);
+            warnings.add("collection without a complete old copper family (" + fam.size() + "/8): " + owner
+              + (same != null ? " (the old field of that name was a " + simple(same.desc.replace(";", "")) + ": its accessor calls break, fix by hand)" : ""));
+            continue;
+          }
+          fam.forEach((old, acc) -> out.put(on + "|" + old, owner + acc));
+        }
+      }
+    }
+    return out;
   }
 
   static void addSection(List<String> map, String title, List<String> rules) {

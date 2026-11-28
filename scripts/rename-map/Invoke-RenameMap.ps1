@@ -64,6 +64,63 @@ if (-not (Test-Path -LiteralPath $Map -PathType Leaf)) { Write-Host "ERROR: map 
 $Root = (Resolve-Path -LiteralPath $Root).ProviderPath.TrimEnd('\', '/')
 $Map = (Resolve-Path -LiteralPath $Map).ProviderPath
 
+# ---------- field rules ----------
+$fqnRefRx = [regex]::new('(?<![\w$.])([a-z_]\w*(?:\.[a-z_]\w*)*\.[A-Z]\w*(?:\$[A-Za-z_]\w*)*)')
+# 'field <owner.Fqn>.<NAME> <expression>': regexes and the class references of the expression (imported where used).
+function Get-FieldRule([string] $old, [string] $new) {
+  $i = $old.LastIndexOf('.')
+  $owner = $old.Substring(0, $i); $name = $old.Substring($i + 1)
+  $ownerDot = $owner.Replace('$', '.')
+  $ownerTop = if ($owner.Contains('$')) { $owner.Substring(0, $owner.IndexOf('$')) } else { $owner }
+  $ownerQual = $owner.Substring($ownerTop.LastIndexOf('.') + 1).Replace('$', '.')
+  $ownerSimple = $ownerQual.Substring($ownerQual.LastIndexOf('.') + 1)
+  $simpleExpr = $new -cmatch '^[a-z_]\w*(\.[a-z_]\w*)*\.[A-Z]\w*(\$[A-Za-z_]\w*)*\.[A-Za-z_]\w*$'
+  # same-name rule (COPPER_BLOCK -> COPPER_BLOCK.weathering().unaffected()): never rewrite an already rewritten use
+  $guard = ''
+  if ($new.StartsWith("$owner.$name.")) {
+    $seg = [regex]::Match($new.Substring($owner.Length + $name.Length + 2), '^[A-Za-z_]\w*').Value
+    $guard = '(?!\s*\.\s*' + [regex]::Escape($seg) + '(?![\w$]))'
+  }
+  $tail = '\s*\.\s*' + [regex]::Escape($name) + '(?![\w$])' + $guard
+  # the FQN form everywhere; with an expression that is not 'Class.FIELD', never inside 'import static' (reported instead)
+  $fqnPattern = '(?<![\w$.])' + [regex]::Escape($ownerDot) + $tail
+  if (-not $simpleExpr) { $fqnPattern = '(?m)(?<!^[ \t]*import[ \t]+static[ \t][^\r\n]*)' + $fqnPattern }
+  $quals = @([pscustomobject]@{ Import = [regex]::new('(?m)^\s*import\s+' + [regex]::Escape($ownerDot) + '\s*;'); Text = $ownerSimple })
+  if ($owner.Contains('$')) { $quals += [pscustomobject]@{ Import = [regex]::new('(?m)^\s*import\s+' + [regex]::Escape($ownerTop) + '\s*;'); Text = $ownerQual } }
+  foreach ($q in $quals) { $q | Add-Member Pattern ([regex]::new('(?<![\w$.])' + [regex]::Escape($q.Text) + $tail)) }
+  $refs = foreach ($m in $fqnRefRx.Matches($new)) {
+    $fqn = $m.Groups[1].Value
+    $top = if ($fqn.Contains('$')) { $fqn.Substring(0, $fqn.IndexOf('$')) } else { $fqn }
+    $topSimple = $top.Substring($top.LastIndexOf('.') + 1)
+    [pscustomobject]@{
+      Fqn = $fqn; Dot = $fqn.Replace('$', '.'); Top = $top; Pkg = $top.Substring(0, $top.LastIndexOf('.'))
+      Qual = $fqn.Substring($top.LastIndexOf('.') + 1).Replace('$', '.')
+      Imported = [regex]::new('(?m)^\s*import\s+' + [regex]::Escape($top) + '\s*;')
+      Clash = [regex]::new('(?m)(^\s*import\s+[\w.]+\.' + $topSimple + '\s*;)|((?<![\w$.])(class|interface|enum|record)\s+' + $topSimple + '(?![\w$]))')
+    }
+  }
+  [pscustomobject]@{
+    Owner = $owner; Name = $name; FqnPattern = $fqnPattern; NewFull = $new.Replace('$', '.'); Quals = $quals; Refs = @($refs)
+    StaticImport = [regex]::new('(?m)^\s*import\s+static\s+' + [regex]::Escape($ownerDot) + '\.' + [regex]::Escape($name) + '\s*;')
+    SimpleExpr = $simpleExpr
+  }
+}
+
+# The expression for one file: class FQNs become their (qualified) simple names, imported unless the file is in the class's
+# package or another class of that simple name is imported/declared there (then the FQN stays).
+function Get-FieldExpression($field, [string] $content, [string] $pkg) {
+  $imports = [System.Collections.Generic.List[string]]::new()
+  $expr = $field.NewFull
+  foreach ($r in $field.Refs | Sort-Object { $_.Dot.Length } -Descending) {
+    $short = $r.Qual
+    if ($pkg -ne $r.Pkg -and -not $r.Imported.IsMatch($content)) {
+      if ($r.Clash.IsMatch($content)) { $short = $r.Dot } else { $imports.Add("import $($r.Top);") }
+    }
+    $expr = [regex]::Replace($expr, '(?<![\w$.])' + [regex]::Escape($r.Dot) + '(?![\w$])', $short.Replace('$', '$$'))
+  }
+  [pscustomobject]@{ Text = $expr; Imports = $imports }
+}
+
 # ---------- parse map ----------
 $rules = [System.Collections.Generic.List[object]]::new()
 $errors = [System.Collections.Generic.List[string]]::new()
@@ -76,7 +133,7 @@ foreach ($raw in [System.IO.File]::ReadAllLines($Map)) {
   if ($fields.Count -ne 3) { $errors.Add("line ${lineNo}: expected '<kind> <old> <new>', got: $raw"); continue }
   $kind, $old, $new = $fields
   $opts = [System.Text.RegularExpressions.RegexOptions]::CultureInvariant
-  $class = $null
+  $class = $null; $field = $null
   if ($kind -ceq 'token') { $pattern = '(?<![\w$])' + [regex]::Escape($old) + '(?![\w$])' }
   elseif ($kind -ceq 'literal') { $pattern = [regex]::Escape($old) }
   elseif ($kind -ceq 'class') {
@@ -104,10 +161,18 @@ foreach ($raw in [System.IO.File]::ReadAllLines($Map)) {
     }
     $old = $oldDot; $new = $newDot
   }
-  else { $errors.Add("line ${lineNo}: unknown kind '$kind' (expected 'token', 'literal' or 'class'): $raw"); continue }
+  elseif ($kind -ceq 'field') {
+    $ownerRx = '^[a-z_]\w*(\.[a-z_]\w*)*\.[A-Z]\w*(\$[A-Za-z_]\w*)*'
+    if ($old -cnotmatch ($ownerRx + '\.[A-Za-z_]\w*$') -or $new -cnotmatch $ownerRx) {
+      $errors.Add("line ${lineNo}: field rule needs <owner.Fqn>.<NAME> and an expression starting with a class FQN: $raw"); continue
+    }
+    $field = Get-FieldRule $old $new
+    $pattern = $field.FqnPattern
+  }
+  else { $errors.Add("line ${lineNo}: unknown kind '$kind' (expected 'token', 'literal', 'class' or 'field'): $raw"); continue }
   $rules.Add([pscustomobject]@{
       Index = $rules.Count + 1; Line = $lineNo; Kind = $kind; Old = $old; New = $new
-      Regex = [regex]::new($pattern, $opts); Class = $class
+      Regex = [regex]::new($pattern, $opts); Class = $class; Field = $field
       Hits = 0; Files = 0
     })
 }
@@ -194,6 +259,7 @@ function Get-LineInfo([string] $content, [int] $pos) {
 $utf8Strict = [System.Text.UTF8Encoding]::new($false, $true)
 $fileHits = [System.Collections.Generic.List[object]]::new()
 $stringHits = [System.Collections.Generic.List[object]]::new()
+$fieldNotes = [System.Collections.Generic.List[object]]::new()
 $unreadable = [System.Collections.Generic.List[string]]::new()
 $written = 0
 
@@ -208,15 +274,32 @@ foreach ($path in $files) {
   $original = $content
   $hitsInFile = 0
   $newImports = [System.Collections.Generic.List[string]]::new()
+  $pkgMatch = [regex]::Match($content, '(?m)^\s*package\s+([\w.]+)\s*;')
+  $filePkg = if ($pkgMatch.Success) { $pkgMatch.Groups[1].Value } else { '' }
   foreach ($rule in $rules) {
-    # (regex, replacement) steps: one for token/literal; for class the FQN step plus the simple-name steps, whose
-    # import conditions are checked on the content before this rule touches it
+    # (regex, replacement[, imports]) steps: one for token/literal; for class the FQN step plus the simple-name steps, whose
+    # import conditions are checked on the content before this rule touches it; for field the FQN step plus the
+    # qualified-name steps in files importing the old owner (their expression imports what it names)
     $steps = [System.Collections.Generic.List[object]]::new()
-    $steps.Add(@($rule.Regex, $rule.New))
+    if ($rule.Field) {
+      $fr = $rule.Field
+      $steps.Add(@($rule.Regex, $fr.NewFull, $null))
+      $expr = $null
+      foreach ($q in $fr.Quals) {
+        if (-not $q.Import.IsMatch($content)) { continue }
+        if (-not $expr) { $expr = Get-FieldExpression $fr $content $filePkg }
+        $steps.Add(@($q.Pattern, $expr.Text, $expr.Imports))
+      }
+      if (-not $fr.SimpleExpr -and $fr.StaticImport.IsMatch($content)) {
+        $info = Get-LineInfo $content $fr.StaticImport.Match($content).Index
+        $fieldNotes.Add([pscustomobject]@{ File = $rel; Line = $info.Number; Rule = $rule.Index; Text = "static import of $($rule.Old) not rewritten (the replacement is an expression): fix by hand" })
+      }
+    }
+    else { $steps.Add(@($rule.Regex, $rule.New, $null)) }
     if ($rule.Class) {
       $cl = $rule.Class
-      if ($cl.Qual -and $cl.OuterImport.IsMatch($content)) { $steps.Add(@($cl.Qual, $cl.NewQual)) }
-      if ($cl.Simple -and $cl.Import.IsMatch($content)) { $steps.Add(@($cl.Simple, $cl.NewSimple)) }
+      if ($cl.Qual -and $cl.OuterImport.IsMatch($content)) { $steps.Add(@($cl.Qual, $cl.NewQual, $null)) }
+      if ($cl.Simple -and $cl.Import.IsMatch($content)) { $steps.Add(@($cl.Simple, $cl.NewSimple, $null)) }
     }
     $ruleHits = 0
     foreach ($step in $steps) {
@@ -232,6 +315,7 @@ foreach ($path in $files) {
       $content = $step[0].Replace($content, $step[1].Replace('$', '$$'))
       # 'Outer.Inner' now names another top-level class: import it (after all rules, so line numbers stay put)
       if ($rule.Class -and $step[0] -eq $rule.Class.Qual -and $rule.Class.NewTopImport) { [void]$newImports.Add($rule.Class.NewTopImport) }
+      if ($step[2]) { foreach ($imp in $step[2]) { if (-not $newImports.Contains($imp)) { [void]$newImports.Add($imp) } } }
     }
     if ($ruleHits -eq 0) { continue }
     $rule.Hits += $ruleHits
@@ -272,6 +356,11 @@ $fileHits | Sort-Object @{E = 'Hits'; Descending = $true }, File | Select-Object
 if ($stringHits.Count -gt 0) {
   Write-Host "WARNING: $($stringHits.Count) hit(s) inside a string literal (heuristic; counted and replaced anyway - review):"
   foreach ($h in $stringHits) { Write-Host ("  {0}:{1}  [rule {2} {3}]  {4}" -f $h.File, $h.Line, $h.Rule, $h.Old, $h.Text) }
+  Write-Host ''
+}
+if ($fieldNotes.Count -gt 0) {
+  Write-Host "WARNING: $($fieldNotes.Count) field-rule spot(s) left for a manual fix:"
+  foreach ($h in $fieldNotes) { Write-Host ("  {0}:{1}  [rule {2}]  {3}" -f $h.File, $h.Line, $h.Rule, $h.Text) }
   Write-Host ''
 }
 if ($unreadable.Count -gt 0) {

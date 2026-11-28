@@ -111,7 +111,12 @@ try {
   New-FixtureJar (Join-Path $tmp 'old') $OldApi $oldJar
   New-FixtureJar (Join-Path $tmp 'new') $NewApi $script:newJar
   $ov = Join-Path $tmp 'overrides.txt'
-  Set-Content -LiteralPath $ov -Value 'hint net.minecraft.fix.Screen renderBg merge into extractBackground'
+  Set-Content -LiteralPath $ov -Value @(
+    'hint net.minecraft.fix.Screen renderBg merge into extractBackground'
+    'moved net.minecraft.fix.Minecraft screen gui.screen()'
+    'moved net.minecraft.fix.Minecraft setScreen gui.setScreen'
+    'moved net.minecraft.fix.Minecraft getMainRenderTarget gameRenderer.mainRenderTarget'
+  )
   $script:members = Join-Path $tmp 'members.tsv'
   $null = & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'Find-ApiRenames.ps1') -OldJar $oldJar -NewJar $script:newJar -Out (Join-Path $tmp 'diff') -Overrides $ov -MembersOut $script:members
   if ($LASTEXITCODE -ne 0) { throw 'Find-ApiRenames failed' }
@@ -161,6 +166,62 @@ try {
   Assert-Case 'recompile: only renderBg and the unrelated receiver are left' ($left.Count -eq 2 -and ($left -join "`n") -match 'MyScreen\.java:23: error: method does not override' -and ($left -join "`n") -match 'MyScreen\.java:32: error: cannot find symbol') ($left -join "`n")
   $again = Invoke-Applier $log3
   Assert-Case 'pass 3 changes nothing (loop ends), dead override still reported' ($again.Out -match 'edits=0 ' -and $again.Out -match 'deadOverrides=1') $again.Out
+
+  # --- 'moved' lines: members reached through another object now (Minecraft#screen -> gui.screen()) ---
+  $mcDir = Join-Path $tmp 'client2/src/main/java/client2'
+  New-Item -ItemType Directory -Force $mcDir | Out-Null
+  $mcFile = Join-Path $mcDir 'UsesMc.java'
+  [System.IO.File]::WriteAllText($mcFile, (@'
+package client2;
+
+import java.util.function.Supplier;
+import net.minecraft.fix.Minecraft;
+import net.minecraft.fix.Screen;
+import net.minecraft.fix.Unrelated;
+
+public class UsesMc {
+	record Holder(Minecraft mc) {
+		Object target() { return mc.getMainRenderTarget(); }
+	}
+
+	void run(Minecraft mc, Screen s, Unrelated u) {
+		Screen cur = mc.screen;
+		mc.setScreen(s);
+		Minecraft.getInstance()
+			.setScreen(null);
+		Object rt = mc.getMainRenderTarget();
+		mc.screen = s;
+		Supplier<Object> sup = mc::getMainRenderTarget;
+		Object other = u.screen;
+		String str = "mc.screen stays in this string";
+	}
+}
+'@).Replace("`r`n", "`n").Replace("`n", "`r`n"))
+  function Invoke-Javac2([string] $out, [string] $log) {
+    New-Item -ItemType Directory -Force $out | Out-Null
+    & (Join-Path $env:JAVA_HOME 'bin/javac') -d $out -cp $script:newJar '-XDshould-stop.ifError=FLOW' -Xmaxerrs 1000 $mcFile *> $log
+  }
+  function Invoke-Applier2([string] $log, [switch] $Apply) {
+    $a = @('-NoProfile', '-File', (Join-Path $PSScriptRoot 'Invoke-CompilerRenames.ps1'), '-Log', $log, '-Members', $script:members, '-Jar', $script:newJar, '-Root', (Join-Path $tmp 'client2'))
+    if ($Apply) { $a += '-Apply' }
+    $o = & pwsh @a 2>&1 | Out-String
+    [pscustomobject]@{ Exit = $LASTEXITCODE; Out = $o }
+  }
+  $m1 = Join-Path $tmp 'm1.log'
+  Invoke-Javac2 (Join-Path $tmp 'm1') $m1
+  $mv = Invoke-Applier2 $m1 -Apply
+  Assert-Case 'moved: field access becomes a call through the new owner' ($mv.Out -match 'UsesMc\.java:14  screen -> gui\.screen\(\)  \[a:moved Minecraft\]') $mv.Out
+  Assert-Case 'moved: call keeps its arguments (variable receiver)' ($mv.Out -match 'UsesMc\.java:15  setScreen -> gui\.setScreen  \[a:moved Minecraft\]') $mv.Out
+  Assert-Case 'moved: chained call on its own line (location = class)' ($mv.Out -match 'UsesMc\.java:17  setScreen -> gui\.setScreen  \[a:moved Minecraft\]') $mv.Out
+  Assert-Case 'moved: record component receiver' ($mv.Out -match 'UsesMc\.java:10  getMainRenderTarget -> gameRenderer\.mainRenderTarget  \[a:moved Minecraft\]') $mv.Out
+  Assert-Case 'moved: assignment and method reference refused and listed' ($mv.Out -match 'UsesMc\.java:19  Minecraft#screen -> gui\.screen\(\)  MOVED, not rewritten: assignment' -and $mv.Out -match 'UsesMc\.java:20  Minecraft#getMainRenderTarget -> gameRenderer\.mainRenderTarget  MOVED, not rewritten: method reference') $mv.Out
+  Assert-Case 'moved: summary counts the moved edits' ($mv.Out -match 'edits=5 files=1 .* moved=5') ($mv.Out -split "`n" | Select-String 'errors=' | Out-String)
+  $t2 = [System.IO.File]::ReadAllText($mcFile)
+  Assert-Case 'moved: rewritten text (string and unrelated receiver untouched, CRLF kept)' ($t2.Contains("Screen cur = mc.gui.screen();`r`n") -and $t2.Contains("mc.gui.setScreen(s);") -and $t2.Contains("`t`t`t.gui.setScreen(null);") -and $t2.Contains("Object rt = mc.gameRenderer.mainRenderTarget();") -and $t2.Contains("return mc.gameRenderer.mainRenderTarget();") -and $t2.Contains('Object other = u.screen;') -and $t2.Contains('"mc.screen stays in this string"')) $t2
+  $m2 = Join-Path $tmp 'm2.log'
+  Invoke-Javac2 (Join-Path $tmp 'm2') $m2
+  $left2 = @(Get-Content $m2 | Select-String ': error: ' | ForEach-Object { $_.Line.Trim() })
+  Assert-Case 'moved: recompile leaves only the assignment, the method reference and the unrelated receiver' ($left2.Count -eq 3 -and ($left2 -join "`n") -match 'UsesMc\.java:19:' -and ($left2 -join "`n") -match 'UsesMc\.java:20:' -and ($left2 -join "`n") -match 'UsesMc\.java:21:') ($left2 -join "`n")
 
   $r = & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'Invoke-CompilerRenames.ps1') -Log (Join-Path $tmp 'nope.log') -Members $script:members -Jar $script:newJar -Root $tmp 2>&1 | Out-String
   Assert-Case 'missing log exits 1' ($LASTEXITCODE -eq 1) $r

@@ -39,6 +39,9 @@ public class CompilerRenames {
 
   record Hint(String owner, String newOwner, String name, String message) {}
 
+  /** Overrides {@code moved} row: {@code x.member} -> {@code x.<replacement>} where javac's location is {@code owner} (or a subtype). */
+  record Moved(String owner, String member, String replacement) {}
+
   record JarCls(String name, String sup, List<String> ifs, Map<String, Set<Integer>> methods) {}
 
   // ---------- source model ----------
@@ -80,9 +83,10 @@ public class CompilerRenames {
     List<JErr> errs = parseLog(Path.of(opt.get("log")));
     List<Row> rows = new ArrayList<>();
     List<Hint> hints = new ArrayList<>();
-    readMembers(Path.of(opt.get("members")), rows, hints);
+    List<Moved> moves = new ArrayList<>();
+    readMembers(Path.of(opt.get("members")), rows, hints, moves);
     Map<String, JarCls> jar = readJar(Path.of(opt.get("jar")));
-    CompilerRenames tool = new CompilerRenames(roots, rows, hints, jar);
+    CompilerRenames tool = new CompilerRenames(roots, rows, hints, moves, jar);
     tool.run(errs, apply, opt.get("log"));
   }
 
@@ -128,12 +132,13 @@ public class CompilerRenames {
 
   static int rawErrors;
 
-  static void readMembers(Path tsv, List<Row> rows, List<Hint> hints) throws IOException {
+  static void readMembers(Path tsv, List<Row> rows, List<Hint> hints, List<Moved> moves) throws IOException {
     for (String l : Files.readAllLines(tsv, StandardCharsets.UTF_8)) {
       if (l.isBlank() || l.startsWith("#")) continue;
       String[] f = l.split("\t", 9);
       if (f.length < 9) continue;
       if (f[0].equals("hint")) hints.add(new Hint(f[1], f[2], f[3], f[8]));
+      else if (f[0].equals("moved")) moves.add(new Moved(f[1], f[3], f[4]));
       else rows.add(new Row(f[0], f[1], f[2], f[3], f[4], f[5], f[6], f[7].equals("1"), f[8]));
     }
   }
@@ -177,15 +182,17 @@ public class CompilerRenames {
   final List<Path> roots;
   final Map<String, List<Row>> rowsByOwner = new HashMap<>();
   final Map<String, List<Hint>> hintsByOwner = new HashMap<>();
+  final Map<String, List<Moved>> movesByOwner = new HashMap<>();
   final Map<String, JarCls> jar;
   final Map<String, List<String>> jarBySimple = new HashMap<>();
   final Map<Path, SrcFile> files = new LinkedHashMap<>();
   final Map<String, TypeDecl> srcByFqn = new HashMap<>();
   final Map<String, List<TypeDecl>> srcBySimple = new HashMap<>();
 
-  CompilerRenames(List<Path> roots, List<Row> rows, List<Hint> hints, Map<String, JarCls> jar) throws IOException {
+  CompilerRenames(List<Path> roots, List<Row> rows, List<Hint> hints, List<Moved> moves, Map<String, JarCls> jar) throws IOException {
     this.roots = roots;
     this.jar = jar;
+    for (Moved mv : moves) movesByOwner.computeIfAbsent(mv.owner, k -> new ArrayList<>()).add(mv);
     for (Row r : rows) {
       rowsByOwner.computeIfAbsent(r.newOwner, k -> new ArrayList<>()).add(r);
       if (!r.oldOwner.equals(r.newOwner)) rowsByOwner.computeIfAbsent(r.oldOwner, k -> new ArrayList<>()).add(r);
@@ -614,8 +621,9 @@ public class CompilerRenames {
     section("Possible dead overrides (compile, never called: the supertype method was renamed or removed)", dead);
     section("Skipped", skipped);
     if (apply) System.out.println("written=" + written);
-    System.out.printf("errors=%d edits=%d files=%d ambiguous=%d unresolvedOverrides=%d deadOverrides=%d%n",
-      errs.size(), count, byFile.size(), ambiguous.size(), unresolvedOverrides.size(), dead.size());
+    long movedEdits = byFile.values().stream().flatMap(List::stream).filter(ed -> ed.why.startsWith("a:moved")).count();
+    System.out.printf("errors=%d edits=%d files=%d ambiguous=%d unresolvedOverrides=%d deadOverrides=%d moved=%d%n",
+      errs.size(), count, byFile.size(), ambiguous.size(), unresolvedOverrides.size(), dead.size(), movedEdits);
   }
 
   static void section(String title, Set<String> items) {
@@ -663,7 +671,8 @@ public class CompilerRenames {
     String where = rel(f.path) + ":" + e.line;
     // location -> type
     String typeName;
-    Matcher vm = Pattern.compile("^variable \\S+ of type (.+)$").matcher(e.location);
+    // 'variable mc of type Minecraft', 'record component mc of type Minecraft'
+    Matcher vm = Pattern.compile("^(?:variable|record component) \\S+ of type (.+)$").matcher(e.location);
     Matcher cm = Pattern.compile("^(?:class|interface|enum|record|@interface) (.+)$").matcher(e.location);
     int linePos = f.lineStarts[e.line - 1];
     List<Ref> refs;
@@ -682,6 +691,7 @@ public class CompilerRenames {
     } else return; // package / unknown location: not a member rename
     if (refs.isEmpty()) return;
     Set<String> owners = jarAncestors(refs, null, null);
+    if (onMoved(e, f, name, isMethod, owners, where, typeName)) return;
     Match m = match(isMethod ? "method" : "field", name, owners, args == null ? -1 : args.size(), args, false, false);
     if (m.status.equals("none")) {
       String hint = hintText(name, owners);
@@ -695,6 +705,31 @@ public class CompilerRenames {
     edits.add(new Edit(f.path, pos, name, r.newName, "a:" + (e.msg.startsWith("invalid method reference") ? "method-ref" : isMethod ? "call" : "field")
       + " " + simpleOwner(r.newOwner) + " " + r.how));
     noteLowSimilarity(r);
+  }
+
+  /**
+   * Overrides {@code moved} lines: the member reached through another object now ({@code mc.screen} ->
+   * {@code mc.gui.screen()}, {@code mc.setScreen(s)} -> {@code mc.gui.setScreen(s)}). Only the identifier at the caret is
+   * replaced; a call keeps its own argument list. Refused (listed as unresolved): method references, assignments to a
+   * field whose replacement is a call, and a call whose replacement already ends in a call. True when a moved line applied.
+   */
+  boolean onMoved(JErr e, SrcFile f, String name, boolean isMethod, Set<String> owners, String where, String typeName) {
+    Moved mv = null;
+    for (String o : owners) for (Moved x : movesByOwner.getOrDefault(o, List.of())) if (x.member.equals(name) && mv == null) mv = x;
+    if (mv == null) return false;
+    int pos = namePosition(e, f, name);
+    String label = simpleOwner(mv.owner) + "#" + name + " -> " + mv.replacement;
+    if (pos < 0) { ambiguous.add(where + "  " + label + "  (position not found on the line)"); return true; }
+    String before = f.masked.substring(f.lineStarts[e.line - 1], pos);
+    String after = f.masked.substring(pos + name.length());
+    boolean callRepl = mv.replacement.endsWith(")");
+    String why = null;
+    if (before.matches("(?s).*::\\s*$")) why = "method reference";
+    else if (isMethod && callRepl) why = "call, but the replacement is a call already";
+    else if (!isMethod && callRepl && after.matches("(?s)^\\s*(?:[-+*/%&|^]|<<|>>>?)?=(?!=).*")) why = "assignment to a field that became a call";
+    if (why != null) { unresolvedOverrides.add(where + "  " + label + "  MOVED, not rewritten: " + why + "  (" + typeName + ")"); return true; }
+    edits.add(new Edit(f.path, pos, name, mv.replacement, "a:moved " + simpleOwner(mv.owner)));
+    return true;
   }
 
   static String names(List<Row> rows) {

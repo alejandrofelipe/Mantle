@@ -53,6 +53,9 @@ try {
     'method net.minecraft.fix.Types cutoutNoCull (Ljava/lang/String;)Ljava/lang/String; cutout'
     'method net.minecraft.fix.Types cutout (Ljava/lang/String;)Ljava/lang/String; cutoutCull'
     'method net.minecraft.fix.Types decal (Ljava/lang/String;)Ljava/lang/String; -'
+    'moved net.minecraft.fix.Minecraft screen gui.screen()'
+    'moved net.minecraft.fix.Minecraft setScreen gui.setScreen'
+    'moved net.minecraft.fix.Minecraft tick gui.tick'
   )
   $out = Join-Path $tmp 'out'
   $mapOut = Join-Path $tmp 'map.txt'; $memOut = Join-Path $tmp 'members.tsv'
@@ -94,20 +97,41 @@ try {
   Assert-Case 'map: implied nested rule omitted' ($map -notmatch 'Graphics\$Pose') $map
   Assert-Case 'map: Material -> SpriteId rule' ($map -match '(?m)^class net\.minecraft\.fix\.model\.Material net\.minecraft\.fix\.model\.sprite\.SpriteId$') $map
   Assert-Case 'map: override rule section + extra rule copied' ($map -match '# --- manual overrides' -and $map -match '(?m)^literal Foo\.INSTANCE Bar\.EMPTY$') $map
-  Assert-Case 'summary line' ($r -match 'classPairs=\d+ .*methodRenames=\d+ fieldRenames=\d+ hints=1') $r
+  Assert-Case 'summary line' ($r -match 'classPairs=\d+ .*methodRenames=\d+ fieldRenames=\d+ fieldMoves=2 \(weak=0\) collectionRules=24 hints=1 moved=3 ') $r
+
+  # --- M8: moved static fields, collections, moved members, same-name changes ---
+  Assert-Case 'moved static field rule (same name + descriptor, new in one other class)' ($map -match '(?m)^field net\.minecraft\.fix\.EntityType\.PIG net\.minecraft\.fix\.EntityTypes\.PIG$' -and $map -match '(?m)^field net\.minecraft\.fix\.EntityType\.COW net\.minecraft\.fix\.EntityTypes\.COW$') $map
+  Assert-Case 'field pulled up into a supertype: no rule (inherited access still compiles)' ($map -notmatch 'MAX_SIZE') $map
+  Assert-Case 'gone static field without a candidate: no rule, listed as removed' ($map -notmatch 'UNRELATED_COUNT' -and $removed -match "(?m)^field`tnet/minecraft/fix/EntityType`tUNRELATED_COUNT") $removed
+  Assert-Case 'moved field is not also a member rename' ($members -notmatch "`tPIG`t") $members
+  Assert-Case 'color collection rule (LIGHT_GRAY_ before GRAY_)' ($map -match '(?m)^field net\.minecraft\.fix\.Items\.RED_DYE net\.minecraft\.fix\.Items\.DYE\.pick\(net\.minecraft\.fix\.DyeColor\.RED\)$' -and $map -match '(?m)^field net\.minecraft\.fix\.Items\.LIGHT_GRAY_DYE net\.minecraft\.fix\.Items\.DYE\.pick\(net\.minecraft\.fix\.DyeColor\.LIGHT_GRAY\)$') $map
+  Assert-Case 'copper collection rules (accessors; COPPER_BLOCK keeps its name)' ($map -match '(?m)^field net\.minecraft\.fix\.Items\.COPPER_BLOCK net\.minecraft\.fix\.Items\.COPPER_BLOCK\.weathering\(\)\.unaffected\(\)$' -and $map -match '(?m)^field net\.minecraft\.fix\.Items\.EXPOSED_COPPER net\.minecraft\.fix\.Items\.COPPER_BLOCK\.weathering\(\)\.exposed\(\)$' -and $map -match '(?m)^field net\.minecraft\.fix\.Items\.WAXED_OXIDIZED_COPPER net\.minecraft\.fix\.Items\.COPPER_BLOCK\.waxed\(\)\.oxidized\(\)$') $map
+  Assert-Case 'field rules run before the class rules' ($map.IndexOf('field net.minecraft.fix.EntityType.PIG') -lt $map.IndexOf('class net.minecraft.fix.Graphics ') -and $map.IndexOf('field net.minecraft.fix.Items.RED_DYE') -lt $map.IndexOf('class net.minecraft.fix.Graphics ')) $map
+  Assert-Case 'moved rows copied into the member table' ($members -match "(?m)^moved`tnet/minecraft/fix/Minecraft`tnet/minecraft/fix/Minecraft`tscreen`tgui\.screen\(\)`t" -and $members -match "(?m)^moved`tnet/minecraft/fix/Minecraft`tnet/minecraft/fix/Minecraft`tsetScreen`tgui\.setScreen`t") $members
+  Assert-Case 'moved member that still exists: warning' ($warnings -match 'moved member net\.minecraft\.fix\.Minecraft#tick still exists') $warnings
+  $changed = Get-Content (Join-Path $out 'changed.tsv') -Raw
+  Assert-Case 'changed.tsv: same-name field with a new type' ($changed -match "field`tnet/minecraft/fix/Items`tnet/minecraft/fix/Items`tCOPPER_BLOCK`tLnet/minecraft/fix/Item;`tLnet/minecraft/fix/WeatheringCopperCollection;") $changed
 
   # the generated map is valid input for Invoke-RenameMap.ps1
   $root = Join-Path $tmp 'repo'
   New-Item -ItemType Directory -Force (Join-Path $root 'src') | Out-Null
   Set-Content -LiteralPath (Join-Path $root 'src/U.java') -Value @('import net.minecraft.fix.model.Material;', 'class U { Material m; }')
+  Set-Content -LiteralPath (Join-Path $root 'src/F.java') -Value @(
+    'package f;', 'import net.minecraft.fix.EntityType;', 'import net.minecraft.fix.Items;',
+    'class F { Object a = EntityType.PIG, b = Items.RED_DYE, c = Items.COPPER_BLOCK, d = Items.WAXED_EXPOSED_COPPER, e = Items.STICK; }')
   $rm = & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'Invoke-RenameMap.ps1') -Root $root -Map $mapOut -Apply 2>&1 | Out-String
   $u = Get-Content (Join-Path $root 'src/U.java') -Raw
   Assert-Case 'generated map applies (Material user becomes SpriteId)' ($LASTEXITCODE -eq 0 -and $u -match 'import net\.minecraft\.fix\.model\.sprite\.SpriteId;' -and $u -match 'SpriteId m;') "$rm $u"
+  $fj = Get-Content (Join-Path $root 'src/F.java') -Raw
+  Assert-Case 'generated field rules apply (imports added)' ($fj -match 'a = EntityTypes\.PIG, b = Items\.DYE\.pick\(DyeColor\.RED\), c = Items\.COPPER_BLOCK\.weathering\(\)\.unaffected\(\), d = Items\.COPPER_BLOCK\.waxed\(\)\.exposed\(\), e = Items\.STICK;' -and $fj -match 'import net\.minecraft\.fix\.EntityTypes;' -and $fj -match 'import net\.minecraft\.fix\.DyeColor;') "$rm $fj"
 
   # bad overrides
   Set-Content -LiteralPath $ov -Value 'class net.minecraft.fix.Nope net.minecraft.fix.Graphics'
   $r = & pwsh -NoProfile -File $tool -OldJar $oldJar -NewJar $newJar -Out $out -Overrides $ov 2>&1 | Out-String
   Assert-Case 'override naming a missing class exits 2' ($LASTEXITCODE -eq 2 -and $r -match 'old class not in old jar') $r
+  Set-Content -LiteralPath $ov -Value @('moved net.minecraft.fix.Nope screen gui.screen()', 'moved net.minecraft.fix.Minecraft screen')
+  $r = & pwsh -NoProfile -File $tool -OldJar $oldJar -NewJar $newJar -Out $out -Overrides $ov 2>&1 | Out-String
+  Assert-Case 'bad moved lines exit 2 (owner not in the new jar, missing replacement)' ($LASTEXITCODE -eq 2 -and $r -match 'line 1: moved owner not in new jar' -and $r -match 'line 2: moved <owner> <member> <replacement>') $r
   $r = & pwsh -NoProfile -File $tool -OldJar (Join-Path $tmp 'nope.jar') -NewJar $newJar -Out $out 2>&1 | Out-String
   Assert-Case 'missing jar exits 1' ($LASTEXITCODE -eq 1) $r
 } finally {

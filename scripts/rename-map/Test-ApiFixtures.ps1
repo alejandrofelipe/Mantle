@@ -5,8 +5,22 @@
 # collision (render / renderBackground), a static field rename, a removed abstract method (renderBg) and a same-name swap
 # (Types: cutoutNoCull -> cutout while the old cutout became cutoutCull; decal removed; cutoutAlt removed with the same
 # descriptor as the reserved cutoutCull, so it must not be paired with it).
+# M8 additions: static fields moved to another class (EntityType.PIG -> EntityTypes.PIG), a static field pulled up into a
+# supertype (Slime.MAX_SIZE -> Cube, no rule), constants folded into collections (Items.<COLOR>_DYE ->
+# Items.DYE.pick(DyeColor.<COLOR>), Items.[WAXED_][EXPOSED_|...]COPPER -> Items.COPPER_BLOCK.weathering()/.waxed() accessors,
+# COPPER_BLOCK keeps its name with a new type), and members moved behind another object (Minecraft#screen ->
+# gui.screen(), #setScreen -> gui.setScreen, #getMainRenderTarget -> gameRenderer.mainRenderTarget) for 'moved' lines.
+
+$FixColors = 'WHITE', 'ORANGE', 'MAGENTA', 'LIGHT_BLUE', 'YELLOW', 'LIME', 'PINK', 'GRAY', 'LIGHT_GRAY', 'CYAN', 'PURPLE', 'BLUE', 'BROWN', 'GREEN', 'RED', 'BLACK'
+$FixCopper = 'COPPER_BLOCK', 'EXPOSED_COPPER', 'WEATHERED_COPPER', 'OXIDIZED_COPPER', 'WAXED_COPPER_BLOCK', 'WAXED_EXPOSED_COPPER', 'WAXED_WEATHERED_COPPER', 'WAXED_OXIDIZED_COPPER'
+$oldItemFields = (@('STICK') + ($FixColors | ForEach-Object { "${_}_DYE" }) + $FixCopper | ForEach-Object { "  public static final Item $_ = new Item();" }) -join "`n"
 
 $OldApi = @{
+  'net/minecraft/fix/Item.java'               = 'package net.minecraft.fix; public class Item {}'
+  'net/minecraft/fix/Items.java'              = "package net.minecraft.fix;`npublic class Items {`n$oldItemFields`n}"
+  'net/minecraft/fix/EntityType.java'         = 'package net.minecraft.fix; public class EntityType { public static final EntityType PIG = new EntityType(); public static final EntityType COW = new EntityType(); public static final int UNRELATED_COUNT = 3; public String id() { return ""; } }'
+  'net/minecraft/fix/Slime.java'              = 'package net.minecraft.fix; public class Slime { public static final int MAX_SIZE = 4; public int size() { return 1; } }'
+  'net/minecraft/fix/Minecraft.java'          = 'package net.minecraft.fix; public class Minecraft { public Screen screen; public static Minecraft getInstance() { return null; } public void setScreen(Screen s) {} public Object getMainRenderTarget() { return null; } public void tick() {} }'
   'net/minecraft/fix/Graphics.java'           = @'
 package net.minecraft.fix;
 public class Graphics {
@@ -64,6 +78,18 @@ public record BlockModel(String parent, Object geometry, Boolean ambientOcclusio
 }
 
 $NewApi = @{
+  'net/minecraft/fix/Item.java'                       = 'package net.minecraft.fix; public class Item {}'
+  'net/minecraft/fix/DyeColor.java'                   = "package net.minecraft.fix; public enum DyeColor { $($FixColors -join ', ') }"
+  'net/minecraft/fix/ColorCollection.java'            = 'package net.minecraft.fix; public record ColorCollection<T>(T white) { public T pick(DyeColor c) { return white; } }'
+  'net/minecraft/fix/WeatheringCopperCollection.java' = 'package net.minecraft.fix; public record WeatheringCopperCollection<T>(ByState<T> weathering, ByState<T> waxed) { public record ByState<T>(T unaffected, T exposed, T weathered, T oxidized) {} }'
+  'net/minecraft/fix/Items.java'                      = 'package net.minecraft.fix; public class Items { public static final Item STICK = new Item(); public static final ColorCollection<Item> DYE = null; public static final WeatheringCopperCollection<Item> COPPER_BLOCK = null; }'
+  'net/minecraft/fix/EntityType.java'                 = 'package net.minecraft.fix; public class EntityType { public String id() { return ""; } }'
+  'net/minecraft/fix/EntityTypes.java'                = 'package net.minecraft.fix; public class EntityTypes { public static final EntityType PIG = new EntityType(); public static final EntityType COW = new EntityType(); }'
+  'net/minecraft/fix/Cube.java'                       = 'package net.minecraft.fix; public class Cube { public static final int MAX_SIZE = 4; public int size() { return 1; } }'
+  'net/minecraft/fix/Slime.java'                      = 'package net.minecraft.fix; public class Slime extends Cube { public void split() {} }'
+  'net/minecraft/fix/Gui.java'                        = 'package net.minecraft.fix; public class Gui { public Screen screen() { return null; } public void setScreen(Screen s) {} }'
+  'net/minecraft/fix/GameRenderer.java'               = 'package net.minecraft.fix; public class GameRenderer { public Object mainRenderTarget() { return null; } }'
+  'net/minecraft/fix/Minecraft.java'                  = 'package net.minecraft.fix; public class Minecraft { public final Gui gui = new Gui(); public final GameRenderer gameRenderer = new GameRenderer(); public static Minecraft getInstance() { return null; } public void tick() {} }'
   'net/minecraft/fix/GraphicsExtractor.java'          = @'
 package net.minecraft.fix;
 public class GraphicsExtractor {

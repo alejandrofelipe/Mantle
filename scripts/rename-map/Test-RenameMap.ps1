@@ -191,6 +191,69 @@ try {
   $r = Invoke-Tool $root5 $badClass
   Assert-Case 'class rule without a package is a syntax error' ($r.Exit -eq 2) "exit=$($r.Exit)"
 
+  # --- field rules: moved static fields / constants folded into collections ---
+  $root7 = Join-Path $tmp 'repo7'
+  $fUser = New-Fixture $root7 'src/a/User.java' @(
+    'package a;'
+    'import net.mc.world.EntityType;'
+    'import net.mc.item.Items;'
+    'class User {'
+    '  Object p = EntityType.PIG, q = EntityType'
+    '      .COW, r = net.mc.world.EntityType.PIG, keep = EntityType.PIGLIN, s = "EntityType.PIG";'
+    '  Object d = Items.RED_DYE, c = Items.COPPER_BLOCK, stick = Items.STICK;'
+    '  EntityType<?> type;'
+    '}'
+  ) "`r`n" $false
+  $fOther = New-Fixture $root7 'src/b/Other.java' @(
+    'package b;'
+    'import my.own.EntityType;'
+    'class Other { Object p = EntityType.PIG, q = net.mc.world.EntityType.COW; }'
+  ) "`n" $false
+  $fStatic = New-Fixture $root7 'src/c/Static.java' @(
+    'package c;'
+    'import static net.mc.world.EntityType.PIG;'
+    'import static net.mc.item.Items.RED_DYE;'
+    'class Static { Object p = PIG, d = RED_DYE; }'
+  ) "`n" $false
+  $fClash = New-Fixture $root7 'src/d/Clash.java' @(
+    'package d;'
+    'import net.mc.item.Items;'
+    'import my.own.DyeColor;'
+    'class Clash { Object d = Items.RED_DYE; }'
+  ) "`n" $false
+  $fSamePkg = New-Fixture $root7 'src/net/mc/item/Local.java' @(
+    'package net.mc.item;'
+    'import net.mc.world.EntityType;'
+    'import net.mc.item.Items;'
+    'class Local { Object d = Items.RED_DYE; }'
+  ) "`n" $false
+  $map7 = Join-Path $tmp 'map7.txt'
+  [System.IO.File]::WriteAllText($map7, @(
+      'field net.mc.world.EntityType.PIG net.mc.world.EntityTypes.PIG'
+      'field net.mc.world.EntityType.COW net.mc.world.EntityTypes.COW'
+      'field net.mc.item.Items.RED_DYE net.mc.item.Items.DYE.pick(net.mc.item.DyeColor.RED)'
+      'field net.mc.item.Items.COPPER_BLOCK net.mc.item.Items.COPPER_BLOCK.weathering().unaffected()'
+    ) -join "`n")
+  $r7 = Invoke-Tool $root7 $map7 -Apply
+  Assert-Case 'field rule exits 0' ($r7.Exit -eq 0) $r7.Out
+  $u7 = Get-Text $fUser
+  Assert-Case 'field rule: moved field in a file importing the old owner (+ import, CRLF kept, line break inside the access)' ($u7 -eq (@(
+        'package a;', 'import net.mc.world.EntityType;', 'import net.mc.item.Items;', 'import net.mc.world.EntityTypes;', 'import net.mc.item.DyeColor;', 'class User {'
+        '  Object p = EntityTypes.PIG, q = EntityTypes.COW, r = net.mc.world.EntityTypes.PIG, keep = EntityType.PIGLIN, s = "EntityTypes.PIG";'
+        '  Object d = Items.DYE.pick(DyeColor.RED), c = Items.COPPER_BLOCK.weathering().unaffected(), stick = Items.STICK;'
+        '  EntityType<?> type;', '}', '') -join "`r`n")) $u7
+  Assert-Case 'field rule: string hit flagged' ($r7.Out -match 'User\.java:6 ') ($r7.Out -split "`n" | Select-String 'WARNING|User' | Out-String)
+  Assert-Case 'field rule: another EntityType class keeps its simple name, the FQN form is still rewritten' ((Get-Text $fOther) -eq "package b;`nimport my.own.EntityType;`nclass Other { Object p = EntityType.PIG, q = net.mc.world.EntityTypes.COW; }`n") (Get-Text $fOther)
+  Assert-Case 'field rule: static import of a moved field rewritten; of an expression left alone and reported' ((Get-Text $fStatic) -match 'import static net\.mc\.world\.EntityTypes\.PIG;' -and (Get-Text $fStatic) -match 'import static net\.mc\.item\.Items\.RED_DYE;' -and $r7.Out -match 'Static\.java:3  \[rule 3\]  static import of net\.mc\.item\.Items\.RED_DYE not rewritten') "$(Get-Text $fStatic) $($r7.Out)"
+  Assert-Case 'field rule: a clashing simple name keeps the FQN in the expression (no import)' ((Get-Text $fClash) -match 'Items\.DYE\.pick\(net\.mc\.item\.DyeColor\.RED\)' -and (Get-Text $fClash) -notmatch 'import net\.mc\.item\.DyeColor;') (Get-Text $fClash)
+  Assert-Case 'field rule: no import for a class of the same package' ((Get-Text $fSamePkg) -match 'Items\.DYE\.pick\(DyeColor\.RED\)' -and (Get-Text $fSamePkg) -notmatch 'import net\.mc\.item\.DyeColor;') (Get-Text $fSamePkg)
+  $again7 = Invoke-Tool $root7 $map7 -Apply
+  Assert-Case 'field rule: second apply is a no-op (same-name rule guarded)' ($again7.Exit -eq 0 -and $again7.Out -match 'written=0' -and $again7.Out -match 'hits=0') $again7.Out
+  $badField = Join-Path $tmp 'badfield.txt'
+  [System.IO.File]::WriteAllText($badField, "field NoOwner.X net.mc.A.X`nfield net.mc.A.X lowercase.expr`n")
+  $r = Invoke-Tool $root7 $badField
+  Assert-Case 'field rule without an owner FQN / with an expression not starting with a class is a syntax error' ($r.Exit -eq 2 -and $r.Out -match 'line 1:' -and $r.Out -match 'line 2:') $r.Out
+
   # --- bad map syntax ---
   foreach ($bad in @('token OnlyTwo', 'rename A B', 'token A B # trailing comment')) {
     $badMap = Join-Path $tmp 'bad.txt'

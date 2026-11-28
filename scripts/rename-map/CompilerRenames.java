@@ -22,6 +22,8 @@ import java.util.zip.ZipFile;
  *       with a compatible arity;</li>
  *   <li>(b) {@code method does not override or implement a method from a supertype}: renames the declaration when a
  *       supertype method with that name and arity was renamed;</li>
+ *   <li>(m) {@code moved} rows of the overrides file: at a {@code cannot find symbol} caret whose location is the row's
+ *       owner (or a subtype), the identifier becomes the replacement ({@code mc.screen -> mc.gui.screen()});</li>
  *   <li>(c) reports (never edits) "possible dead overrides": methods without {@code @Override} whose name/arity matches a
  *       renamed or hinted supertype method that no longer exists - they compile and are never called.</li>
  * </ol>

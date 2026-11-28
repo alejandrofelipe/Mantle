@@ -312,7 +312,7 @@ easy to over-match.
 ## Mechanical renames between versions (rename-map)
 
 From M6 (MC 1.21.11) the scripted renames of a version bump (e.g. `ResourceLocation` → `Identifier`) go through
-`scripts/rename-map/`: a map file per milestone (`maps/<version>.txt`, rules `token`/`literal`/`class`) applied to
+`scripts/rename-map/`: a map file per milestone (`maps/<version>.txt`, rules `token`/`literal`/`class`/`field`) applied to
 `src/**/*.java`. Dry run by default (hits per rule/file + string-literal warnings); `-Apply` rewrites, keeping line endings
 and BOMs. Format, workflow and tests: [`scripts/rename-map/README.md`](../scripts/rename-map/README.md).
 
@@ -364,6 +364,23 @@ The applier only touches identifiers javac reported (`cannot find symbol` member
 declarations) and **reports** unresolved overrides (with the overrides file's hints), ambiguous spots, renames matched by
 descriptor alone (review once each) and possible dead overrides (un-`@Override`d methods whose supertype method was
 renamed/removed). Tests: `Test-FindApiRenames.ps1`, `Test-CompilerRenames.ps1`, `Test-RenameMap.ps1` (README).
+
+From M8 (MC 26.2) two more mechanical groups are covered (README "Map format" / "Moved members"):
+
+- **`field` rules** (generated into `maps/<v>.txt`, they run before the class rules): static fields that **moved to another
+  class** (`EntityType.PIG` → `EntityTypes.PIG`, `BlockEntityType.X` → `BlockEntityTypes.X`; same name + descriptor, new
+  in exactly one other class; a field pulled up into a supertype gets no rule) and **constants folded into collections**
+  (`Items.RED_DYE` → `Items.DYE.pick(DyeColor.RED)`, `Items.EXPOSED_CUT_COPPER` → `Items.CUT_COPPER.weathering().exposed()`).
+  `Invoke-RenameMap` rewrites `Owner.NAME` in files that import the old owner (plus every FQN use) and imports what the
+  expression names. Single moves into an unrelated class are written commented out (`# weak`) for review.
+- **`moved` lines** in `maps/<v>.overrides.txt` (`moved <owner> <member> <replacement>`, owner = the new jar's class javac
+  names as the location): the applier replaces the identifier at a `cannot find symbol` caret, a call keeps its arguments —
+  `mc.screen` → `mc.gui.screen()`, `mc.setScreen(s)` → `mc.gui.setScreen(s)`, `mc.gui.getChat()` → `mc.gui.hud.getChat()`.
+  Method references and assignments to a field that became a call are listed, not rewritten. The jar diff also writes
+  `changed.tsv` (same name, other descriptor or type: input for the same-name caller review, S16).
+
+Baseline proof on Mantle (M8 Phase 0.5a, flow gate, unique errors): 114 → 80 after the map (13 class hits + 2 `field` hits,
+0 string hits) → 46 after one applier pass (33 `moved` + 4 member edits; second pass: 0 edits).
 
 ## Git (port workflow)
 

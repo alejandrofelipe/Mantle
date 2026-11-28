@@ -25,7 +25,9 @@ import java.util.zip.ZipFile;
  * <ul>
  *   <li>{@code classes.tsv}  old -> new class pairs (internal names) and how each was matched</li>
  *   <li>{@code members.tsv}  method/field renames inside class pairs (owner + descriptor), plus manual {@code hint} rows</li>
- *   <li>{@code map.txt}      rename-map rules ({@code class} kind, see Invoke-RenameMap.ps1) + override {@code rule} lines</li>
+ *   <li>{@code map.txt}      rename-map rules ({@code field} kind for moved static fields and constants folded into
+ *                            collections, {@code class} kind, see Invoke-RenameMap.ps1) + override {@code rule} lines</li>
+ *   <li>{@code changed.tsv}  members whose name survived with another descriptor/type (same-name caller review)</li>
  *   <li>{@code warnings.txt} "same simple name, different shape" and "same FQN, different shape" warnings</li>
  *   <li>{@code removed.tsv}  classes and members that vanished without a candidate</li>
  * </ul>

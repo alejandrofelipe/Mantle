@@ -13,13 +13,16 @@
         several fitting renames -> disambiguated by parameter types, else listed as Ambiguous;
     (b) 'method does not override or implement a method from a supertype': renames the declaration when a supertype
         method with that name and arity was renamed (refuses when the class already declares the new name);
+    (m) 'moved' rows (overrides file 'moved <owner> <member> <replacement>'): at a 'cannot find symbol' caret whose
+        location is <owner> (or a subtype) the identifier becomes <replacement> (mc.screen -> mc.gui.screen(),
+        mc.setScreen(s) -> mc.gui.setScreen(s)); method references and assignments are reported instead;
   and reports (never edits):
     (c) "possible dead overrides": methods WITHOUT @Override whose name/arity matches a renamed or hinted supertype
         method that no longer exists (they compile and are never called - the renderBg trap);
     unresolved overrides (with the overrides file's 'hint' text when there is one), ambiguous spots.
   Default is a DRY RUN; -Apply rewrites (only the reported identifiers; encoding, BOM and line endings untouched).
   Loop: compile -> Invoke-CompilerRenames -Apply -> compile, until it reports edits=0.
-  Last line: errors=<n> edits=<n> files=<n> ambiguous=<n> unresolvedOverrides=<n> deadOverrides=<n>.
+  Last line: errors=<n> edits=<n> files=<n> ambiguous=<n> unresolvedOverrides=<n> deadOverrides=<n> moved=<n>.
   Exit code: 0 ok, 1 bad arguments.
 
 .EXAMPLE

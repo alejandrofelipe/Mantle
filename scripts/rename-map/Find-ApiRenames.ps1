@@ -10,7 +10,9 @@
                   outer-renamed / similarity[-xpkg] / shape-over-name / moved-split / moved-low-shape)
     members.tsv   method/field renames inside class pairs: kind, old/new owner, old/new name, old/new descriptor, static,
                   how (desc-unique / name-tiebreak(score) / override) + 'hint' rows from the overrides file
-    map.txt       rename-map rules for Invoke-RenameMap.ps1 ('class' rules + the overrides file's 'rule' lines)
+    map.txt       rename-map rules for Invoke-RenameMap.ps1 ('field' rules for moved static fields and constants folded
+                  into collections, 'class' rules, the overrides file's 'rule' lines); 'moved' lines go to members.tsv
+    changed.tsv   members whose name survived with another descriptor/type (same-name caller review)
     warnings.txt  "same simple name, different shape" / "same FQN, different shape" (semantic swaps such as Material)
     removed.tsv   classes and members that vanished without a candidate (input for the manual part of a port)
   -MapOut / -MembersOut copy map.txt / members.tsv to their committed place (maps/<version>.txt,

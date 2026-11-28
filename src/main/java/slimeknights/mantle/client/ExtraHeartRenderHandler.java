@@ -3,7 +3,7 @@ package slimeknights.mantle.client;
 import com.mojang.blaze3d.platform.Window;
 import net.minecraft.util.Util;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.Hud;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
@@ -96,7 +96,7 @@ public class ExtraHeartRenderHandler {
     // our custom hearts replace the vanilla health layer
     event.setCanceled(true);
 
-    // based on the top of Gui#renderPlayerHealth
+    // based on the top of Hud#renderPlayerHealth
     int tickCount = this.mc.gui.getGuiTicks();
     int health = Mth.ceil(player.getHealth());
     boolean highlight = this.healthBlinkTime > tickCount && (this.healthBlinkTime - tickCount) / 3L % 2L == 1L;
@@ -137,10 +137,10 @@ public class ExtraHeartRenderHandler {
       // vanilla uses max health here, but between us capping it and it looking horrible at low sizes, use 25
       regen = tickCount % 25;
     }
-    // end code based on Gui#renderPlayerHealth
+    // end code based on Hud#renderPlayerHealth
 
     // determine which hearts to display based on status effects
-    // this is inspired by Gui.HeartType#forPlayer, keep it in sync
+    // this is inspired by Hud.HeartType#forPlayer, keep it in sync
     int container = MAX_VARIANT;
     int heartOffset = NORMAL_VARIANT;
     int absorpOffset = ABSORPTION_VARIANT;

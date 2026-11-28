@@ -33,6 +33,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.minecraft.world.entity.EntityTypes;
 
 /**
  * Renderer for entity type ingredients
@@ -87,7 +88,7 @@ public class EntityIngredientRenderer implements IIngredientRenderer<EntityIngre
         Entity entity;
         // players cannot be created using the type, but we can use the client player
         // side effect is it renders armor/items
-        if (type == EntityType.PLAYER) {
+        if (type == EntityTypes.PLAYER) {
           entity = Minecraft.getInstance().player;
         } else {
           // entity is created with the client world, but the entity map is thrown away when JEI restarts so they should be okay I think

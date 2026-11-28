@@ -1,8 +1,8 @@
 package slimeknights.mantle.recipe.data;
 
-import net.minecraft.advancements.Criterion;
-import net.minecraft.advancements.criterion.InventoryChangeTrigger;
-import net.minecraft.advancements.criterion.ItemPredicate;
+import net.minecraft.advancements.triggers.Criterion;
+import net.minecraft.advancements.triggers.InventoryChangeTrigger;
+import net.minecraft.advancements.predicates.ItemPredicate;
 import net.minecraft.core.HolderGetter;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.data.recipes.RecipeCategory;
@@ -51,7 +51,7 @@ public interface ICommonRecipeHelper extends IRecipeHelper {
 
   /** Builds an inventory-changed criterion for the given item predicate, mirroring {@code RecipeProvider.inventoryTrigger} */
   default Criterion<InventoryChangeTrigger.TriggerInstance> inventoryTrigger(ItemPredicate.Builder item) {
-    return net.minecraft.advancements.CriteriaTriggers.INVENTORY_CHANGED.createCriterion(
+    return net.minecraft.advancements.triggers.CriteriaTriggers.INVENTORY_CHANGED.createCriterion(
       new InventoryChangeTrigger.TriggerInstance(java.util.Optional.empty(), InventoryChangeTrigger.TriggerInstance.Slots.ANY, java.util.List.of(item.build())));
   }
 

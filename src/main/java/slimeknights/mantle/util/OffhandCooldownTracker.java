@@ -60,7 +60,7 @@ public class OffhandCooldownTracker {
    * adjust here. Central wiring already calls this from {@code Mantle#registerCapabilities}.
    */
   public static void register(RegisterCapabilitiesEvent event) {
-    event.registerEntity(CAPABILITY, net.minecraft.world.entity.EntityType.PLAYER, (player, ctx) -> getOrCreate(player));
+    event.registerEntity(CAPABILITY, net.minecraft.world.entity.EntityTypes.PLAYER, (player, ctx) -> getOrCreate(player));
   }
 
   /** Player receiving cooldowns */

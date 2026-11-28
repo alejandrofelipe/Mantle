@@ -97,7 +97,7 @@ public class ExtraHeartRenderHandler {
     event.setCanceled(true);
 
     // based on the top of Hud#renderPlayerHealth
-    int tickCount = this.mc.gui.getGuiTicks();
+    int tickCount = this.mc.gui.hud.getGuiTicks();
     int health = Mth.ceil(player.getHealth());
     boolean highlight = this.healthBlinkTime > tickCount && (this.healthBlinkTime - tickCount) / 3L % 2L == 1L;
 
@@ -123,7 +123,7 @@ public class ExtraHeartRenderHandler {
     // setup window size
     Window window = this.mc.getWindow();
     int left = window.getGuiScaledWidth() / 2 - 91;
-    int leftHeight = this.mc.gui.leftHeight;
+    int leftHeight = this.mc.gui.hud.leftHeight;
     int top = window.getGuiScaledHeight() - leftHeight;
 
     // grab max health as the max of it or the health we will display
@@ -224,7 +224,7 @@ public class ExtraHeartRenderHandler {
     int rowsDrawn = 1;                                   // the health row
     if (absorb > 0 && !compactAbsorption) rowsDrawn++;   // a separate absorption row
     if (renderer != HeartRenderer.NO_MAX && maxHealth > 20) rowsDrawn++; // the max-health container overflow row
-    this.mc.gui.leftHeight += rowsDrawn * ROW_HEIGHT;
+    this.mc.gui.hud.leftHeight += rowsDrawn * ROW_HEIGHT;
 
     // 1.21.5: no global shader texture/blend state to reset anymore, GUI draws carry their state in the render type pipeline
     Profiler.get().pop();

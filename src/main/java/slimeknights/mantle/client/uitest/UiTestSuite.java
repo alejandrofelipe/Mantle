@@ -218,9 +218,9 @@ public class UiTestSuite {
     // rather than inside capture() matters — a toast rendered on the previous frame would otherwise
     // still be on screen when the screenshot is taken.
     if (mc.level != null) {
-      mc.getToastManager().clear();
+      mc.gui.toastManager().clear();
       if (mc.gui != null) { // gui can be null very early in startup
-        mc.gui.getChat().clearMessages(false);
+        mc.gui.hud.getChat().clearMessages(false);
       }
     }
     suiteTicks++;

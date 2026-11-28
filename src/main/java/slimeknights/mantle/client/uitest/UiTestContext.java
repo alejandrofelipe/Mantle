@@ -36,17 +36,17 @@ public record UiTestContext(Minecraft mc) {
   /** The open screen, null in the world */
   @Nullable
   public Screen screen() {
-    return mc.screen;
+    return mc.gui.screen();
   }
 
   /** Opens the screen, or closes the open one with null */
   public void setScreen(@Nullable Screen screen) {
-    mc.setScreen(screen);
+    mc.gui.setScreen(screen);
   }
 
   /** The render target the game draws its frames into */
   public RenderTarget mainRenderTarget() {
-    return mc.getMainRenderTarget();
+    return mc.gameRenderer.mainRenderTarget();
   }
 
   public LocalPlayer player() {

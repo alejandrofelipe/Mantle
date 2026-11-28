@@ -366,7 +366,7 @@ public class BookData implements IDataItem, BookScreenOpener {
    */
   public void openGui(Component title, String page, @Nullable Consumer<String> pageUpdater, @Nullable Consumer<?> bookPickup) {
     this.load();
-    Minecraft.getInstance().setScreen(new BookScreen(title, this, page, pageUpdater, bookPickup));
+    Minecraft.getInstance().gui.setScreen(new BookScreen(title, this, page, pageUpdater, bookPickup));
   }
 
   /**

@@ -249,7 +249,7 @@ public class ClientEvents {
     }
     // must not be in a screen, though chat is fine
     Minecraft minecraft = Minecraft.getInstance();
-    if (minecraft.screen != null && minecraft.screen.getClass() != ChatScreen.class) {
+    if (minecraft.gui.screen() != null && minecraft.gui.screen().getClass() != ChatScreen.class) {
       return;
     }
     // must have a hit result

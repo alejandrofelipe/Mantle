@@ -58,7 +58,7 @@ public class StructurePiPRenderer extends PictureInPictureRenderer<StructureRend
   protected void renderToTexture(StructureRenderState state, PoseStack poseStack) {
     // the fullbright block shader ignores the lights, but keep the GUI block lighting bound like the vanilla 3D picture-in-picture renderers
     Minecraft minecraft = Minecraft.getInstance();
-    minecraft.gameRenderer.getLighting().setupFor(Lighting.Entry.ITEMS_3D);
+    minecraft.gameRenderer.lighting().setupFor(Lighting.Entry.ITEMS_3D);
 
     // the pose arrives centered on the texture, y down, scaled to state.scale() GUI units per unit with z pointing away from the viewer
     float pixelsPerBlock = minecraft.getWindow().getGuiScale() * state.scale();

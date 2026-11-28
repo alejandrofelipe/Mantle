@@ -83,7 +83,7 @@ final class UiTestProgress {
 
   private static void onRenderGui(RenderGuiEvent.Post event) {
     // with a screen open the HUD is drawn below it, so the screen event draws the bar instead
-    if (Minecraft.getInstance().screen == null) {
+    if (UiTestContext.current().screen() == null) {
       draw(event.getGuiGraphics());
     }
   }

@@ -34,7 +34,7 @@ public interface UiTestScenario {
 
   /** Restore state; default closes any open screen. Runs only after a successful capture, see {@link #cleanup}. */
   default void close(UiTestContext ctx) {
-    ctx.mc().setScreen(null);
+    ctx.setScreen(null);
   }
 
   /**
